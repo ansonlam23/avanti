@@ -7,31 +7,32 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─────────────────────────────────────────────────────────────
-   Open Sign · "thermal print / order pad" (DESIGN.md)
-   Everything is printed by a receipt printer or written on a
-   carbon-copy order pad, lying on one calm counter.
-   Tokens live here; materials + keyframes in src/styles/brand.css.
-   One theme on purpose: paper is white in every room (no dark mode).
+   avanti · "ink" (DESIGN.md)
+   The landing page's ink plate, carried into every screen: rice
+   paper, deep teal sumi ink, and one vermilion seal for decisions.
+   Token names are kept from the thermal-print system (paper, ink,
+   stamp, pad, counter…) so components restyle without renames.
+   Materials + keyframes in src/styles/brand.css. One light theme.
    ───────────────────────────────────────────────────────────── */
 
 @theme {
   /* Materials */
-  --color-paper: #fbfbf7; /* thermal paper */
-  --color-paper-shade: #f1f0ea; /* paper in its own shadow / curl */
-  --color-ink: #161616; /* printed by the machine (17:1 on paper) */
-  --color-ink-muted: #55554f; /* faded print, secondary text (≥5.8:1 on every surface) */
-  --color-ink-faint: #8a8a82; /* rules, dots, outlines: never text */
-  --color-stamp: #d7261e; /* rubber-stamp ink: decisions (4.8:1 on paper; stamps are large text) */
-  --color-stamp-deep: #b3201a; /* the same ink for small red text (6:1 on paper) */
-  --color-carbon: #2b4dbf; /* carbon pen: the owner's handwriting (6:1 on the pad) */
-  --color-pad: #f6edc0; /* carbon order pad: the shop's copy */
-  --color-pad-line: #e2d59b; /* rules printed on the pad */
-  --color-counter: #e4e0d6; /* the one surface everything lies on */
-  --color-counter-deep: #d5d0c4; /* wells, slots, the counter in shadow */
-  --color-steel: #c2c5c0; /* rail, clips, the spindle */
-  --color-steel-deep: #7b7f7a;
-  --color-machine: #2b2b29; /* printer housing */
-  --color-highlight: #f7e27c; /* highlighter swipe: the item a shopper asks about */
+  --color-paper: #f5f1ea; /* rice paper: cards, slips, the chat sheet */
+  --color-paper-shade: #eae3d9; /* paper in its own shadow */
+  --color-ink: #163a42; /* sumi ink, teal-black: body text (9.8:1 on counter) */
+  --color-ink-muted: #46636a; /* diluted ink: secondary text (≥5.1:1 on every surface) */
+  --color-ink-faint: #9aadb0; /* wash lines, rules, outlines: never text */
+  --color-stamp: #b5392b; /* vermilion seal ink: decisions (4.7:1 on counter; seals are large text) */
+  --color-stamp-deep: #9a2f23; /* the same seal ink for small text (6:1) */
+  --color-carbon: #175a67; /* the brand teal (the landing's ink): links, primary actions, focus (6.2:1) */
+  --color-pad: #dfe6e2; /* teal wash: the shop's side */
+  --color-pad-line: #c7d3cf; /* rules on the wash */
+  --color-counter: #ebe5de; /* the page: the landing plate's paper */
+  --color-counter-deep: #dfd7cc; /* wells, slots, paper in shadow */
+  --color-steel: #bcc6c4; /* rails, clips, hardware */
+  --color-steel-deep: #6f8487;
+  --color-machine: #163a42; /* dark keys and housings: sumi ink */
+  --color-highlight: #cfe0da; /* a teal wash swipe: the item a shopper asks about */
 
   /* Status words stay in ink; their stamps are red. Kept as aliases so
      status text never needs a raw hex. */
@@ -45,16 +46,10 @@
   --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-stamp: cubic-bezier(0.2, 1.5, 0.35, 1);
 
-  /* Soft, layered, warm shadows: paper lying on the counter. */
-  --shadow-slip:
-    0 0.5px 0.5px rgb(60 50 30 / 0.12), 0 2px 4px -1px rgb(60 50 30 / 0.1),
-    0 9px 16px -8px rgb(60 50 30 / 0.2), 0 24px 40px -22px rgb(60 50 30 / 0.3);
-  /* Paper picked up / mid-air (a lift reads as a bigger, softer shadow). */
-  --shadow-lift:
-    0 1px 1px rgb(60 50 30 / 0.1), 0 6px 10px -4px rgb(60 50 30 / 0.14),
-    0 22px 30px -14px rgb(60 50 30 / 0.26), 0 44px 60px -30px rgb(60 50 30 / 0.32);
-  /* A printed button resting on paper. */
-  --shadow-key: 0 1px 0 rgb(255 255 255 / 0.14) inset, 0 2px 0 rgb(0 0 0 / 0.22), 0 6px 12px -6px rgb(0 0 0 / 0.35);
+  /* Flat ink on paper: shadows are faint, cool and close (no glow, no lift drama). */
+  --shadow-slip: 0 0 0 1px rgb(22 58 66 / 0.08), 0 1px 2px rgb(22 58 66 / 0.06), 0 8px 18px -12px rgb(22 58 66 / 0.18);
+  --shadow-lift: 0 0 0 1px rgb(22 58 66 / 0.1), 0 2px 4px rgb(22 58 66 / 0.07), 0 18px 32px -18px rgb(22 58 66 / 0.24);
+  --shadow-key: 0 1px 0 rgb(22 58 66 / 0.18);
 
   /* Public pages at laptop size (additive). Phones keep the §2 sizes; these
      fluid steps grow the same fonts up to a desktop scale. */
@@ -67,7 +62,7 @@
   --text-lede--line-height: 1.6;
   --text-body-lg: clamp(1rem, 0.9rem + 0.25vw, 1.125rem); /* 16px phone → 18px laptop */
   --text-body-lg--line-height: 1.55;
-  --color-stamp-lit: #ff7a6e; /* stamp ink on a black key (same as Stamp surface="dark") */
+  --color-stamp-lit: #f08c7e; /* seal ink on a dark ink key */
 }
 
 @theme inline {
@@ -75,13 +70,13 @@
   --color-foreground: var(--foreground);
 
   /* Four fonts, four jobs (DESIGN.md §2). */
-  --font-sans: var(--font-space-mono), ui-monospace, "SFMono-Regular", Menlo, monospace; /* receipt text + UI */
-  --font-mono: var(--font-space-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-receipt: var(--font-space-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-display: var(--font-barlow), "Arial Narrow", "Helvetica Neue", sans-serif; /* heavy headings, prices */
-  --font-heading: var(--font-barlow), "Arial Narrow", "Helvetica Neue", sans-serif;
-  --font-dot: var(--font-doto), ui-monospace, monospace; /* dot-matrix numerals: codes, counts, timers */
-  --font-pen: var(--font-nanum-pen), "Bradley Hand", "Segoe Print", cursive; /* the owner's handwriting */
+  --font-sans: var(--font-redhat-text), "Optima", "Segoe UI", system-ui, sans-serif; /* body + UI */
+  --font-mono: var(--font-redhat-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-receipt: var(--font-redhat-mono), ui-monospace, "SFMono-Regular", Menlo, monospace; /* slips, codes */
+  --font-display: var(--font-marcellus), "Optima", "Candara", "Segoe UI", sans-serif; /* wordmark, headings, prices */
+  --font-heading: var(--font-marcellus), "Optima", "Candara", "Segoe UI", sans-serif;
+  --font-dot: var(--font-redhat-mono), ui-monospace, monospace; /* codes, counts, timers */
+  --font-pen: var(--font-nanum-brush), "Bradley Hand", "Segoe Print", cursive; /* the owner's brush handwriting */
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -121,41 +116,41 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* One theme: thermal paper on a warm counter. shadcn semantic vars map onto it. */
+/* One theme: rice paper and teal ink. shadcn semantic vars map onto it. */
 :root {
   color-scheme: light;
-  --background: #e4e0d6;
-  --foreground: #161616;
-  --card: #fbfbf7;
-  --card-foreground: #161616;
-  --popover: #fbfbf7;
-  --popover-foreground: #161616;
-  --primary: #161616;
-  --primary-foreground: #fbfbf7;
-  --secondary: #efede6;
-  --secondary-foreground: #161616;
-  --muted: #efede6;
-  --muted-foreground: #55554f;
-  --accent: #efede6;
-  --accent-foreground: #161616;
-  --destructive: #b3201a;
-  --border: rgb(22 22 22 / 0.14);
-  --input: rgb(22 22 22 / 0.32);
-  --ring: #2b4dbf;
-  --chart-1: #161616;
-  --chart-2: #2b4dbf;
-  --chart-3: #d7261e;
-  --chart-4: #55554f;
-  --chart-5: #8a8a82;
-  --radius: 0.25rem;
-  --sidebar: #fbfbf7;
-  --sidebar-foreground: #161616;
-  --sidebar-primary: #161616;
-  --sidebar-primary-foreground: #fbfbf7;
-  --sidebar-accent: #efede6;
-  --sidebar-accent-foreground: #161616;
-  --sidebar-border: rgb(22 22 22 / 0.14);
-  --sidebar-ring: #2b4dbf;
+  --background: #ebe5de;
+  --foreground: #163a42;
+  --card: #f5f1ea;
+  --card-foreground: #163a42;
+  --popover: #f5f1ea;
+  --popover-foreground: #163a42;
+  --primary: #175a67;
+  --primary-foreground: #f5f1ea;
+  --secondary: #e4ddd3;
+  --secondary-foreground: #163a42;
+  --muted: #e4ddd3;
+  --muted-foreground: #46636a;
+  --accent: #dfe6e2;
+  --accent-foreground: #163a42;
+  --destructive: #9a2f23;
+  --border: rgb(22 58 66 / 0.16);
+  --input: rgb(22 58 66 / 0.34);
+  --ring: #175a67;
+  --chart-1: #163a42;
+  --chart-2: #175a67;
+  --chart-3: #b5392b;
+  --chart-4: #46636a;
+  --chart-5: #9aadb0;
+  --radius: 0rem; /* square corners everywhere */
+  --sidebar: #f5f1ea;
+  --sidebar-foreground: #163a42;
+  --sidebar-primary: #175a67;
+  --sidebar-primary-foreground: #f5f1ea;
+  --sidebar-accent: #dfe6e2;
+  --sidebar-accent-foreground: #163a42;
+  --sidebar-border: rgb(22 58 66 / 0.16);
+  --sidebar-ring: #175a67;
 }
 
 @layer base {
@@ -175,7 +170,7 @@
        iOS Safari ignores fixed backgrounds, so we never rely on them). */
     background-color: var(--color-counter);
     background-image:
-      radial-gradient(90% 100% at 50% 0%, rgb(255 253 246 / 0.6), transparent 70%),
+      radial-gradient(90% 100% at 50% 0%, rgb(255 255 255 / 0.32), transparent 70%),
       var(--counter-grain);
     background-size: 100% 760px, 240px 240px;
     background-repeat: no-repeat, repeat;
@@ -188,7 +183,7 @@
     background: var(--color-highlight);
     color: var(--color-ink);
   }
-  /* One focus ring everywhere: carbon blue, never removed. */
+  /* One focus ring everywhere: brand teal, never removed. */
   :focus-visible {
     outline: 3px solid var(--color-carbon);
     outline-offset: 3px;

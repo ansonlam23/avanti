@@ -12,7 +12,7 @@
 /* Texture tiles (data-URI SVG, generated in code: no image assets). */
 :root {
   /* The counter: a whisper of warm grain (calm, never a pattern). */
-  --counter-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .36  0 0 0 0 .31  0 0 0 0 .22  0 0 0 .11 -.02'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+  --counter-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .09  0 0 0 0 .23  0 0 0 0 .26  0 0 0 .09 -.02'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
 
   /* Thermal paper: smooth, with a faint speck. */
   --paper-speck: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .4  0 0 0 0 .37  0 0 0 0 .3  0 0 0 .1 -.02'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");

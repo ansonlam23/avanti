@@ -1,48 +1,48 @@
 import type { Metadata, Viewport } from "next";
-import { Barlow_Condensed, Doto, Nanum_Pen_Script, Space_Mono } from "next/font/google";
+import { Marcellus, Nanum_Brush_Script, Red_Hat_Mono, Red_Hat_Text } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-// Four fonts, four jobs (DESIGN.md §2).
-// Barlow Condensed: heavy headings, OPEN, prices, buttons.
-const barlow = Barlow_Condensed({
-  variable: "--font-barlow",
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["600", "700", "800", "900"],
+// avanti · ink (DESIGN.md §2): four fonts, four jobs.
+// Marcellus: the wordmark, headings, buttons and big prices (the landing page's face).
+const marcellus = Marcellus({
+  variable: "--font-marcellus",
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
 });
 
-// Space Mono: everything a receipt printer would print (body + UI).
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["400", "700"],
+// Red Hat Text: body copy and interface text.
+const redHatText = Red_Hat_Text({
+  variable: "--font-redhat-text",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
 });
 
-// Doto: dot-matrix numerals for codes, counts and timers (≥ 28px only).
-const doto = Doto({
-  variable: "--font-doto",
-  subsets: ["latin"],
-  axes: ["ROND"],
+// Red Hat Mono: what's printed on a slip (receipts, codes, amounts in lists).
+const redHatMono = Red_Hat_Mono({
+  variable: "--font-redhat-mono",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
 });
 
-// Nanum Pen Script: the owner's handwriting on the order pad (≥ 24px only).
-const nanumPen = Nanum_Pen_Script({
-  variable: "--font-nanum-pen",
+// Nanum Brush Script: the owner's own handwriting, in brush ink (≥ 24px only).
+const nanumBrush = Nanum_Brush_Script({
+  variable: "--font-nanum-brush",
   subsets: ["latin"],
   weight: "400",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Open Sign — every shop, open to every AI",
-    template: "%s · Open Sign",
+    default: "avanti — every shop, open to every AI",
+    template: "%s · avanti",
   },
   description:
-    "The OPEN sign for AI shoppers: small shops go live for AI in 40 seconds, with Visa-verified orders.",
+    "avanti opens any small shop to AI shoppers: snap the counter, say your prices, and verified AI shoppers can order, with the money held on Visa until pickup.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#e4e0d6",
+  themeColor: "#ebe5de",
   colorScheme: "light",
 };
 
@@ -50,7 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={[barlow.variable, spaceMono.variable, doto.variable, nanumPen.variable, "h-full antialiased"].join(" ")}
+      className={[marcellus.variable, redHatText.variable, redHatMono.variable, nanumBrush.variable, "h-full antialiased"].join(" ")}
     >
       <body className="flex min-h-full flex-col">
         <Providers>{children}</Providers>
