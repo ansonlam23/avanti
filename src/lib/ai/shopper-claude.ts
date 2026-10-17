@@ -14,7 +14,7 @@ import { runTool } from "@/lib/ai/tools";
 import { CLAUDE_TOOLS } from "@/lib/ai/tools/declarations";
 
 // The shopper's tool loop on Claude (the paid overflow, CONTRACTS §12). Same
-// contract as the Gemini loop: stream text as it arrives, `call` once a
+// contract as the Gemini loop: text (only from the round that answers, see below), `call` once a
 // tool_use block is complete, run the read-only tools, `tool` per result,
 // repeat; the last round is text-only. No extended thinking.
 
@@ -58,8 +58,11 @@ export async function runClaudeTurn(t: ProviderTurn, client: ClaudeClient = getC
       },
       { signal },
     );
+    // Claude narrates before tool calls ("I'll check…"). Only a round that ends
+    // without tools is the answer, so hold the text until the round finishes.
+    const roundText: string[] = [];
     stream.on("text", (delta) => {
-      if (delta) emit({ type: "text", delta });
+      if (delta) roundText.push(delta);
     });
     stream.on("contentBlock", (block) => {
       // The block is complete here, so its input is the real args.
@@ -71,7 +74,10 @@ export async function runClaudeTurn(t: ProviderTurn, client: ClaudeClient = getC
 
     const uses = message.content.filter((b): b is ToolUseBlock => b.type === "tool_use");
     // Only a finished tool round runs tools: max_tokens or a refusal can cut a call off mid-input.
-    if (!uses.length || message.stop_reason !== "tool_use") break;
+    if (!uses.length || message.stop_reason !== "tool_use") {
+      for (const delta of roundText) emit({ type: "text", delta });
+      break;
+    }
 
     rounds++;
     // The model's content exactly as sent (any thinking blocks included) for the next round.

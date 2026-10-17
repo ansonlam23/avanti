@@ -107,18 +107,18 @@ describe("the Claude loop (a full turn with SHOPPER_AI=claude)", () => {
     expect(stats.rounds).toBe(1);
   });
 
-  it("sends a preamble back with its tool_use, and records it as its own sentence", async () => {
+  it("keeps a pre-tool preamble out of the answer, but still sends it back with its tool_use", async () => {
     claude.script.push(
       { text: ["Let me check."], tools: [{ id: "toolu_1", name: "search_shops", input: { query: "cake" } }] },
       { text: ["Mai's has one."] },
     );
     const { events } = await run([{ role: "user", text: "cake?" }]);
-    expect(events.map((e) => e.type)).toEqual(["text", "call", "tool", "text", "turn"]);
+    expect(events.map((e) => e.type)).toEqual(["call", "tool", "text", "turn"]);
     expect(claude.requests[1].messages.at(-2)?.content).toMatchObject([
       { type: "text", text: "Let me check." },
       { type: "tool_use", id: "toolu_1" },
     ]);
-    expect(turnOf(events).text).toBe("Let me check. Mai's has one.");
+    expect(turnOf(events).text).toBe("Mai's has one.");
   });
 
   it("answers parallel calls together, in order, and flags a failed tool", async () => {
