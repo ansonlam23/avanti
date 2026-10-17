@@ -273,7 +273,7 @@ describe("release (authorization reversal)", () => {
     const r = await adapter.release(release);
     expect(calls[0].url).toBe(`https://apitest.cybersource.com/pts/v2/payments/${AUTH_ID}/reversals`);
     expect(calls[0].body).toEqual({
-      clientReferenceInformation: { code: ORDER_ID, comments: "Open Sign: no-show, hold released" },
+      clientReferenceInformation: { code: ORDER_ID, comments: "avanti: no-show, hold released" },
       reversalInformation: { amountDetails: { totalAmount: "18.00", currency: "USD" } },
     });
     expect(r).toMatchObject({ ok: true, mode: "sandbox", id: "7609478600000000000003", status: "REVERSED" });
