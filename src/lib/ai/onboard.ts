@@ -99,6 +99,9 @@ async function callGemini(
             responseJsonSchema: ONBOARD_RESPONSE_SCHEMA,
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             abortSignal: AbortSignal.timeout(28_000),
+            // No SDK retries (its default is 5 tries with 1-8 s waits on 429): a 429 must move
+            // straight to the next model, and our own loop retries 5xx once.
+            httpOptions: { retryOptions: { attempts: 1 } },
           },
         });
         const text = res.text;

@@ -42,6 +42,8 @@ export async function runGeminiTurn(t: ProviderTurn, ai: GoogleGenAI = getGemini
         },
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         abortSignal: signal,
+        // No SDK retries: a 429 must reach the overflow logic at once, not after ~15 s of backoff.
+        httpOptions: { retryOptions: { attempts: 1 } },
       },
     });
 
