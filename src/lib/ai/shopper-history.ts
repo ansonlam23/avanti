@@ -1,6 +1,14 @@
-// Transcript in → Gemini `contents` out. Pure (no network), unit-tested.
-// The client keeps the transcript and sends it every time (the server is
-// stateless), so everything here treats it as untrusted input.
+// Transcript in → Gemini `contents` / Claude `messages` out. Pure (no network),
+// unit-tested. The client keeps the transcript and sends it every time (the
+// server is stateless), so everything here treats it as untrusted input.
+// A transcript may mix providers (Gemini first, Claude as overflow), so either
+// builder must accept turns the other model produced.
+import type {
+  ContentBlockParam,
+  MessageParam,
+  ToolResultBlockParam,
+  ToolUseBlockParam,
+} from "@anthropic-ai/sdk/resources/messages";
 import type { Content, Part } from "@google/genai";
 import { z } from "zod";
 import { EVENT_PREFIX } from "@/lib/ai/prompts/shopper";
@@ -193,7 +201,30 @@ function pushUserParts(contents: Content[], parts: Part[], merge: boolean) {
   }
 }
 
-/** Rebuild the Gemini conversation: user text, then per model turn each tool round (call → response), then its text. */
+const MISSING_RESULT: ToolResult = { ok: false, error: "missing", message: "No result was recorded for this call." };
+
+/** One model turn's tool rounds, in order: each step's calls, each paired with its result. */
+function stepsOf(turn: ChatTurn): Array<{ step: number; pairs: Array<{ call: ToolCallRecord; output: ToolResult }> }> {
+  const calls = turn.tool_calls ?? [];
+  const results = turn.tool_results ?? [];
+  const steps = [...new Set(calls.map((c) => c.step))].sort((a, b) => a - b);
+  return steps.map((step) => {
+    const stepCalls = calls.filter((c) => c.step === step);
+    const stepResults = results.filter((r) => r.step === step);
+    // Every call needs a result, matched by id when there is one, else by position.
+    const pairs = stepCalls.map((call, i) => {
+      const match = (call.id ? stepResults.find((r) => r.id === call.id) : undefined) ?? stepResults[i];
+      return { call, output: match && match.name === call.name ? match.result : MISSING_RESULT };
+    });
+    return { step, pairs };
+  });
+}
+
+/**
+ * Rebuild the Gemini conversation: user text, then per model turn each tool
+ * round (call → response), then its text. Replayed calls carry no ids (they may
+ * be Claude's `toolu_…`); Gemini pairs each response with its call by order.
+ */
 export function toGeminiContents(turns: ChatTurn[]): Content[] {
   const contents: Content[] = [];
   for (const turn of turns) {
@@ -201,31 +232,86 @@ export function toGeminiContents(turns: ChatTurn[]): Content[] {
       if (turn.text) pushUserParts(contents, [{ text: turn.text }], true);
       continue;
     }
-    const calls = turn.tool_calls ?? [];
-    const results = turn.tool_results ?? [];
-    const steps = [...new Set(calls.map((c) => c.step))].sort((a, b) => a - b);
-    for (const step of steps) {
-      const stepCalls = calls.filter((c) => c.step === step);
-      const stepResults = results.filter((r) => r.step === step);
+    for (const { pairs } of stepsOf(turn)) {
       contents.push({
         role: "model",
-        parts: stepCalls.map((c, i) => ({
-          functionCall: { ...(c.id ? { id: c.id } : {}), name: c.name, args: c.args },
+        parts: pairs.map(({ call }, i) => ({
+          functionCall: { name: call.name, args: call.args },
           ...(i === 0 ? { thoughtSignature: REPLAY_THOUGHT_SIGNATURE } : {}),
         })),
       });
-      // Every call needs a response, matched by id when there is one, else by position.
-      const responses: Part[] = stepCalls.map((c, i) => {
-        const match = (c.id ? stepResults.find((r) => r.id === c.id) : undefined) ?? stepResults[i];
-        const output: ToolResult =
-          match && match.name === c.name
-            ? match.result
-            : { ok: false, error: "missing", message: "No result was recorded for this call." };
-        return { functionResponse: { ...(c.id ? { id: c.id } : {}), name: c.name, response: { output } } };
-      });
+      const responses: Part[] = pairs.map(({ call, output }) => ({
+        functionResponse: { name: call.name, response: { output } },
+      }));
       pushUserParts(contents, responses, false);
     }
     if (turn.text) contents.push({ role: "model", parts: [{ text: turn.text }] });
   }
   return contents;
+}
+
+/** Claude's rule for tool_use ids. */
+export const CLAUDE_TOOL_ID = /^[a-zA-Z0-9_-]+$/;
+const MAX_CLAUDE_ID = 64;
+
+/** A tool result as Claude reads it: the same JSON the cards render; failures flagged. */
+export function claudeToolResult(toolUseId: string, output: ToolResult): ToolResultBlockParam {
+  return {
+    type: "tool_result",
+    tool_use_id: toolUseId,
+    content: JSON.stringify(output),
+    ...(output.ok === false ? { is_error: true } : {}),
+  };
+}
+
+/**
+ * Rebuild the Claude conversation: user text, then per model turn each tool
+ * round (assistant tool_use → user tool_result), then its text. Claude's own
+ * ids are kept so replays match; a missing, malformed or repeated id (e.g. a
+ * Gemini turn) gets a deterministic `call_<turn>_<step>_<i>`. Consecutive
+ * same-role content is merged, so roles alternate, every tool_use is answered
+ * at the start of the next user message, and it opens with the shopper.
+ */
+export function toClaudeMessages(turns: ChatTurn[]): MessageParam[] {
+  const messages: MessageParam[] = [];
+  const used = new Set<string>();
+
+  const idFor = (raw: string | undefined, fallback: string): string => {
+    let id = raw && raw.length <= MAX_CLAUDE_ID && CLAUDE_TOOL_ID.test(raw) ? raw : fallback;
+    for (let n = 2; used.has(id); n++) id = `${fallback}_${n}`;
+    used.add(id);
+    return id;
+  };
+  const push = (role: "user" | "assistant", blocks: ContentBlockParam[]) => {
+    if (!blocks.length) return;
+    const prev = messages.at(-1);
+    if (prev?.role === role && Array.isArray(prev.content)) prev.content.push(...blocks);
+    else messages.push({ role, content: blocks });
+  };
+
+  // Claude wants the shopper first (sanitizeTranscript already guarantees it).
+  const first = turns.findIndex((t) => t.role === "user" && t.text?.trim());
+  if (first < 0) return messages;
+
+  turns.slice(first).forEach((turn, t) => {
+    const text = turn.text?.trim();
+    if (turn.role === "user") {
+      if (text) push("user", [{ type: "text", text }]);
+      return;
+    }
+    for (const { step, pairs } of stepsOf(turn)) {
+      const uses: ToolUseBlockParam[] = [];
+      const answers: ToolResultBlockParam[] = [];
+      pairs.forEach(({ call, output }, i) => {
+        if (!isToolName(call.name)) return;
+        const id = idFor(call.id, `call_${t}_${step}_${i}`);
+        uses.push({ type: "tool_use", id, name: call.name, input: call.args });
+        answers.push(claudeToolResult(id, output));
+      });
+      push("assistant", uses);
+      push("user", answers); // right after its tool_use, before any shopper text that follows
+    }
+    if (text) push("assistant", [{ type: "text", text }]);
+  });
+  return messages;
 }

@@ -1,5 +1,8 @@
-// Gemini function declarations + argument sanitizing for the shopper tools. Pure.
+// The shopper tools for both providers + argument sanitizing. Pure.
+// One source of truth: TOOL_DECLARATIONS (Gemini function declarations with a
+// JSON Schema); CLAUDE_TOOLS is generated from it, never written twice.
 // All tools are READ-ONLY. There is deliberately no tool that places an order.
+import type { Tool as ClaudeTool } from "@anthropic-ai/sdk/resources/messages";
 import type { FunctionDeclaration } from "@google/genai";
 import { z } from "zod";
 import type { ToolName } from "@/lib/ai/shopper-types";
@@ -75,6 +78,25 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     },
   },
 ];
+
+/** Gemini declarations → Claude tools: the same name, description and JSON Schema (as `input_schema`). */
+export function toClaudeTools(declarations: FunctionDeclaration[]): ClaudeTool[] {
+  return declarations.map((d) => {
+    const schema = d.parametersJsonSchema as ClaudeTool.InputSchema | undefined;
+    if (!d.name || !schema || typeof schema !== "object" || schema.type !== "object") {
+      throw new Error(`Tool ${d.name ?? "(unnamed)"} needs an object JSON Schema`);
+    }
+    return { name: d.name, ...(d.description ? { description: d.description } : {}), input_schema: schema };
+  });
+}
+
+/**
+ * The tools Claude sees. Tools come first in every Claude request and never
+ * change, so the last one carries a prompt-cache breakpoint.
+ */
+export const CLAUDE_TOOLS: ClaudeTool[] = toClaudeTools(TOOL_DECLARATIONS).map((tool, i, all) =>
+  i === all.length - 1 ? { ...tool, cache_control: { type: "ephemeral" } } : tool,
+);
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const slug = z
