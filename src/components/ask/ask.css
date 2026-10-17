@@ -1,0 +1,111 @@
+/* /ask-only materials + motion (imported by ask-app.tsx). Global stylesheet, so
+   every class and keyframe is prefixed `ask-` to never collide with Tailwind.
+   Thermal print (DESIGN.md): the AI's mark is a little dot-matrix print head. */
+
+/* ── The AI's mark: a 3×3 dot-matrix head ───────────────────── */
+/* padding + gap come from the component (px from its size: % would resolve against the parent) */
+.ask-mark {
+  display: inline-grid;
+  flex: none;
+  box-sizing: border-box;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  border-radius: 22%;
+  background: var(--color-ink);
+}
+.ask-mark > span {
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--color-paper);
+  opacity: 0.95;
+}
+/* listening: one dot breathes */
+.ask-mark-listening > span:nth-child(5) {
+  animation: ask-breathe 2.4s ease-in-out infinite;
+}
+/* thinking: the head prints, dot by dot */
+.ask-mark-thinking > span {
+  animation: ask-dot 1.08s steps(1, end) infinite;
+}
+.ask-mark-thinking > span:nth-child(1) { animation-delay: 0s; }
+.ask-mark-thinking > span:nth-child(2) { animation-delay: 0.12s; }
+.ask-mark-thinking > span:nth-child(3) { animation-delay: 0.24s; }
+.ask-mark-thinking > span:nth-child(6) { animation-delay: 0.36s; }
+.ask-mark-thinking > span:nth-child(9) { animation-delay: 0.48s; }
+.ask-mark-thinking > span:nth-child(8) { animation-delay: 0.6s; }
+.ask-mark-thinking > span:nth-child(7) { animation-delay: 0.72s; }
+.ask-mark-thinking > span:nth-child(4) { animation-delay: 0.84s; }
+.ask-mark-thinking > span:nth-child(5) { animation-delay: 0.96s; }
+
+@keyframes ask-breathe {
+  0%,
+  100% { opacity: 0.95; }
+  50% { opacity: 0.3; }
+}
+@keyframes ask-dot {
+  0% { opacity: 0.25; }
+  12% { opacity: 1; }
+  40%,
+  100% { opacity: 0.25; }
+}
+
+/* streaming caret at the end of the AI's words: a print-head block */
+.ask-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.18em;
+  background: var(--color-ink);
+  animation: ask-blink 1s steps(2, start) infinite;
+}
+@keyframes ask-blink {
+  to { visibility: hidden; }
+}
+
+/* the feed fades out under the header (prefixed for older iOS Safari) */
+.ask-feed-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent, #000 16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-mark-listening > span,
+  .ask-mark-thinking > span,
+  .ask-caret {
+    animation: none;
+  }
+}
+
+/* ── Laptop: the order's tray, a shallow well in the counter ─── */
+.ask-tray {
+  background:
+    linear-gradient(180deg, rgb(255 253 246 / 0.22), transparent 38%),
+    rgb(213 208 196 / 0.42);
+  box-shadow:
+    inset 0 2px 5px rgb(60 50 30 / 0.13),
+    inset 0 0 0 1px rgb(60 50 30 / 0.06),
+    0 1px 0 rgb(255 255 255 / 0.6);
+  scrollbar-width: thin;
+}
+
+/* Laptop screens that are short (1366×768, browser chrome): the welcome still fits without scrolling. */
+@media (min-width: 1024px) and (max-height: 820px) {
+  .ask-welcome {
+    gap: 28px;
+    padding-block: 12px 20px;
+  }
+  .ask-welcome h2 {
+    font-size: 56px;
+  }
+  .ask-welcome li button {
+    min-height: 3.5rem;
+  }
+  /* the held receipt + its VERIFIED slip still fit the tray without scrolling */
+  .ask-tray {
+    padding-block: 18px;
+  }
+  .ask-tray-stage {
+    padding-block: 10px;
+  }
+}

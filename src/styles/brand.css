@@ -1,0 +1,595 @@
+/* ─────────────────────────────────────────────────────────────
+   Open Sign brand materials: thermal print / order pad (DESIGN.md §3).
+   Materials: thermal paper, the carbon order pad, rubber-stamp ink,
+   the owner's pen, steel (rail, clips, spindle), the printer.
+   Tokens come from src/app/globals.css (@theme).
+
+   Safari/iOS is the primary target: every effect here is plain CSS (no
+   SVG filters on HTML), masks are written with -webkit- twins, and
+   blending degrades to normal compositing.
+   ───────────────────────────────────────────────────────────── */
+
+/* Texture tiles (data-URI SVG, generated in code: no image assets). */
+:root {
+  /* The counter: a whisper of warm grain (calm, never a pattern). */
+  --counter-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .36  0 0 0 0 .31  0 0 0 0 .22  0 0 0 .11 -.02'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>");
+
+  /* Thermal paper: smooth, with a faint speck. */
+  --paper-speck: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .4  0 0 0 0 .37  0 0 0 0 .3  0 0 0 .1 -.02'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>");
+
+  /* Rubber-stamp ink: mostly solid with worn specks (used as a mask). */
+  --ink-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='i' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='.62' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -4.6 0 0 0 3.7'/></filter><rect width='100%25' height='100%25' filter='url(%23i)'/></svg>");
+
+  /* Kept for older callers: film grain tile. */
+  --noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* The receipt's paper-feed position (animated by JS; a length so masks can use it). */
+@property --feed {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+
+/* ── Paper ────────────────────────────────────────────────────
+   Thermal paper: a slight curl (darker edges), a faint speck.          */
+@utility paper {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(90deg, rgb(80 70 50 / 0.04), transparent 7%, transparent 93%, rgb(80 70 50 / 0.05)),
+    linear-gradient(180deg, rgb(255 255 255 / 0.6), transparent 28%),
+    var(--paper-speck);
+  background-size: 100% 100%, 100% 100%, 220px 220px;
+  color: var(--color-ink);
+}
+
+/* The carbon order pad: the shop's yellow copy. */
+@utility pad {
+  background-color: var(--color-pad);
+  background-image:
+    linear-gradient(90deg, rgb(120 100 30 / 0.06), transparent 8%, transparent 92%, rgb(120 100 30 / 0.07)),
+    linear-gradient(180deg, rgb(255 255 255 / 0.35), transparent 30%),
+    var(--paper-speck);
+  background-size: 100% 100%, 100% 100%, 220px 220px;
+  color: var(--color-ink);
+}
+
+/* Shadow for paper with masked (torn) edges: box-shadow would be cut by the mask. */
+@utility slip-drop {
+  filter: drop-shadow(0 0.5px 0.5px rgb(60 50 30 / 0.18)) drop-shadow(0 6px 8px rgb(60 50 30 / 0.14))
+    drop-shadow(0 18px 18px rgb(60 50 30 / 0.12));
+}
+
+/* Torn (zig-zag) edges. --zz = tooth size. */
+@utility edge-torn-bottom {
+  --zz: 6px;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zz)) 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zz)) 100%;
+  padding-bottom: calc(var(--zz) + 0.5rem);
+}
+@utility edge-torn-top {
+  --zz: 6px;
+  -webkit-mask: conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zz)) 100%;
+  mask: conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zz)) 100%;
+  padding-top: calc(var(--zz) + 0.5rem);
+}
+@utility edge-torn-y {
+  --zz: 6px;
+  -webkit-mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--zz)) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% 100% / calc(2 * var(--zz)) 51% repeat-x;
+  mask:
+    conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--zz)) 51% repeat-x,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% 100% / calc(2 * var(--zz)) 51% repeat-x;
+}
+
+/* Torn edges drawn OUTSIDE the box (pseudo-elements, no mask): use when
+   something must be able to leave the paper, e.g. price stickers flying in. */
+@utility edge-teeth {
+  --zz: 6px;
+  position: relative;
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--zz);
+    pointer-events: none;
+  }
+  &::before {
+    bottom: 100%;
+    background: conic-gradient(from 135deg at top, #0000, var(--color-paper) 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--zz)) 100% repeat-x;
+  }
+  &::after {
+    top: 100%;
+    background: conic-gradient(from -45deg at bottom, #0000, var(--color-paper) 1deg 89deg, #0000 90deg) 50% 100% / calc(2 * var(--zz)) 100% repeat-x;
+  }
+}
+
+/* Torn off a pad along its perforation: a row of half-holes on top. */
+@utility edge-perf-top {
+  --perf: 9px;
+  -webkit-mask:
+    radial-gradient(circle at 50% 0, #0000 2.4px, #000 3px) 50% 0 / var(--perf) 51% repeat-x,
+    linear-gradient(#000 0 0) 0 100% / 100% 50% no-repeat;
+  mask:
+    radial-gradient(circle at 50% 0, #0000 2.4px, #000 3px) 50% 0 / var(--perf) 51% repeat-x,
+    linear-gradient(#000 0 0) 0 100% / 100% 50% no-repeat;
+}
+
+/* Receipt typography helpers. Dotted leaders live ONLY inside real receipts. */
+@utility leader {
+  flex: 1 1 auto;
+  min-width: 1rem;
+  align-self: flex-end;
+  height: 2px;
+  margin-bottom: 0.42em;
+  background-image: radial-gradient(circle, currentColor 0.9px, transparent 1.2px);
+  background-size: 6px 2px;
+  background-repeat: repeat-x;
+  background-position: left center;
+  opacity: 0.42;
+}
+@utility print-rule {
+  height: 0;
+  border-top: 1.5px dashed rgb(22 22 22 / 0.3);
+}
+
+/* Heavy print: a hair of thermal bleed on big Barlow lettering. */
+@utility thermal {
+  text-shadow: 0 0 0.6px rgb(22 22 22 / 0.4);
+}
+
+/* Dot-matrix numerals (Doto). Only at ≥ 28px. */
+@utility dot {
+  font-family: var(--font-dot);
+  font-weight: 900;
+  font-variation-settings: "ROND" 100;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* The owner's carbon pen (Nanum Pen Script). Only at ≥ 24px. */
+@utility pen {
+  font-family: var(--font-pen);
+  color: var(--color-carbon);
+  line-height: 1;
+  text-shadow: 0 0 0.8px rgb(43 77 191 / 0.5);
+}
+
+/* Small printed label: uppercase mono, the receipt's own voice. */
+@utility label-print {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Buttons: printed keys ────────────────────────────────────
+   One primary per screen (btn-ink). Secondary: btn-line. Both ≥ 56px tall. */
+@utility btn-ink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 3px;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-key);
+  transition:
+    transform 120ms var(--ease-out-expo),
+    box-shadow 120ms ease,
+    opacity 160ms ease;
+  -webkit-user-select: none;
+  user-select: none;
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    box-shadow: 0 1px 0 rgb(0 0 0 / 0.3);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+@utility btn-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 1.25rem;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 3px;
+  background-color: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition:
+    transform 120ms var(--ease-out-expo),
+    background-color 120ms ease,
+    opacity 160ms ease;
+  -webkit-user-select: none;
+  user-select: none;
+  &:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+    background-color: rgb(22 22 22 / 0.07);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+/* A quiet text action (mono, underlined), still a 44px target. */
+@utility btn-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-color: rgb(22 22 22 / 0.35);
+  transition: text-decoration-color 120ms ease, opacity 160ms ease;
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+/* A text field drawn on paper: ink border, square, 48px. */
+@utility field-print {
+  min-height: 3rem;
+  width: 100%;
+  border: 2px solid rgb(22 22 22 / 0.75);
+  border-radius: 3px;
+  background-color: rgb(255 255 255 / 0.65);
+  padding: 0 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 16px; /* ≥16px: no iOS zoom on focus */
+  color: var(--color-ink);
+  &::placeholder {
+    color: var(--color-ink-muted);
+    opacity: 1;
+  }
+  &:focus {
+    outline: 3px solid var(--color-carbon);
+    outline-offset: 1px;
+  }
+}
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes printhead-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Component materials. In @layer components so callers' utility
+   classes (rotate-*, scale-*, w-*) always win.
+   ───────────────────────────────────────────────────────────── */
+@layer components {
+  /* ── OpenSign: the printer and its slip (sizes are em-based) ─ */
+  .open-sign {
+    --rest: -1.4deg;
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    vertical-align: middle;
+    line-height: 1;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  /* Printer housing with a serrated cutter along the slot. */
+  .open-sign-printer {
+    position: relative;
+    z-index: 2;
+    align-self: stretch;
+    height: 0.3em;
+    margin: 0 -0.12em;
+    border-radius: 0.06em 0.06em 0.035em 0.035em;
+    background: linear-gradient(180deg, #4a4a45 0%, #2e2e2b 46%, #1c1c1a 100%);
+    box-shadow:
+      inset 0 0.012em 0 rgb(255 255 255 / 0.16),
+      inset 0 -0.02em 0 rgb(0 0 0 / 0.5),
+      0 0.05em 0.08em -0.02em rgb(40 30 10 / 0.35),
+      0 0.16em 0.3em -0.1em rgb(40 30 10 / 0.3);
+  }
+  .open-sign-printer::before {
+    /* the slot */
+    content: "";
+    position: absolute;
+    left: 0.14em;
+    right: 0.14em;
+    bottom: 0.045em;
+    height: 0.035em;
+    border-radius: 0.02em;
+    background: #0b0b0a;
+    box-shadow: 0 0.01em 0 rgb(255 255 255 / 0.12);
+  }
+  .open-sign-printer::after {
+    /* the cutter's teeth */
+    content: "";
+    position: absolute;
+    left: 0.14em;
+    right: 0.14em;
+    bottom: -0.04em;
+    height: 0.05em;
+    background:
+      linear-gradient(135deg, #b9bbb6 35%, transparent 35%) 0 0 / 0.08em 100% repeat-x,
+      linear-gradient(225deg, #b9bbb6 35%, transparent 35%) 0 0 / 0.08em 100% repeat-x;
+  }
+  .open-sign-led {
+    position: absolute;
+    right: 0.2em;
+    top: 0.09em;
+    width: 0.05em;
+    height: 0.05em;
+    border-radius: 999px;
+    background: #4b4b46;
+  }
+  .open-sign[data-state="flickering-on"] .open-sign-led,
+  .open-sign[data-state="on"] .open-sign-led {
+    background: #6bd36b;
+    box-shadow: 0 0 0.04em #6bd36b;
+  }
+  /* Everything under the slot: clips the paper still inside the printer. */
+  .open-sign-mouth {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+    margin: -0.02em -0.16em 0;
+    padding: 0 0.16em 0.5em;
+  }
+  .open-sign[data-mount="bare"] .open-sign-mouth {
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+  }
+  /* Once the slip is out of the printer nothing needs clipping (and its shadow must not be cut). */
+  .open-sign[data-state="on"] .open-sign-mouth,
+  .open-sign[data-state="sputtering-off"] .open-sign-mouth,
+  .open-sign-mouth[data-out="true"] {
+    overflow: visible;
+  }
+  .open-sign-slip {
+    display: block;
+    transform-origin: 50% 0;
+    will-change: transform;
+    /* tight while it's in the printer (so the slot's clip never cuts a shadow) */
+    filter: drop-shadow(0 0.5px 0.5px rgb(60 50 30 / 0.2)) drop-shadow(0 3px 4px rgb(60 50 30 / 0.14));
+  }
+  .open-sign[data-mount="plate"][data-state="on"] .open-sign-slip,
+  .open-sign-mouth[data-out="true"] .open-sign-slip {
+    filter: drop-shadow(0 0.5px 0.5px rgb(60 50 30 / 0.2)) drop-shadow(0 6px 8px rgb(60 50 30 / 0.16))
+      drop-shadow(0 16px 16px rgb(60 50 30 / 0.12));
+  }
+  .open-sign[data-spill="true"][data-state="on"] .open-sign-slip,
+  .open-sign[data-spill="true"] .open-sign-mouth[data-out="true"] .open-sign-slip {
+    filter: drop-shadow(0 1px 1px rgb(60 50 30 / 0.2)) drop-shadow(0 12px 14px rgb(60 50 30 / 0.2))
+      drop-shadow(0 34px 30px rgb(60 50 30 / 0.16));
+  }
+  .open-sign-paper {
+    --zz: 0.035em;
+    display: block;
+    padding: 0.1em 0.09em 0.12em;
+  }
+  .open-sign[data-mount="plate"] .open-sign-paper {
+    margin-top: -0.06em; /* top teeth hide under the cutter until the tear */
+  }
+  .open-sign-block {
+    position: relative;
+    display: block;
+    padding: 0.08em 0.1em 0.02em;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 0.84;
+    letter-spacing: 0.015em;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: pre-wrap;
+    text-wrap: balance;
+  }
+  .open-sign-block::before {
+    /* thermal print rows in the reverse-printed block */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.045) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+  }
+  .open-sign[data-tone="ai"] .open-sign-block {
+    background: var(--color-carbon);
+  }
+
+  /* Static states (before/without JS, and under reduced motion). */
+  /* no paper yet: just the torn end of the roll peeking out of the slot */
+  .open-sign[data-state="off"] .open-sign-slip,
+  .open-sign[data-state="flickering-on"] .open-sign-slip {
+    transform: translateY(-95%);
+  }
+  .open-sign[data-state="on"] .open-sign-slip {
+    transform: translateY(0.04em) rotate(var(--rest));
+  }
+  .open-sign[data-state="sputtering-off"] .open-sign-slip {
+    transform: translateY(0.04em) rotate(var(--rest));
+  }
+  /* Bare (no printer): "off" = an unprinted slip. */
+  .open-sign[data-mount="bare"][data-state="off"] .open-sign-slip,
+  .open-sign[data-mount="bare"][data-state="flickering-on"] .open-sign-slip {
+    transform: rotate(var(--rest));
+  }
+  .open-sign[data-mount="bare"][data-state="off"] .open-sign-block {
+    background: transparent;
+    color: var(--color-ink-faint);
+    outline: 0.03em dashed var(--color-ink-faint);
+    outline-offset: -0.03em;
+  }
+  .open-sign[data-mount="bare"][data-state="off"] .open-sign-block::before {
+    display: none;
+  }
+  .open-sign[data-mount="bare"][data-state="flickering-on"] .open-sign-paper {
+    clip-path: inset(0 0 100% 0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .open-sign[data-state="flickering-on"] .open-sign-slip {
+      transform: translateY(0.04em) rotate(var(--rest));
+    }
+    .open-sign[data-mount="bare"][data-state="flickering-on"] .open-sign-paper {
+      clip-path: none;
+    }
+    .open-sign[data-state="sputtering-off"] .open-sign-slip {
+      opacity: 0;
+    }
+  }
+
+  /* ── Stamp: rubber-stamp ink (one red ink for every decision) ─ */
+  .stamp {
+    --stamp-rest: -6deg;
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    rotate: var(--stamp-rest);
+    color: var(--color-stamp);
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .stamp-ink {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.16em;
+    padding: 0.26em 0.5em 0.22em;
+    border: 0.085em solid currentColor;
+    border-radius: 0.1em;
+    outline: 0.04em solid currentColor;
+    outline-offset: -0.2em;
+    -webkit-mask-image: var(--ink-mask);
+    mask-image: var(--ink-mask);
+    -webkit-mask-size: 180px 180px;
+    mask-size: 180px 180px;
+  }
+  .stamp-word {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22em;
+    letter-spacing: 0.06em;
+    margin-right: -0.06em; /* optical centering for the tracking */
+  }
+  .stamp-label {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .stamp[data-surface="paper"] {
+    opacity: 0.92;
+    mix-blend-mode: multiply; /* sinks into the paper (normal compositing if unsupported) */
+  }
+  .stamp[data-surface="dark"] {
+    color: #ff7a6e; /* the same ink, lit, on a dimmed scene */
+  }
+  .stamp[data-faded="true"] {
+    opacity: 0.3;
+  }
+
+  /* ── Receipt: thermal paper with a feed position ────────────── */
+  .receipt-paper {
+    --zz: 6px;
+    position: relative;
+    -webkit-mask:
+      conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--zz)) var(--zz) repeat-x,
+      conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% var(--zz) / calc(2 * var(--zz)) calc(var(--feed) - var(--zz)) repeat-x;
+    mask:
+      conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% 0 / calc(2 * var(--zz)) var(--zz) repeat-x,
+      conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% var(--zz) / calc(2 * var(--zz)) calc(var(--feed) - var(--zz)) repeat-x;
+  }
+
+  /* ── The printer's mouth above a slip that's printing (px-based) ─ */
+  .printer-mouth {
+    border-radius: 6px 6px 4px 4px;
+    background: linear-gradient(180deg, #4a4a45 0%, #2e2e2b 46%, #1c1c1a 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      0 2px 3px rgb(40 30 10 / 0.3),
+      0 8px 14px -6px rgb(40 30 10 / 0.35);
+  }
+  .printer-mouth::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 6px;
+    height: 4px;
+    border-radius: 2px;
+    background: #0b0b0a;
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.12);
+  }
+  .printer-mouth::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: -5px;
+    height: 6px;
+    background:
+      linear-gradient(135deg, #b9bbb6 35%, transparent 35%) 0 0 / 9px 100% repeat-x,
+      linear-gradient(225deg, #b9bbb6 35%, transparent 35%) 0 0 / 9px 100% repeat-x;
+  }
+
+  /* ── Steel: the rail, clips and the spindle ──────────────────── */
+  .steel-rail {
+    height: 14px;
+    border-radius: 7px;
+    background: linear-gradient(180deg, #eef0ec 0%, #c9ccc7 38%, #9ea29c 70%, #c3c6c1 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.8),
+      0 2px 2px rgb(40 35 25 / 0.18),
+      0 10px 16px -8px rgb(40 35 25 / 0.3);
+  }
+  .steel-clip {
+    width: 46px;
+    height: 20px;
+    border-radius: 3px 3px 6px 6px;
+    background: linear-gradient(180deg, #f2f3f0, #b8bbb6 60%, #8f938d);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 2px 3px rgb(40 35 25 / 0.35);
+  }
+}
