@@ -2,6 +2,7 @@ import "server-only";
 import { ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { geminiModel, getGemini } from "@/lib/ai/gemini";
+import { env } from "@/lib/env";
 import {
   CONFLICTING_TAGS,
   DIET_TAGS,
@@ -73,40 +74,59 @@ export async function extractMenu(input: ExtractMenuInput): Promise<OnboardDraft
   return validateDraft(raw, { hasAudio, notes, languageHint });
 }
 
+/**
+ * One menu read, trying GEMINI_MODEL first and then each GEMINI_FALLBACK_MODELS
+ * entry: every model has its own free quota (gemini-3.8-flash allows only ~20
+ * requests a day), and onboarding must keep working because only Gemini hears
+ * the voice note. A 429 moves on to the next model; 5xx, network errors and bad
+ * JSON get one retry on the same model; anything else fails at once.
+ */
 async function callGemini(
   parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }>,
 ): Promise<unknown> {
   const ai = getGemini();
+  const models = [...new Set([geminiModel(), ...env.geminiFallbackModels()])];
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await ai.models.generateContent({
-        model: geminiModel(),
-        contents: [{ role: "user", parts }],
-        config: {
-          systemInstruction: ONBOARD_SYSTEM_PROMPT,
-          responseMimeType: "application/json",
-          responseJsonSchema: ONBOARD_RESPONSE_SCHEMA,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          abortSignal: AbortSignal.timeout(28_000),
-        },
-      });
-      const text = res.text;
-      if (!text) throw new OnboardAiError("Gemini returned an empty response", true);
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        return JSON.parse(text);
-      } catch {
-        throw new OnboardAiError("Gemini returned invalid JSON", true);
+        const res = await ai.models.generateContent({
+          model,
+          contents: [{ role: "user", parts }],
+          config: {
+            systemInstruction: ONBOARD_SYSTEM_PROMPT,
+            responseMimeType: "application/json",
+            responseJsonSchema: ONBOARD_RESPONSE_SCHEMA,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            abortSignal: AbortSignal.timeout(28_000),
+          },
+        });
+        const text = res.text;
+        if (!text) throw new OnboardAiError("Gemini returned an empty response", true);
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new OnboardAiError("Gemini returned invalid JSON", true);
+        }
+      } catch (err) {
+        lastError = err;
+        if (isQuotaError(err)) break; // this model's free quota is used up: try the next one
+        if (attempt === 0 && isRetryable(err)) continue;
+        throw toOnboardError(err);
       }
-    } catch (err) {
-      lastError = err;
-      if (attempt === 0 && isRetryable(err)) continue;
-      break;
     }
   }
-  if (lastError instanceof OnboardAiError) throw lastError;
-  const message = lastError instanceof Error ? lastError.message : String(lastError);
-  throw new OnboardAiError(`Gemini request failed: ${message.slice(0, 300)}`, isRetryable(lastError));
+  throw toOnboardError(lastError);
+}
+
+function isQuotaError(err: unknown): boolean {
+  return (err as { status?: number } | null)?.status === 429;
+}
+
+function toOnboardError(err: unknown): OnboardAiError {
+  if (err instanceof OnboardAiError) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  return new OnboardAiError(`Gemini request failed: ${message.slice(0, 300)}`, isRetryable(err));
 }
 
 function isRetryable(err: unknown): boolean {
