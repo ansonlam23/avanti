@@ -102,6 +102,9 @@ const nullable = <S extends { type: string }>(schema: S) => ({ ...schema, type: 
 /**
  * JSON Schema for Gemini's `responseJsonSchema`. Property order matters (the
  * model writes in this order): transcript first, evidence before numbers.
+ * No numeric or length bounds (minimum/maximum/minItems/maxItems): gemini-3.8-flash
+ * rejects the request with 400 INVALID_ARGUMENT when they're present (checked
+ * 2026-10-17). `validateDraft` enforces every range after the call instead.
  */
 export const ONBOARD_RESPONSE_SCHEMA = {
   type: "object",
@@ -111,7 +114,6 @@ export const ONBOARD_RESPONSE_SCHEMA = {
     language: { type: "string", description: "BCP-47 code, e.g. en, vi, es" },
     items: {
       type: "array",
-      maxItems: 30,
       items: {
         type: "object",
         properties: {
@@ -119,8 +121,8 @@ export const ONBOARD_RESPONSE_SCHEMA = {
           name_en: nullable({ type: "string" }),
           price_evidence: nullable({ type: "string", description: "Exact words heard or text read for the price." }),
           price_source: { type: "string", enum: ["spoken", "tag_in_photo", "missing"] },
-          price_cents: nullable({ type: "integer", minimum: 1 }),
-          est_quantity: nullable({ type: "integer", minimum: 0 }),
+          price_cents: nullable({ type: "integer" }),
+          est_quantity: nullable({ type: "integer" }),
           description: nullable({ type: "string" }),
           tags: {
             type: "array",
@@ -136,9 +138,8 @@ export const ONBOARD_RESPONSE_SCHEMA = {
           },
           box_2d: nullable({
             type: "array",
-            items: { type: "integer", minimum: 0, maximum: 1000 },
-            minItems: 4,
-            maxItems: 4,
+            items: { type: "integer" },
+            description: "[ymin, xmin, ymax, xmax], each 0-1000",
           }),
         },
         required: [

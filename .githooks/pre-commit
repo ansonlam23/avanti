@@ -14,7 +14,8 @@ patterns=(
   'MC4CAQAwBQYDK2VwBCIEI'                 # base64 Ed25519 PKCS#8 private key
   'eyJhbGciOi[A-Za-z0-9_-]{20,}\.'        # JWT (legacy Supabase keys)
   'postgres(ql)?://[^:@/[:space:]]+:[^@/[:space:]]+@'   # DB URL with password
-  '(VISA_SHARED_SECRET|AGENT_ED25519_PRIVATE_KEY|SUPABASE_SECRET_KEY|GEMINI_API_KEY)=[^[:space:]]+'
+  'sk-ant-[A-Za-z0-9_-]{20,}'             # Anthropic API key
+  '(VISA_SHARED_SECRET|AGENT_ED25519_PRIVATE_KEY|SUPABASE_SECRET_KEY|GEMINI_API_KEY|ANTHROPIC_API_KEY)=[^[:space:]]+'
 )
 added=$(git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude).githooks/pre-commit' | grep -E '^\+' | grep -v -E '^\+\+\+' || true)
 for p in "${patterns[@]}"; do
