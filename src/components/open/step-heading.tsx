@@ -29,7 +29,7 @@ export function StepHeading({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
             transition={{ duration: 0.7, ease: INK_EASE }}
-            className="font-display text-[40px] font-normal leading-[1.04] text-ink text-balance lg:text-[60px] lg:leading-[1.02]"
+            className="font-display text-[40px] font-normal leading-[1.04] text-ink text-balance lg:text-[56px] lg:leading-[1.04]"
           >
             {title}
           </motion.h1>

@@ -214,7 +214,7 @@ function CounterSkeleton() {
 
 function PrivateCounter({ slug }: { slug: string }) {
   return (
-    <Notice title="This counter is private" body="Open it from the owner link you got when your sign printed." slug={slug} />
+    <Notice title="This counter is private" body="Open it from the owner link you got when you opened your shop." slug={slug} />
   );
 }
 
