@@ -1,28 +1,77 @@
 import "server-only";
-import { FunctionCallingConfigMode, ThinkingLevel, type Content, type FunctionCall, type Part } from "@google/genai";
-import { geminiModel, getGemini } from "@/lib/ai/gemini";
+import { claudeModel } from "@/lib/ai/claude";
+import { geminiModel } from "@/lib/ai/gemini";
 import { shopperSystemPrompt } from "@/lib/ai/prompts/shopper";
-import { prefetchFor, REPLAY_THOUGHT_SIGNATURE, toGeminiContents } from "@/lib/ai/shopper-history";
-import {
-  isToolName,
-  type ChatEvent,
-  type ChatTurn,
-  type ToolCallRecord,
-  type ToolResultRecord,
-} from "@/lib/ai/shopper-types";
-import { runTool, TOOL_DECLARATIONS } from "@/lib/ai/tools";
+import { runClaudeTurn } from "@/lib/ai/shopper-claude";
+import { errorStatus, isBusyError } from "@/lib/ai/shopper-errors";
+import { runGeminiTurn } from "@/lib/ai/shopper-gemini";
+import { prefetchFor } from "@/lib/ai/shopper-history";
+import type { ProviderResult, ProviderTurn } from "@/lib/ai/shopper-loop";
+import type { ChatEvent, ChatTurn, ToolCallRecord, ToolResultRecord } from "@/lib/ai/shopper-types";
+import { runTool } from "@/lib/ai/tools";
+import { env, hasClaude, hasGemini, shopperAiMode } from "@/lib/env";
 
-// The shopper agent's tool loop (CONTRACTS §10): model → function calls → run
-// the (read-only) tools here on the server → feed the results back → repeat
-// until the model answers in text. At most MAX_TOOL_ROUNDS rounds of tools;
-// the round after that is text-only.
+// One shopper turn (CONTRACTS §10, §12), provider-agnostic: run the sold-out
+// prefetch once, then hand the turn to a model's tool loop. Free Gemini goes
+// first, then any GEMINI_FALLBACK_MODELS, then Claude (paid) as overflow. A
+// Gemini 429/5xx moves on to the next option only while that attempt has
+// emitted nothing, so the shopper never sees a duplicate event.
 
-export const MAX_TOOL_ROUNDS = 5;
+export { MAX_TOOL_ROUNDS } from "@/lib/ai/shopper-loop";
 
 export interface TurnStats {
   rounds: number;
   first_text_ms: number | null;
   total_ms: number;
+}
+
+export type ShopperProvider = "gemini" | "claude";
+
+export interface ShopperOption {
+  provider: ShopperProvider;
+  model: string;
+}
+
+const LOOPS: Record<ShopperProvider, (turn: ProviderTurn) => Promise<ProviderResult>> = {
+  gemini: (turn) => runGeminiTurn(turn),
+  claude: (turn) => runClaudeTurn(turn),
+};
+
+/** After a Gemini 429, this server instance skips that model for a minute (each model has its own free quota). */
+export const COOLDOWN_MS = 60_000;
+const coolingUntil = new Map<string, number>();
+
+const label = (o: ShopperOption) => `${o.provider}/${o.model}`;
+
+function isCooling(o: ShopperOption, nowMs: number): boolean {
+  const until = coolingUntil.get(label(o));
+  if (until === undefined) return false;
+  if (until > nowMs) return true;
+  coolingUntil.delete(label(o));
+  return false;
+}
+
+/** Tests only: forget every cooldown. */
+export function resetCooldowns(): void {
+  coolingUntil.clear();
+}
+
+/** The models to try for a turn, in order, for this server's config (SHOPPER_AI). */
+export function shopperOptions(nowMs = Date.now()): ShopperOption[] {
+  const mode = shopperAiMode();
+  const gemini: ShopperOption[] =
+    mode !== "claude" && hasGemini()
+      ? [...new Set([geminiModel(), ...env.geminiFallbackModels()])].map((model) => ({ provider: "gemini", model }))
+      : [];
+  const claude: ShopperOption[] = mode !== "gemini" && hasClaude() ? [{ provider: "claude", model: claudeModel() }] : [];
+  const all = [...gemini, ...claude];
+  // Skip a model that just ran out of free quota, as long as something else can answer.
+  const ready = all.filter((o) => !isCooling(o, nowMs));
+  if (ready.length < all.length) {
+    const skipped = all.filter((o) => !ready.includes(o)).map(label);
+    console.info(`[shopper] cooling down after a 429: ${skipped.join(", ")}${ready.length ? "" : " (trying anyway)"}`);
+  }
+  return ready.length ? ready : all;
 }
 
 export async function runShopperTurn(opts: {
@@ -33,103 +82,86 @@ export async function runShopperTurn(opts: {
   signal?: AbortSignal;
   now?: Date;
 }): Promise<TurnStats> {
-  const { emit, signal } = opts;
+  const { signal } = opts;
   const now = opts.now ?? new Date();
   const toolCtx = { now, myShops: opts.myShops ?? [] };
   const started = Date.now();
-  const ai = getGemini();
-  const contents: Content[] = toGeminiContents(opts.turns);
-  const systemInstruction = shopperSystemPrompt(now);
+  const options = shopperOptions(started);
+  if (!options.length) throw new Error("No shopper AI is configured (GEMINI_API_KEY / ANTHROPIC_API_KEY, SHOPPER_AI)");
 
-  const calls: ToolCallRecord[] = [];
-  const results: ToolResultRecord[] = [];
-  let text = "";
+  // The turn's text is what was streamed; text that resumes after tool work (a
+  // later round, a new bubble in the UI) is joined with a space, not glued on.
+  const segments: string[] = [];
+  let afterTools = true;
   let firstTextMs: number | null = null;
-  let rounds = 0;
-  let malformedRetries = 0;
-  let step = 0;
+  const emit = (event: ChatEvent) => {
+    if (event.type === "text") {
+      if (firstTextMs === null) firstTextMs = Date.now() - started;
+      if (afterTools) segments.push("");
+      segments[segments.length - 1] += event.delta;
+      afterTools = false;
+    } else if (event.type === "call" || event.type === "tool") {
+      afterTools = true;
+    }
+    opts.emit(event);
+  };
 
   // Sold out → run the obvious search ourselves (real tool, live data) and hand it
   // to the model as its first step, so the "Heads up" needs one model round less.
-  // Gemini documents a placeholder thought signature for function calls it didn't generate.
+  // It runs once, whichever model ends up answering.
+  const calls: ToolCallRecord[] = [];
+  const results: ToolResultRecord[] = [];
+  let history = opts.turns;
   const pre = prefetchFor(opts.turns);
   if (pre) {
     emit({ type: "call", name: pre.name, args: pre.args });
     const output = await runTool(pre.name, pre.args, toolCtx);
-    contents.push({
-      role: "model",
-      parts: [{ functionCall: { name: pre.name, args: pre.args }, thoughtSignature: REPLAY_THOUGHT_SIGNATURE }],
-    });
-    contents.push({ role: "user", parts: [{ functionResponse: { name: pre.name, response: { output } } }] });
-    calls.push({ name: pre.name, args: pre.args, step });
-    results.push({ name: pre.name, result: output, step });
+    calls.push({ name: pre.name, args: pre.args, step: 0 });
+    results.push({ name: pre.name, result: output, step: 0 });
     emit({ type: "tool", name: pre.name, args: pre.args, result: output });
-    step++;
+    history = [...opts.turns, { role: "model", tool_calls: [...calls], tool_results: [...results] }];
   }
 
-  while (step <= MAX_TOOL_ROUNDS && !signal?.aborted) {
-    const textOnly = step === MAX_TOOL_ROUNDS;
-    const stream = await ai.models.generateContentStream({
-      model: geminiModel(),
-      contents,
-      config: {
-        systemInstruction,
-        tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
-        toolConfig: {
-          functionCallingConfig: { mode: textOnly ? FunctionCallingConfigMode.NONE : FunctionCallingConfigMode.AUTO },
-        },
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        abortSignal: signal,
-      },
-    });
-
-    const parts: Part[] = [];
-    let finishReason: string | undefined;
-    for await (const chunk of stream) {
-      const candidate = chunk.candidates?.[0];
-      if (candidate?.finishReason) finishReason = candidate.finishReason;
-      for (const part of candidate?.content?.parts ?? []) {
-        parts.push(part);
-        if (typeof part.text === "string" && part.text && !part.thought) {
-          if (firstTextMs === null) firstTextMs = Date.now() - started;
-          text += part.text;
-          emit({ type: "text", delta: part.text });
-        }
-        if (part.functionCall?.name && isToolName(part.functionCall.name)) {
-          emit({ type: "call", name: part.functionCall.name, args: argsOf(part.functionCall) });
-        }
-      }
+  const system = shopperSystemPrompt(now);
+  let used = options[0];
+  let result: ProviderResult = { calls: [], results: [], rounds: 0 };
+  for (const [i, option] of options.entries()) {
+    used = option;
+    let spoke = false;
+    const attemptEmit = (event: ChatEvent) => {
+      if (event.type === "text" || event.type === "call" || event.type === "tool") spoke = true;
+      emit(event);
+    };
+    try {
+      result = await LOOPS[option.provider]({
+        history,
+        firstStep: pre ? 1 : 0,
+        system,
+        model: option.model,
+        toolCtx,
+        emit: attemptEmit,
+        signal,
+      });
+      break;
+    } catch (err) {
+      const status = errorStatus(err);
+      if (option.provider === "gemini" && status === 429) coolingUntil.set(label(option), Date.now() + COOLDOWN_MS);
+      const next = options[i + 1];
+      // Overflow only on "busy", before this attempt showed anything, and never after an abort.
+      if (!next || option.provider !== "gemini" || spoke || signal?.aborted || !isBusyError(err)) throw err;
+      console.warn(`[shopper] ${label(option)} answered ${status} → trying ${label(next)}`);
     }
-
-    const fnCalls = parts.map((p) => p.functionCall).filter((fc): fc is FunctionCall => Boolean(fc?.name));
-    if (!parts.length && finishReason === "MALFORMED_FUNCTION_CALL" && malformedRetries < 1) {
-      malformedRetries++; // one quiet retry of the same round
-      continue;
-    }
-    // Keep the model's parts exactly as sent (thought signatures included) for the next round.
-    if (parts.length) contents.push({ role: "model", parts });
-    if (!fnCalls.length) break;
-
-    rounds++;
-    const outputs = await Promise.all(fnCalls.map((fc) => runTool(fc.name ?? "", fc.args ?? {}, toolCtx)));
-    const responses: Part[] = [];
-    fnCalls.forEach((fc, i) => {
-      const name = fc.name ?? "";
-      const output = outputs[i];
-      responses.push({ functionResponse: { ...(fc.id ? { id: fc.id } : {}), name, response: { output } } });
-      if (!isToolName(name)) return;
-      const args = argsOf(fc);
-      calls.push({ ...(fc.id ? { id: fc.id } : {}), name, args, step });
-      results.push({ ...(fc.id ? { id: fc.id } : {}), name, result: output, step });
-      emit({ type: "tool", name, args, result: output });
-    });
-    contents.push({ role: "user", parts: responses });
-    step++;
   }
 
+  calls.push(...result.calls);
+  results.push(...result.results);
+  const text = segments
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(" ");
   const turn: ChatTurn = {
     role: "model",
-    ...(text.trim() ? { text: text.trim() } : {}),
+    ...(text ? { text } : {}),
     ...(calls.length ? { tool_calls: calls, tool_results: results } : {}),
   };
   if (!turn.text && !calls.length && !signal?.aborted) {
@@ -137,11 +169,9 @@ export async function runShopperTurn(opts: {
   }
   emit({ type: "turn", turn });
 
-  const stats = { rounds, first_text_ms: firstTextMs, total_ms: Date.now() - started };
-  console.info(`[shopper] rounds=${stats.rounds} first_text=${stats.first_text_ms ?? "-"}ms total=${stats.total_ms}ms`);
+  const stats = { rounds: result.rounds, first_text_ms: firstTextMs, total_ms: Date.now() - started };
+  console.info(
+    `[shopper] rounds=${stats.rounds} first_text=${stats.first_text_ms ?? "-"}ms total=${stats.total_ms}ms provider=${label(used)}${result.note ? ` ${result.note}` : ""}`,
+  );
   return stats;
-}
-
-function argsOf(fc: FunctionCall): Record<string, unknown> {
-  return fc.args && typeof fc.args === "object" ? (fc.args as Record<string, unknown>) : {};
 }

@@ -1,7 +1,8 @@
 import { runShopperTurn } from "@/lib/ai/shopper";
+import { friendlyError } from "@/lib/ai/shopper-errors";
 import { sanitizeTranscript } from "@/lib/ai/shopper-history";
 import type { ChatEvent } from "@/lib/ai/shopper-types";
-import { hasGemini, hasSupabase } from "@/lib/env";
+import { hasShopperAi, hasSupabase } from "@/lib/env";
 import { badRequest, jsonError } from "@/lib/http";
 import { LIMITS, rateLimit } from "@/lib/ratelimit";
 
@@ -11,7 +12,8 @@ export const maxDuration = 60;
 // POST /api/agent/chat (CONTRACTS §10). Stateless: the client sends the whole
 // transcript; we stream ChatEvents back as Server-Sent Events, one JSON object
 // per `data:` line. Tools are read-only; ordering happens only through the
-// shopper's own "Confirm & hold" tap (POST /api/agent/confirm).
+// shopper's own "Confirm & hold" tap (POST /api/agent/confirm). Free Gemini
+// answers first; Claude is the overflow when it's busy (SHOPPER_AI, §12).
 
 const MAX_BODY_BYTES = 600_000;
 const TURN_TIMEOUT_MS = 45_000;
@@ -19,7 +21,7 @@ const TURN_TIMEOUT_MS = 45_000;
 export async function POST(req: Request) {
   // Per-IP limit (public demo, CONTRACTS §11). Started first, awaited after the cheap checks.
   const limit = rateLimit(req, "chat", ...LIMITS.chat);
-  if (!hasGemini()) return jsonError(503, "ai_not_configured", "The shopper AI isn't connected yet.");
+  if (!hasShopperAi()) return jsonError(503, "ai_not_configured", "The shopper AI isn't connected yet.");
   if (!hasSupabase()) return jsonError(503, "db_not_configured", "The shop directory isn't connected yet.");
 
   const [limited, raw] = await Promise.all([limit, req.text().catch(() => "")]);
@@ -89,12 +91,4 @@ export async function POST(req: Request) {
       "x-accel-buffering": "no",
     },
   });
-}
-
-function friendlyError(err: unknown): { code: string; message: string } {
-  const status = typeof err === "object" && err && "status" in err ? Number((err as { status: unknown }).status) : 0;
-  if (status === 429) return { code: "ai_busy", message: "The AI is busy right now. Try again in a few seconds." };
-  if (status === 400) return { code: "ai_rejected", message: "The AI couldn't read this conversation. Start a new chat?" };
-  if (status >= 500) return { code: "ai_unavailable", message: "The AI didn't answer. Try again in a moment." };
-  return { code: "ai_failed", message: "Something went wrong talking to the AI. Try again." };
 }
