@@ -16,6 +16,7 @@
     "seed:list": "tsx --env-file=.env.local scripts/list-demo-shops.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.135.0",
     "@google/genai": "2.30.0",
     "@number-flow/react": "0.6.2",
     "@supabase/supabase-js": "2.118.0",

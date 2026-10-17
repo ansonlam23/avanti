@@ -8,9 +8,22 @@ function read(name: string): string {
   return (process.env[name] ?? "").trim();
 }
 
+function list(value: string): string[] {
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const env = {
   geminiApiKey: () => read("GEMINI_API_KEY"),
   geminiModel: () => read("GEMINI_MODEL") || "gemini-3.8-flash",
+  /** More free Gemini models for the shopper chat to try, in order, when one is rate limited (comma list). */
+  geminiFallbackModels: () => list(read("GEMINI_FALLBACK_MODELS")),
+
+  // Claude is the paid overflow for the shopper chat only (onboarding stays on Gemini: it needs audio).
+  anthropicApiKey: () => read("ANTHROPIC_API_KEY"),
+  anthropicModel: () => read("ANTHROPIC_MODEL") || "claude-haiku-5-5",
 
   supabaseUrl: () => read("NEXT_PUBLIC_SUPABASE_URL"),
   supabasePublishableKey: () => read("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
@@ -30,6 +43,27 @@ export const env = {
 
 export function hasGemini(): boolean {
   return env.geminiApiKey().length > 0;
+}
+
+export function hasClaude(): boolean {
+  return env.anthropicApiKey().length > 0;
+}
+
+export type ShopperAiMode = "auto" | "gemini" | "claude";
+
+/**
+ * SHOPPER_AI: "auto" (default) = free Gemini first, then GEMINI_FALLBACK_MODELS,
+ * then Claude when ANTHROPIC_API_KEY is set; "gemini" = never Claude; "claude" = Claude only.
+ */
+export function shopperAiMode(): ShopperAiMode {
+  const mode = read("SHOPPER_AI").toLowerCase();
+  return mode === "gemini" || mode === "claude" ? mode : "auto";
+}
+
+/** Can the shopper chat answer at all with this config? */
+export function hasShopperAi(): boolean {
+  const mode = shopperAiMode();
+  return (mode !== "claude" && hasGemini()) || (mode !== "gemini" && hasClaude());
 }
 
 export function hasSupabase(): boolean {
@@ -53,6 +87,9 @@ export function serviceStatus() {
   return {
     gemini: hasGemini(),
     gemini_model: env.geminiModel(),
+    claude: hasClaude(),
+    claude_model: env.anthropicModel(),
+    shopper_ai: shopperAiMode(),
     supabase: hasSupabase(),
     payments: paymentMode(),
     visa_keys: hasVisaKeys(),
