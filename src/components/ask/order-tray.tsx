@@ -2,36 +2,32 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
-import { Receipt } from "@/components/brand";
 import type { OrderProposal } from "@/lib/ai/shopper-types";
 import { formatCents } from "@/lib/format";
 import { EASE } from "@/lib/motion";
-import type { PaymentMode } from "@/lib/types";
 import { Arrow } from "./arrow";
 import { RISE } from "./ink";
 
 // Laptop/desktop only: the column to the right of the conversation, set off by
-// one hairline, where the order lives. Before a chat: a sample receipt
-// (labelled). During it: an empty slip outline. Then the order card, then the
-// real receipt with its pickup code. Phones keep all of this inline.
+// one hairline, where the order lives. It appears once the chat starts: first an
+// empty slip outline, then the order card, then the real receipt with its pickup
+// code. Phones keep all of this inline.
 
-export type TrayView = "sample" | "idle" | "order";
+export type TrayView = "idle" | "order";
 
 export function OrderTray({
   view,
-  mode,
   cardKey,
   card,
 }: {
   view: TrayView;
-  mode: PaymentMode | null;
   /** Changes when a newer order card replaces the one on the tray. */
   cardKey: string | null;
   card: ReactNode;
 }) {
   return (
     <div className="flex min-h-full flex-col">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{view === "sample" ? "What you get" : "Your order"}</p>
+      <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Your order</p>
       <div className="ask-tray-stage grid flex-1 place-items-center py-8">
         <AnimatePresence mode="wait" initial={false}>
           {view === "order" ? (
@@ -42,39 +38,12 @@ export function OrderTray({
             >
               {card}
             </motion.div>
-          ) : view === "idle" ? (
-            <IdleSlot key="idle" />
           ) : (
-            <SampleReceipt key="sample" mode={mode} />
+            <IdleSlot key="idle" />
           )}
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-/** A glimpse of the end of the story, clearly labelled (like the landing's). */
-function SampleReceipt({ mode }: { mode: PaymentMode | null }) {
-  return (
-    <motion.figure
-      className="flex flex-col items-center gap-5"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10, transition: { duration: 0.2, ease: EASE.in } }}
-      transition={{ duration: 0.9, ease: RISE, delay: 0.25 }}
-    >
-      <Receipt
-        shopName="Mai's Bakery"
-        lines={[{ label: "Chocolate cake", qty: 1, amount_cents: 1800 }]}
-        total_cents={1800}
-        status="held"
-        mode={mode ?? "sandbox"}
-        time="Pickup 5:30 PM"
-        tilt={0}
-        sound={false}
-      />
-      <figcaption className="text-[15px] text-ink-muted lg:text-[16px]">Sample receipt</figcaption>
-    </motion.figure>
   );
 }
 

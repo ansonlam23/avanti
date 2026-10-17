@@ -258,19 +258,21 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
               </footer>
             </section>
 
-            {/* Laptop: the order's tray (hidden on phones, where the order stays in the conversation). */}
-            <aside
-              ref={trayRef}
-              aria-label="Your order"
-              className="ask-tray hidden w-[440px] shrink-0 overflow-y-auto px-9 pb-8 pt-3 lg:block xl:w-[480px] xl:px-12"
-            >
-              <OrderTray
-                view={wide && trayItem ? "order" : empty ? "sample" : "idle"}
-                mode={mode}
-                cardKey={trayItem?.id ?? null}
-                card={wide && trayItem ? orderCard(trayItem) : null}
-              />
-            </aside>
+            {/* Laptop: the order's tray, once the chat has started (hidden on phones, where
+                the order stays in the conversation). Before that the welcome sits alone. */}
+            {empty ? null : (
+              <aside
+                ref={trayRef}
+                aria-label="Your order"
+                className="ask-tray hidden w-[440px] shrink-0 overflow-y-auto px-9 pb-8 pt-3 lg:block xl:w-[480px] xl:px-12"
+              >
+                <OrderTray
+                  view={wide && trayItem ? "order" : "idle"}
+                  cardKey={trayItem?.id ?? null}
+                  card={wide && trayItem ? orderCard(trayItem) : null}
+                />
+              </aside>
+            )}
           </div>
         </div>
       </OrderReveal>
