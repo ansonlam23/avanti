@@ -6,7 +6,7 @@ import { DUR, EASE, REDUCED } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { sec } from "./motion-prefs";
 
-/** Kept for callers; in print everything is ink on a dimmed counter, so tones only tint the eyebrow rule. */
+/** Kept for callers; in ink every reveal is the same calm paper veil. */
 export type FocusTone = "neon" | "ai" | "verified" | "held" | "paid" | "blocked";
 
 export interface FocusRevealProps {
@@ -16,14 +16,14 @@ export interface FocusRevealProps {
   eyebrow?: string;
   title?: ReactNode;
   /**
-   * The hero object, shown large and tilted (a stamped slip, a receipt…).
+   * The hero object, shown large (a sealed slip, a receipt…).
    * Pass a function to know when its beat arrives, e.g.
    * `(cue) => <Stamp kind="VERIFIED" animate={cue} />` lands exactly at 0.9 s.
    */
   object?: ReactNode | ((cue: boolean) => ReactNode);
   /** Supporting slip under the object: one line of copy and/or a button. */
   card?: ReactNode;
-  /** Rest tilt of the object in degrees (default −3). */
+  /** Kept for callers. Ink paper lies square, so it's ignored. */
   tilt?: number;
   tone?: FocusTone;
   /** Click on the veil / Escape. */
@@ -33,15 +33,18 @@ export interface FocusRevealProps {
   children?: ReactNode;
 }
 
+const INK = [0.22, 1, 0.36, 1] as const; // the landing's calm rise
+
 // The fixed script (seconds from open).
 const AT = { eyebrow: 0.4, title: 0.6, object: 0.9, card: 1.1 } as const;
 
 /**
  * The one reusable focus pull for big moments (VERIFIED, HELD, the bot wall).
- * Script: the counter pushes in (scale 1.04) while the room dims and blurs
- * (DUR.scene) → eyebrow at 0.4 s → title at 0.6 s → the tilted paper object
- * lands at 0.9 s (EASE.pop) → the supporting slip from 1.1 s. Closes in 0.3 s.
- * Renders inside its own box (works inside a phone frame), not as a portal.
+ * Script: the page behind softens under a veil of rice paper (blur, never
+ * dark) → eyebrow at 0.4 s → title at 0.6 s → the paper object rises in at
+ * 0.9 s → the supporting slip from 1.1 s, each a calm rise (0.7–0.9 s).
+ * Closes in 0.3 s. Renders inside its own box (works inside a pane), not as
+ * a portal.
  */
 export function FocusReveal({
   open,
@@ -49,7 +52,6 @@ export function FocusReveal({
   title,
   object,
   card,
-  tilt = -3,
   onDismiss,
   className,
   children,
@@ -70,8 +72,8 @@ export function FocusReveal({
         aria-hidden={open || undefined}
         animate={
           open
-            ? { scale: reduced ? 1 : 1.04, filter: "blur(5px) brightness(0.62) saturate(0.85)" }
-            : { scale: 1, filter: "blur(0px) brightness(1) saturate(1)" }
+            ? { scale: reduced ? 1 : 1.015, filter: "blur(6px) saturate(0.85)" }
+            : { scale: 1, filter: "blur(0px) saturate(1)" }
         }
         transition={{ duration: open ? len(DUR.scene) : len(0.5), ease: EASE.out }}
         className="h-full origin-center"
@@ -87,7 +89,6 @@ export function FocusReveal({
             title={title}
             object={object}
             card={card}
-            tilt={tilt}
             reduced={reduced}
             onDismiss={onDismiss}
           />
@@ -102,10 +103,9 @@ function FocusOverlay({
   title,
   object,
   card,
-  tilt,
   reduced,
   onDismiss,
-}: Omit<FocusRevealProps, "open" | "className" | "children" | "tone"> & { tilt: number; reduced: boolean }) {
+}: Omit<FocusRevealProps, "open" | "className" | "children" | "tone" | "tilt"> & { reduced: boolean }) {
   const at = (s: number) => (reduced ? 0 : sec(s));
   const len = (s: number) => (reduced ? REDUCED.duration : sec(s));
   const [cue, setCue] = useState(false);
@@ -130,14 +130,14 @@ function FocusOverlay({
         aria-label="Close"
         tabIndex={-1}
         onClick={onDismiss}
-        className="absolute inset-0 cursor-default bg-[radial-gradient(90%_70%_at_50%_45%,rgb(26_24_20/0.42),rgb(26_24_20/0.7))]"
+        className="absolute inset-0 cursor-default bg-counter/80"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: len(0.8), ease: EASE.out }}
       />
       {eyebrow ? (
         <motion.p
-          className="label-print relative text-paper/85"
+          className="label-print relative text-[13px] text-ink-muted"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: at(AT.eyebrow), duration: len(0.5), ease: EASE.out }}
@@ -147,7 +147,7 @@ function FocusOverlay({
       ) : null}
       {title ? (
         <motion.h2
-          className="relative mt-2 max-w-[16ch] font-display text-[40px] font-extrabold uppercase leading-[0.95] text-balance text-paper"
+          className="relative mt-3 max-w-[16ch] font-display text-[40px] leading-[1.05] text-balance text-ink"
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: at(AT.title), duration: len(0.6), ease: EASE.out }}
@@ -158,19 +158,19 @@ function FocusOverlay({
       {object ? (
         <motion.div
           className="relative mt-7"
-          initial={{ opacity: 0, scale: 0.94, rotate: tilt * 2.4, y: 18 }}
-          animate={{ opacity: 1, scale: 1, rotate: tilt, y: 0 }}
-          transition={{ delay: at(AT.object), duration: len(0.7), ease: EASE.pop }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: at(AT.object), duration: len(0.8), ease: INK }}
         >
           {typeof object === "function" ? object(cue) : object}
         </motion.div>
       ) : null}
       {card ? (
         <motion.div
-          className="paper relative mt-7 w-full max-w-[320px] rotate-[0.8deg] rounded-[2px] px-5 py-4 text-left text-[15px] leading-snug shadow-[var(--shadow-lift)]"
-          initial={{ opacity: 0, y: 36 }}
+          className="paper relative mt-7 w-full max-w-[320px] px-5 py-4 text-left text-[16px] leading-snug shadow-lift"
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: at(AT.card), duration: len(0.7), ease: EASE.out }}
+          transition={{ delay: at(AT.card), duration: len(0.8), ease: INK }}
         >
           {card}
         </motion.div>

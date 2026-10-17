@@ -27,10 +27,10 @@ const BURST = 2.2; // s to show a whole burst, however big
 const MAX_LINES = 4; // reasons printed on the Z-report (the rest are summed)
 
 /**
- * The bot-attack moment, as the door log's Z-report. Each new blocked request
- * prints a REJECTED slip that's spiked on the spindle; the "turned away"
- * count ticks up (Count/NumberFlow) and the reason lines update. The hero
- * number is REACHED VISA: 0. A burst of 50 plays in ≈2.2 s. Counts start at
+ * The bot-attack moment, as the door log's report. Each new blocked request
+ * adds a REJECTED slip to the pile; the "turned away" count ticks up
+ * (Count/NumberFlow) and the reason lines update. The hero number, in
+ * Marcellus, is REACHED VISA: 0. A burst of 50 plays in ≈2.2 s. Counts start at
  * the current totals (history isn't replayed) and always settle on the real data.
  */
 export function BotWall({ blocked, reasons, lastReason, reachedVisa = 0, verified, className, sound = true }: BotWallProps) {
@@ -148,49 +148,47 @@ export function BotWall({ blocked, reasons, lastReason, reachedVisa = 0, verifie
         <ClosedSign flips={hits} reason={lastHitReason} face="open" sound={sound} />
       </div>
 
-      {/* The Z-report: the hero number first. */}
-      <div className="slip-drop mt-1" style={{ rotate: "-0.5deg" }}>
-        <div className="paper edge-torn-y relative px-6 pb-7 pt-8">
-          <div className="text-center">
-            <Count value={reachedVisa} className="dot block text-[112px] leading-[0.78] text-ink" />
-            <p className="label-print mt-1 text-[15px] text-ink">Reached Visa</p>
-          </div>
-          <div aria-hidden className="print-rule my-5" />
-          <p className="flex items-end gap-2">
-            <span className="label-print shrink-0 pb-1.5 text-ink-muted">Turned away</span>
-            <span aria-hidden className="leader mb-2.5!" />
-            <Count value={shown} className="dot shrink-0 text-[34px] leading-none text-ink" />
-          </p>
-          {verified !== undefined ? (
-            <p className="mt-2 flex items-end gap-2">
-              <span className="label-print shrink-0 pb-1.5 text-ink-muted">Verified, let in</span>
-              <span aria-hidden className="leader mb-2.5!" />
-              <Count value={verified} className="dot shrink-0 text-[34px] leading-none text-ink" />
-            </p>
-          ) : null}
-
-          {lines.length ? (
-            <>
-              <div aria-hidden className="print-rule my-4" />
-              <ul className="space-y-1.5 text-[15px]" aria-label="Why they were turned away">
-                {lines.map(([r, n]) => (
-                  <li key={r} className="flex items-baseline gap-2">
-                    <span className="shrink-0">{REASON_LABEL[r]}</span>
-                    <span aria-hidden className="leader" />
-                    <Count value={n} className="shrink-0 font-bold" />
-                  </li>
-                ))}
-                {rest > 0 ? (
-                  <li className="flex items-baseline gap-2 text-ink-muted">
-                    <span className="shrink-0">other</span>
-                    <span aria-hidden className="leader" />
-                    <Count value={rest} className="shrink-0" />
-                  </li>
-                ) : null}
-              </ul>
-            </>
-          ) : null}
+      {/* The report: the hero number first. */}
+      <div className="paper relative mt-2 px-6 pb-7 pt-7 shadow-slip">
+        <div className="text-center">
+          <Count value={reachedVisa} className="block font-display text-[104px] leading-[0.82] text-ink" />
+          <p className="label-print mt-3 text-[14px] text-ink">Reached Visa</p>
         </div>
+        <div aria-hidden className="print-rule my-5" />
+        <p className="flex items-baseline gap-2">
+          <span className="shrink-0 text-[16px] text-ink-muted">Turned away</span>
+          <span aria-hidden className="leader" />
+          <Count value={shown} className="dot shrink-0 text-[28px] leading-none text-ink" />
+        </p>
+        {verified !== undefined ? (
+          <p className="mt-2.5 flex items-baseline gap-2">
+            <span className="shrink-0 text-[16px] text-ink-muted">Verified, let in</span>
+            <span aria-hidden className="leader" />
+            <Count value={verified} className="dot shrink-0 text-[28px] leading-none text-ink" />
+          </p>
+        ) : null}
+
+        {lines.length ? (
+          <>
+            <div aria-hidden className="print-rule my-4" />
+            <ul className="space-y-1.5 text-[15px]" aria-label="Why they were turned away">
+              {lines.map(([r, n]) => (
+                <li key={r} className="flex items-baseline gap-2">
+                  <span className="shrink-0">{REASON_LABEL[r]}</span>
+                  <span aria-hidden className="leader" />
+                  <Count value={n} className="shrink-0 font-mono" />
+                </li>
+              ))}
+              {rest > 0 ? (
+                <li className="flex items-baseline gap-2 text-ink-muted">
+                  <span className="shrink-0">other</span>
+                  <span aria-hidden className="leader" />
+                  <Count value={rest} className="shrink-0 font-mono" />
+                </li>
+              ) : null}
+            </ul>
+          </>
+        ) : null}
       </div>
       <p className="sr-only" aria-live="polite">
         {busy ? "Turning bots away" : `${shown} turned away, ${reachedVisa} reached Visa`}

@@ -13,11 +13,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
           theme="light"
           position="top-center"
           toastOptions={{
-            // Toasts are little printed slips: paper, ink, square corners.
+            // Toasts are small paper slips: square, the ink hairline, a faint shadow.
             classNames: {
-              toast: "!rounded-[3px] !border-0 !bg-paper !text-ink !shadow-[var(--shadow-lift)] !font-sans",
-              title: "!text-[15px] !font-bold",
-              description: "!text-[14px] !text-ink-muted",
+              toast: "!rounded-none !border !border-ink/16 !bg-paper !text-ink !shadow-[var(--shadow-slip)] !font-sans",
+              title: "!text-[16px] !font-semibold",
+              description: "!text-[15px] !text-ink-muted",
             },
           }}
         />

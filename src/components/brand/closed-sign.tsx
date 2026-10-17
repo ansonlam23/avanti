@@ -9,22 +9,23 @@ import { sfx } from "./sfx";
 import { Stamp } from "./stamp";
 
 // CONTRACT (props are frozen; optional props may be added). The door sign
-// became the receipt spindle: every blocked request is a REJECTED slip.
+// became the receipt spindle, and in ink a neat stack of turned-away slips:
+// every blocked request adds one REJECTED slip to the pile.
 export interface ClosedSignProps {
-  /** Increment to spike one more REJECTED slip (one per blocked bot). */
+  /** Increment to add one more REJECTED slip (one per blocked bot). */
   flips?: number;
-  /** The reason printed on the newest slip, e.g. "replayed". */
+  /** The reason written on the newest slip, e.g. "replayed". */
   reason?: BlockReason | null;
   className?: string;
   /**
-   * "closed": rests with a slip already on the spike (a static illustration;
+   * "closed": rests with a slip already on the pile (a static illustration;
    * the default when there are no flips yet and a reason is given).
-   * "open": an empty spindle that collects a slip per bot.
+   * "open": an empty tray that collects a slip per bot.
    */
   face?: "open" | "closed";
-  /** A soft slap + steel tick per slip when sound is globally on. Default true. */
+  /** A soft paper slap per slip when sound is globally on. Default true. */
   sound?: boolean;
-  /** Static illustration: slips already on the spike, oldest first. */
+  /** Static illustration: slips already on the pile, oldest first. */
   pile?: BlockReason[];
 }
 
@@ -40,29 +41,27 @@ const REASON_LABEL: Record<BlockReason, string> = {
   wrong_target: "wrong shop",
 };
 
-// Geometry (px): a 228 × 196 spindle on the counter.
+// Geometry (px): a 228 × 196 box, the same footprint as the old spindle.
 const W = 228;
 const H = 196;
-const BASE_Y = 172; // top of the base disc
-const STACK_Y = 102; // where the first slip's top edge rests (its foot sits on the base)
-const LIFT = 5; // each slip sits this much higher on the pile
+const STACK_Y = 104; // where the first slip's top edge rests
+const LIFT = 6; // each slip sits this much higher on the pile
 const MAX = 9; // slips drawn (older ones stay counted, just not drawn)
-const DROP = 0.42; // s, a slip sliding down the spike
+const DROP = 0.42; // s, a slip settling onto the pile
 
-type Slip = { id: number; reason: BlockReason | null; rot: number; dx: number; animate: boolean };
+type Slip = { id: number; reason: BlockReason | null; dx: number; animate: boolean };
 
-/** Deterministic little angle/offset per slip so the pile looks hand-spiked. */
-function lay(id: number): { rot: number; dx: number } {
-  const angles = [-7, 5, -3, 8, -9, 3, -5, 6, -2, 9];
+/** A tiny deterministic sideways offset per slip, so the pile reads as a pile. */
+function lay(id: number): { dx: number } {
   const shifts = [-4, 3, -2, 5, -5, 2, -3, 4, 0, -1];
-  return { rot: angles[id % angles.length], dx: shifts[id % shifts.length] };
+  return { dx: shifts[id % shifts.length] };
 }
 
 /**
- * A receipt spindle. Each `flips` increment prints a small REJECTED slip
- * (with a red VOID stamp and the reason) that drops down the steel spike and
- * lands on the pile with a slap. A 50-bot burst piles up fast; the newest
- * slip's reason is always on top.
+ * The turned-away pile. Each `flips` increment writes a small REJECTED slip
+ * (a little vermilion VOID seal and the reason) that settles onto the stack
+ * with a soft slap. A 50-bot burst piles up fast; the newest slip's reason
+ * is always on top. Slips lie square, drawn with the ink hairline.
  */
 export function ClosedSign({ flips = 0, reason, className, face, sound = true, pile }: ClosedSignProps) {
   const [slips, setSlips] = useState<Slip[]>(() => {
@@ -91,7 +90,7 @@ export function ClosedSign({ flips = 0, reason, className, face, sound = true, p
       const now = performance.now();
       if (now - lastSound.current > 70) {
         lastSound.current = now;
-        sfx.play("spike", { delay: sec(DROP) * 0.8, gain: 0.8 });
+        sfx.play("spike", { delay: sec(DROP) * 0.6, gain: 0.6 });
       }
     }
   }, [flips, sound]);
@@ -104,62 +103,43 @@ export function ClosedSign({ flips = 0, reason, className, face, sound = true, p
       role="img"
       aria-label={
         slips.length
-          ? `Spindle of rejected requests${label ? `; the newest was rejected for: ${label}` : ""}`
-          : "Empty spindle: no requests rejected yet"
+          ? `Pile of rejected requests${label ? `; the newest was rejected for: ${label}` : ""}`
+          : "Empty tray: no requests rejected yet"
       }
       className={cn("relative inline-block select-none align-middle", className)}
       style={{ width: W, height: H }}
     >
-      {/* the spike */}
-      <span
-        aria-hidden
-        className="absolute left-1/2 w-[5px] -translate-x-1/2 rounded-t-full bg-[linear-gradient(90deg,#8d918b,#eef0ec_45%,#a5a9a3_70%,#6f736d)] shadow-[1px_0_1px_rgb(40_35_25/0.25)]"
-        style={{ top: 8, height: BASE_Y - 4 }}
-      />
-      <span
-        aria-hidden
-        className="absolute left-1/2 size-0 -translate-x-1/2 border-x-[2.5px] border-b-[8px] border-x-transparent border-b-[#c9ccc7]"
-        style={{ top: 1 }}
-      />
-      {/* the weighted base */}
-      <span
-        aria-hidden
-        className="absolute left-1/2 h-[20px] w-[118px] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(60%_80%_at_45%_30%,#f3f4f1,#bfc2bd_55%,#8c908a)] shadow-[0_6px_10px_-3px_rgb(40_35_25/0.45),inset_0_-3px_4px_rgb(0_0_0/0.15)]"
-        style={{ top: BASE_Y }}
-      />
-
+      {/* the tray the slips land in: one ink hairline */}
+      <span aria-hidden className="absolute inset-x-3 h-px bg-ink/30" style={{ top: STACK_Y + 70 }} />
+      {slips.length === 0 ? (
+        <span
+          aria-hidden
+          className="absolute left-1/2 w-[200px] -translate-x-1/2 border border-dashed border-ink/25"
+          style={{ top: STACK_Y, height: 64 }}
+        />
+      ) : null}
       {slips.map((s, i) => (
-        <SlipOnSpike key={s.id} slip={s} level={i} newest={i === slips.length - 1} />
+        <SlipOnPile key={s.id} slip={s} level={i} newest={i === slips.length - 1} />
       ))}
     </div>
   );
 }
 
-function SlipOnSpike({ slip, level, newest }: { slip: Slip; level: number; newest: boolean }) {
+function SlipOnPile({ slip, level, newest }: { slip: Slip; level: number; newest: boolean }) {
   const y = STACK_Y - level * LIFT;
   return (
     <motion.div
       aria-hidden
-      className="absolute left-1/2 w-[184px] drop-shadow-[0_2px_2px_rgb(60_50_30/0.22)]"
-      style={{ top: y, marginLeft: -92 + slip.dx, zIndex: 2 + level }}
-      initial={slip.animate ? { y: -(y + 40), rotate: slip.rot * 2.6, opacity: 0 } : false}
-      animate={{ y: 0, rotate: slip.rot, opacity: 1 }}
-      transition={
-        slip.animate
-          ? {
-              y: { duration: sec(DROP), ease: [0.55, 0, 0.9, 0.6] },
-              rotate: { duration: sec(DROP + 0.25), ease: [0.2, 1.4, 0.4, 1] },
-              opacity: { duration: sec(0.08) },
-            }
-          : { duration: 0 }
-      }
+      className="absolute left-1/2 w-[200px]"
+      style={{ top: y, marginLeft: -100 + slip.dx, zIndex: 2 + level }}
+      initial={slip.animate ? { y: -28, opacity: 0 } : false}
+      animate={{ y: 0, opacity: 1 }}
+      transition={slip.animate ? { duration: sec(DROP), ease: [0.22, 1, 0.36, 1] } : { duration: 0 }}
     >
-      <div className={cn("paper edge-torn-bottom relative rounded-t-[2px] px-3 pt-2.5", !newest && "[&_p]:opacity-90")}>
-        {/* the hole the spike goes through */}
-        <span className="absolute left-1/2 top-[7px] size-[7px] -translate-x-1/2 rounded-full bg-[#b9bcb7] shadow-[inset_0_1px_2px_rgb(0_0_0/0.45)]" />
-        <p className="mt-2 font-display text-[22px] font-extrabold uppercase leading-none tracking-[0.03em]">Rejected</p>
-        <p className="mt-0.5 truncate text-[14px] leading-snug text-ink-muted">{slip.reason ? REASON_LABEL[slip.reason] : "unsigned"}</p>
-        <Stamp kind="BLOCKED" text="Void" size="sm" sound={false} className="absolute right-2.5 top-3" />
+      <div className={cn("paper relative h-[64px] px-3.5 pt-2.5 shadow-slip", !newest && "[&_p]:opacity-80")}>
+        <p className="font-display text-[20px] leading-none">Rejected</p>
+        <p className="mt-1 truncate pr-[76px] text-[14px] leading-snug text-ink-muted">{slip.reason ? REASON_LABEL[slip.reason] : "unsigned"}</p>
+        {newest ? <Stamp kind="FAILED" text="Void" size="sm" sound={false} className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px]" /> : null}
       </div>
     </motion.div>
   );

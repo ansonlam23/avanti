@@ -6,7 +6,7 @@ import { code128Bars, toCode128B } from "./barcode";
 
 const QUIET = 8; // modules of white either side (scanners need it)
 
-/** A real Code 128 barcode, printed in ink (crisp edges, no smoothing). */
+/** A real Code 128 barcode, in ink (crisp edges, no smoothing). */
 export function Barcode({
   value,
   className,
@@ -41,16 +41,7 @@ export function Barcode({
   );
 }
 
-/** The printer's mouth: a dark housing with a slot and a serrated cutter (paper feeds out below it). */
-export function PrinterMouth({ className, gone }: { className?: string; gone?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "printer-mouth pointer-events-none absolute -inset-x-4 -top-3.5 z-20 h-7 transition-[opacity,translate] duration-500",
-        gone && "-translate-y-2 opacity-0",
-        className,
-      )}
-    />
-  );
+/** Kept for callers: the printer is gone in ink, so its mouth draws nothing. */
+export function PrinterMouth({ className }: { className?: string; gone?: boolean }) {
+  return <span aria-hidden className={cn("printer-mouth hidden", className)} />;
 }

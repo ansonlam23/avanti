@@ -72,3 +72,47 @@ export function runFeed(root: HTMLElement, { apply, done, sound = true, step = D
     root.style.removeProperty("translate");
   };
 }
+
+export interface RevealOptions {
+  /** Every row has risen in. */
+  done: () => void;
+  /** Soft printer chatter while the rows arrive (only when sound is globally on). Default true. */
+  sound?: boolean;
+  /** Seconds between one row and the next (default 0.09). */
+  step?: number;
+  /** Seconds each row takes to rise in (default 0.6). */
+  rise?: number;
+}
+
+/**
+ * Ink's calm version of the feed: each `[data-row]` inside `root` rises and
+ * fades in after the one before it (EASE cubic-bezier(.22,1,.36,1)). Rows
+ * should start hidden (style them from a `data-revealing` attribute or give
+ * them opacity 0) — the animations fill backwards, so they never flash.
+ * Reduced motion: done on the next tick, nothing moves. Returns a cancel.
+ */
+export function runReveal(root: HTMLElement, { done, sound = true, step = 0.09, rise = 0.6 }: RevealOptions): () => void {
+  if (prefersReducedMotion()) {
+    const t = setTimeout(done, 0);
+    return () => clearTimeout(t);
+  }
+  const rows = [...root.querySelectorAll<HTMLElement>("[data-row]")];
+  const each = ms(step);
+  const len = ms(rise);
+  const anims = rows.map((el, i) =>
+    el.animate(
+      [
+        { opacity: 0, transform: "translate3d(0, 8px, 0)" },
+        { opacity: 1, transform: "none" },
+      ],
+      { duration: len, delay: i * each, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "both" },
+    ),
+  );
+  const total = Math.max(0, rows.length - 1) * each + len;
+  if (sound) sfx.play("printer", { duration: Math.min(1.2, total / 1000) });
+  const t = setTimeout(done, total);
+  return () => {
+    clearTimeout(t);
+    for (const a of anims) a.cancel();
+  };
+}

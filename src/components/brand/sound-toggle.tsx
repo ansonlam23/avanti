@@ -22,8 +22,8 @@ export function SoundToggle({ className, compact }: { className?: string; compac
         if (!next) sfx.play("switch", { gain: 0.6 });
       }}
       className={cn(
-        "inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-[3px] px-3 text-[14px] font-bold uppercase tracking-[0.08em] transition active:scale-95",
-        muted ? "text-ink-muted hover:bg-ink/[0.06]" : "bg-ink text-paper",
+        "inline-flex h-11 min-w-11 items-center justify-center gap-2 border px-3 text-[13px] font-semibold uppercase tracking-[0.12em] transition-colors duration-200",
+        muted ? "border-ink/20 text-ink-muted hover:border-ink/45 hover:text-ink" : "border-carbon bg-carbon text-paper hover:bg-[#124b56]",
         className,
       )}
     >

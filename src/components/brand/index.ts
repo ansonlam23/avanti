@@ -17,3 +17,4 @@ export { Barcode, PrinterMouth } from "./barcode-svg";
 export { SignedSlip } from "./signed-slip";
 export { sfx, useSfxMuted, type SfxName, type SfxOptions } from "./sfx";
 export { SoundToggle } from "./sound-toggle";
+export { Wordmark } from "./wordmark";

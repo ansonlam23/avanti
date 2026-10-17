@@ -2,7 +2,7 @@
 
 import { useAnimate } from "motion/react";
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
-import { DUR, EASE, REDUCED } from "@/lib/motion";
+import { REDUCED } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion, sec } from "./motion-prefs";
 import { sfx } from "./sfx";
@@ -12,45 +12,50 @@ export type StampKind = "HELD" | "PAID" | "RELEASED" | "FAILED" | "VERIFIED" | "
 
 export interface StampProps {
   kind: StampKind;
-  /** Small line under the word, e.g. "Open Sign Shopper" or "$18.00". */
+  /** Small line under the word, e.g. "avanti shopper" or "$18.00" (kept in its own case). */
   label?: string;
-  /** Play the slam-down animation when it appears. */
+  /** Press the seal down when it appears. */
   animate?: boolean;
-  /** "paper" = ink that sinks into paper; "dark" = the same ink, lit, over a dimmed scene. */
+  /** "paper" = ink that sinks into paper (multiply); "dark" = kept for callers, same ink. */
   surface?: "paper" | "dark";
   className?: string;
   /** sm for compact rows, md (default), lg for focus reveals. */
   size?: "sm" | "md" | "lg";
-  /** An older impression under a newer stamp (stamps keep history). */
+  /** An older impression under a newer seal (seals keep history). */
   faded?: boolean;
-  /** Fires at the moment of impact (shake a container, sync a sound). */
+  /** Fires the moment the seal meets the paper (sync a sound, a beat). */
   onSlam?: () => void;
-  /** Thunk on impact when sound is globally on. Default true. */
+  /** A soft thunk on impact when sound is globally on. Default true. */
   sound?: boolean;
-  /** Override the word (e.g. "NEEDS A PRICE", "VOID"); `kind` still sets the angle. */
+  /** Override the word (e.g. "Needs a price", "Void"); `kind` still sets the angle. */
   text?: string;
 }
 
-/** Each stamp has its own rest angle, like real hand stamping (−11°…+7°). */
+/** A hand-pressed seal is never quite square to the page: a degree or two. */
 const REST: Record<StampKind, number> = {
-  HELD: -7,
-  PAID: 6,
-  RELEASED: -4,
-  FAILED: 5,
-  VERIFIED: -5,
-  BLOCKED: -9,
+  HELD: -2,
+  PAID: 1.5,
+  RELEASED: -1.5,
+  FAILED: 2,
+  VERIFIED: -2.5,
+  BLOCKED: 2,
 };
 
 const SIZE = {
-  sm: "text-[19px] [&_.stamp-label]:text-[14px]",
-  md: "text-[26px] [&_.stamp-label]:text-[14px]",
-  lg: "text-[44px] [&_.stamp-label]:text-[16px]",
+  sm: "text-[16px] [&_.stamp-label]:text-[13px]",
+  md: "text-[22px] [&_.stamp-label]:text-[14px]",
+  lg: "text-[30px] [&_.stamp-label]:text-[15px]",
 } as const;
 
+const PRESS = 0.6; // s: the seal pressed into the paper
+const IMPACT = 0.38; // of PRESS: the moment it meets the paper
+
 /**
- * A rubber stamp in the one red ink: heavy frame + an inner rule, worn ink,
- * multiplied into the paper. Slam script (DUR.stamp = 0.25 s): scale 1.6 →
- * 0.96 → 1 with blur → sharp, impact at 70% (thunk + onSlam), then a tiny shake.
+ * The vermilion seal: a square, double-ruled hanko in #b5392b with a slight
+ * ink texture, multiplied into the paper. It marks every decision (HELD,
+ * PAID, RELEASED, VERIFIED, BLOCKED…) and is the one strong colour on a
+ * screen. Press (0.6 s, calm): it settles from 1.08× as the ink fades in;
+ * onSlam + a soft thunk at the moment of contact.
  */
 export function Stamp({
   kind,
@@ -79,22 +84,19 @@ export function Stamp({
       onSlamRef.current?.();
       return () => c.stop();
     }
-    const d = sec(DUR.stamp);
-    const impact = d * 0.7;
-    const slam = run(
+    const d = sec(PRESS);
+    const press = run(
       ink,
-      { scale: [1.6, 0.96, 1], opacity: [0, 1, 1], filter: ["blur(5px)", "blur(0px)", "blur(0px)"] },
-      { duration: d, times: [0, 0.7, 1], ease: [EASE.in, EASE.out] },
+      { scale: [1.08, 1], opacity: [0, 1], filter: ["blur(1.5px)", "blur(0px)"] },
+      { duration: d, ease: [0.22, 1, 0.36, 1] },
     );
-    const shake = run(scope.current, { x: [0, -2.5, 2, -1, 0], y: [0, 1.2, -0.6, 0.2, 0] }, { duration: sec(0.2), delay: impact });
     const t = setTimeout(() => {
       onSlamRef.current?.();
-      if (sound) sfx.play("stamp", { gain: size === "sm" ? 0.5 : 1 });
-    }, impact * 1000);
+      if (sound) sfx.play("stamp", { gain: size === "sm" ? 0.4 : 0.8 });
+    }, d * IMPACT * 1000);
     return () => {
       clearTimeout(t);
-      slam.stop();
-      shake.stop();
+      press.stop();
     };
     // Play once per appearance (remount or toggle `animate` to replay).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,16 +127,16 @@ export function Stamp({
 
 function Check() {
   return (
-    <svg aria-hidden viewBox="0 0 24 24" className="size-[0.86em] shrink-0" fill="none">
-      <path d="M4.5 12.8l4.6 4.7L19.6 6.4" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg aria-hidden viewBox="0 0 24 24" className="size-[0.78em] shrink-0" fill="none">
+      <path d="M4.5 12.8l4.6 4.7L19.6 6.4" stroke="currentColor" strokeWidth="2.6" strokeLinecap="square" strokeLinejoin="miter" />
     </svg>
   );
 }
 
 function Cross() {
   return (
-    <svg aria-hidden viewBox="0 0 24 24" className="size-[0.8em] shrink-0" fill="none">
-      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
+    <svg aria-hidden viewBox="0 0 24 24" className="size-[0.72em] shrink-0" fill="none">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="square" />
     </svg>
   );
 }
@@ -144,7 +146,7 @@ export function SimulatedBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[2px] border-[1.5px] border-dashed border-ink px-1.5 py-px font-sans text-[14px] font-bold uppercase leading-tight tracking-[0.08em] text-ink",
+        "inline-flex items-center border border-dashed border-ink bg-paper px-2 py-[3px] font-sans text-[13px] font-bold uppercase leading-tight tracking-[0.12em] text-ink",
         className,
       )}
       title="Visa sandbox keys aren't connected here yet, so this payment step is simulated."

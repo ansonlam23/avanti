@@ -3,20 +3,19 @@
 import { motion } from "motion/react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatPriceShort } from "@/lib/format";
-import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import { PrinterMouth } from "./barcode-svg";
 import { prefersReducedMotion, sec } from "./motion-prefs";
-import { runFeed } from "./print-feed";
+import { runReveal } from "./print-feed";
 import { hashSeed, rng, roughStrike } from "./rough";
 import { Stamp } from "./stamp";
 
 // CONTRACT (props are frozen; optional props may be added). The chalkboard
-// became a printed menu slip; the names stay so every caller keeps working.
+// became a printed slip and then an ink menu card; the names stay so every
+// caller keeps working.
 export interface ChalkMenuItem {
   id: string;
   name: string;
-  price_cents: number | null; // null → a red NEEDS A PRICE stamp
+  price_cents: number | null; // null → a small vermilion "Needs a price" seal
   tags?: string[];
   sold_out?: boolean;
   note?: string | null; // e.g. English name under a Vietnamese name
@@ -27,67 +26,49 @@ export interface ChalkMenuProps {
   items: ChalkMenuItem[];
   highlightId?: string | null; // e.g. the item the shopper is asking about
   className?: string;
-  /** Print the slip line by line out of the printer (a fixed script; remount to replay). */
+  /** Write the menu in line by line (a fixed script; remount to replay). */
   animateIn?: boolean;
-  /** Printer chatter while printing, when sound is globally on. Default true. */
+  /** Soft sound while the lines arrive, when sound is globally on. Default true. */
   sound?: boolean;
-  /** Resting angle on the counter in degrees (default 0.5; paper is never square). */
+  /** Kept for callers. Ink cards lie square, so it's ignored. */
   tilt?: number;
 }
 export type MenuSlipProps = ChalkMenuProps;
 
-/**
- * The shop's menu, printed on a thermal slip with torn ends. Receipt lines
- * with dotted leaders; a missing price gets a red NEEDS A PRICE stamp; a
- * sold-out line is struck through in the owner's blue pen with "sold out"
- * written beside it; the item a shopper asks about gets a highlighter swipe.
- * animateIn: the slip feeds out of the printer one line at a time.
- */
-export function ChalkMenu({ title = "Today", items, highlightId, className, animateIn, sound = true, tilt = 0.5 }: ChalkMenuProps) {
-  const paperRef = useRef<HTMLDivElement>(null);
-  const [printing, setPrinting] = useState(!!animateIn);
+const EASE_INK = [0.22, 1, 0.36, 1] as const;
 
-  // Print once per mount.
+/**
+ * The shop's menu on a paper card: the title in Marcellus, one line per item
+ * with a dotted leader and a Red Hat Mono price. A missing price gets a small
+ * vermilion "Needs a price" seal; a sold-out line is struck through with the
+ * owner's brush and "sold out" brushed beside it; the item a shopper asks
+ * about gets a teal wash. animateIn: the lines rise in one after another.
+ */
+export function ChalkMenu({ title = "Today", items, highlightId, className, animateIn, sound = true }: ChalkMenuProps) {
+  const paperRef = useRef<HTMLDivElement>(null);
+  const [writing, setWriting] = useState(!!animateIn);
+
+  // Write once per mount.
   useLayoutEffect(() => {
-    if (!printing) return;
+    if (!writing) return;
     const paper = paperRef.current;
     if (!paper) return;
-    return runFeed(paper, {
-      sound,
-      from: 10,
-      apply: (px) => {
-        paper.style.clipPath = `inset(0 0 calc(100% - ${px.toFixed(1)}px) 0)`;
-      },
-      done: () => {
-        paper.style.removeProperty("clip-path");
-        setPrinting(false);
-      },
-    });
+    return runReveal(paper, { sound, step: 0.08, done: () => setWriting(false) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <section className={cn("relative w-full", className)} aria-label={`${title} menu`}>
-      {animateIn ? <PrinterMouth gone={!printing} /> : null}
-      <div
-        className="slip-drop transition-[rotate] duration-500 ease-[cubic-bezier(0.19,1.51,0.29,0.99)]"
-        style={{ rotate: `${printing ? 0 : tilt}deg` }}
-      >
-        <div
-          ref={paperRef}
-          className="paper edge-torn-y relative px-6 pb-8 pt-8"
-          style={printing ? { clipPath: "inset(0 0 100% 0)" } : undefined}
-        >
-          <h3 data-row className="thermal text-center font-display text-[30px] font-extrabold uppercase leading-[0.95] text-balance">
-            {title}
-          </h3>
-          <div aria-hidden className="print-rule mb-4 mt-4" />
-          <ul className="space-y-3.5">
-            {items.map((item) => (
-              <MenuLine key={item.id} item={item} highlighted={highlightId === item.id} />
-            ))}
-          </ul>
-        </div>
+      <div ref={paperRef} data-revealing={writing ? "true" : undefined} className="paper relative px-6 pb-7 pt-6 shadow-slip">
+        <h3 data-row className="text-center font-display text-[26px] leading-[1.1] text-balance">
+          {title}
+        </h3>
+        <div aria-hidden data-row className="print-rule mb-4 mt-4" />
+        <ul className="space-y-3.5">
+          {items.map((item) => (
+            <MenuLine key={item.id} item={item} highlighted={highlightId === item.id} />
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -113,16 +94,16 @@ function MenuLine({ item, highlighted }: { item: ChalkMenuItem; highlighted: boo
       <div className="relative flex items-baseline gap-2">
         <span className="relative min-w-0">
           {highlighted ? <Highlight /> : null}
-          <span className={cn("relative text-[16px] uppercase leading-snug [overflow-wrap:anywhere]", soldOut && "text-ink-muted")}>
+          <span className={cn("relative text-[16px] leading-snug [overflow-wrap:anywhere]", soldOut && "text-ink-muted")}>
             {item.name}
           </span>
         </span>
         {needsPrice && !soldOut ? (
-          <Stamp kind="HELD" text="Needs a price" size="sm" className="ml-auto shrink-0 self-center" sound={false} />
+          <Stamp kind="HELD" text="Needs a price" size="sm" className="ml-auto shrink-0 self-center text-[14px]" sound={false} />
         ) : (
           <>
             <span aria-hidden className="leader" />
-            <span className={cn("shrink-0 text-[16px] font-bold tabular-nums", soldOut && "text-ink-muted")}>
+            <span className={cn("shrink-0 font-mono text-[15px] tabular-nums", soldOut && "text-ink-muted")}>
               {formatPriceShort(item.price_cents)}
             </span>
           </>
@@ -132,34 +113,34 @@ function MenuLine({ item, highlighted }: { item: ChalkMenuItem; highlighted: boo
       {soldOut ? (
         <motion.p
           key={strikeTake}
-          className="pen -mb-1 mt-0.5 w-fit origin-left rotate-[-2.5deg] text-[30px]"
+          className="pen -mb-1 mt-1 w-fit text-[26px]"
           initial={strikeTake > 0 ? { opacity: 0, clipPath: "inset(0 100% 0 0)" } : false}
           animate={{ opacity: 1, clipPath: "inset(0 0% 0 0)" }}
-          transition={{ duration: dur(0.45), delay: dur(0.3), ease: "linear" }}
+          transition={{ duration: dur(0.5), delay: dur(0.3), ease: "linear" }}
         >
           sold out
         </motion.p>
       ) : sub ? (
-        <p className="mt-0.5 text-[14px] leading-snug text-ink-muted">{sub}</p>
+        <p className="mt-0.5 text-[15px] leading-snug text-ink-muted">{sub}</p>
       ) : null}
     </li>
   );
 }
 
-/** The highlighter swipe behind the item a shopper is asking about. */
+/** The teal wash behind the item a shopper is asking about. */
 function Highlight() {
   return (
     <motion.span
       aria-hidden
-      className="absolute -inset-x-1.5 inset-y-[-1px] origin-left -rotate-[0.6deg] rounded-[2px] bg-highlight mix-blend-multiply"
+      className="absolute -inset-x-1.5 inset-y-[-1px] origin-left bg-highlight mix-blend-multiply"
       initial={{ scaleX: 0 }}
       animate={{ scaleX: 1 }}
-      transition={{ duration: dur(0.42), ease: EASE.out }}
+      transition={{ duration: dur(0.6), ease: EASE_INK }}
     />
   );
 }
 
-/** Measures the parent box (for the pen strike drawn through it). */
+/** Measures the parent box (for the brush strike drawn through it). */
 function useParentWidth<T extends Element>() {
   const ref = useRef<T>(null);
   const [w, setW] = useState(0);
@@ -173,7 +154,7 @@ function useParentWidth<T extends Element>() {
   return [ref, w] as const;
 }
 
-/** Sold out: the owner's blue pen strikes through the whole line. */
+/** Sold out: the owner's brush strikes through the whole line. */
 function Strike({ seed, draw }: { seed: number; draw: boolean }) {
   const [ref, w] = useParentWidth<SVGSVGElement>();
   const d = useMemo(() => (w ? roughStrike(w, 0, rng(seed)) : ""), [w, seed]);
@@ -184,11 +165,11 @@ function Strike({ seed, draw }: { seed: number; draw: boolean }) {
           d={d}
           fill="none"
           stroke="var(--color-carbon)"
-          strokeWidth="2.6"
+          strokeWidth="2.4"
           strokeLinecap="round"
           initial={draw ? { pathLength: 0 } : false}
           animate={{ pathLength: 1 }}
-          transition={{ duration: dur(0.35), ease: EASE.out }}
+          transition={{ duration: dur(0.45), ease: EASE_INK }}
         />
       ) : null}
     </svg>
