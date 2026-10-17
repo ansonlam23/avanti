@@ -2,11 +2,10 @@
 
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Receipt, SoundToggle } from "@/components/brand";
+import { Receipt, SoundToggle, Wordmark } from "@/components/brand";
 import type { MenuResult } from "@/lib/ai/shopper-types";
 import { getMyShops } from "@/lib/my-shops";
 import type { PaymentMode } from "@/lib/types";
-import { AiMark } from "./ai-mark";
 import { AiBubble, Notice, StatusLine, UserBubble } from "./bubbles";
 import { Composer } from "./composer";
 import { DEFAULT_CHIPS, EmptyState } from "./empty-state";
@@ -20,10 +19,10 @@ import { useShopper } from "./use-shopper";
 import { useWide } from "./use-wide";
 import "./ask.css";
 
-// /ask: the AI shopper, on the counter. Phone (390×844): one column, your notes
-// are paper slips, the AI prints plain ink, shops/menus/orders are paper
-// objects inline. Laptop (≥ 1024): the conversation in a reading column and
-// the order on a tray to its right (order-tray.tsx), so the money is always in view.
+// /ask: the AI shopper, ink on rice paper. Phone (390×844): one column, your
+// notes are paper slips, the AI's words are plain ink, shops/menus/orders are
+// paper slips inline. Laptop (≥ 1024): the conversation in a reading column and
+// the order in a column to its right (order-tray.tsx), so the money is always in view.
 
 // "My shops" (CONTRACTS §11) live in localStorage, shared with /demo's owner
 // iframe; the storage event keeps this tab in sync when that one changes.
@@ -175,7 +174,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
       case "check_order": {
         if (!("order" in r)) return null;
         const order = state.orders[r.order.id] ?? r.order;
-        return <Receipt {...receiptProps(order)} className="mx-auto w-full max-w-[330px]" />;
+        return <Receipt {...receiptProps(order)} tilt={0} className="mx-auto w-full max-w-[330px]" />;
       }
     }
   }
@@ -189,12 +188,15 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
       style={{ top: "var(--ask-top, 0px)", height: "var(--ask-vh, 100dvh)" }}
     >
       <OrderReveal reveal={state.reveal} order={revealOrder} onChange={setReveal}>
-        <div className="flex h-full flex-col bg-[radial-gradient(90%_60%_at_50%_0%,rgb(255_253_246/0.6),transparent_70%)] md:bg-none">
-          <header className="relative z-10 flex items-center gap-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),14px)] lg:px-8 lg:pb-2 lg:pt-5">
-            <AiMark size={26} state={state.busy ? "thinking" : "listening"} />
+        <div className="flex h-full flex-col">
+          <header className="relative z-10 flex items-center gap-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),14px)] lg:px-12 lg:pb-3 lg:pt-6">
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-[24px] font-extrabold uppercase leading-none lg:text-[26px]">Open Sign Shopper</h1>
-              <p className="mt-0.5 text-[14px] leading-tight text-ink-muted lg:text-[15px]">near UW campus</p>
+              {/* the avanti wordmark + who's talking: "avanti shopper" */}
+              <h1 className="flex items-baseline gap-[0.3em] font-display text-[26px] font-normal leading-none tracking-[0.01em] lg:text-[30px]">
+                <Wordmark className="text-[26px] lg:text-[30px]" />
+                <span className="text-ink-muted">shopper</span>
+              </h1>
+              <p className="mt-1.5 text-[15px] leading-tight text-ink-muted lg:mt-2 lg:text-[16px]">near UW campus</p>
             </div>
             <SoundToggle compact />
             {state.feed.length ? (
@@ -205,10 +207,10 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                   setDraft("");
                 }}
                 aria-label="Start a new chat"
-                className="flex h-11 min-w-11 items-center justify-center gap-2 rounded-[3px] text-ink transition hover:bg-ink/[0.06] active:scale-95 lg:px-3"
+                className="group flex h-11 min-w-11 items-center justify-center gap-2 border border-transparent text-carbon transition-colors hover:border-ink/15 lg:px-3"
               >
-                <RotateCcw aria-hidden className="size-5" />
-                <span aria-hidden className="hidden text-[15px] lg:inline">
+                <RotateCcw aria-hidden className="size-[18px] transition-transform duration-500 group-hover:-rotate-90" strokeWidth={1.6} />
+                <span aria-hidden className="hidden font-display text-[17px] tracking-[0.04em] lg:inline">
                   New chat
                 </span>
               </button>
@@ -224,15 +226,15 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                   const el = e.currentTarget;
                   stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
                 }}
-                className="ask-feed-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 lg:px-10"
+                className="ask-feed-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 lg:px-12"
               >
                 <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col">
                   {empty ? <EmptyState chips={chips} mode={mode} onPick={submit} /> : null}
                   {/* Always mounted, so screen readers announce the first reply too. */}
-                  <div aria-live="polite" aria-busy={state.busy} className={empty ? undefined : "space-y-5 pb-6 pt-5 lg:space-y-7 lg:pb-10 lg:pt-8"}>
+                  <div aria-live="polite" aria-busy={state.busy} className={empty ? undefined : "space-y-6 pb-8 pt-5 lg:space-y-8 lg:pb-10 lg:pt-8"}>
                     {visible.map((item) => (
                       // the AI's paper (shops, menus, orders) lines up under its words on a laptop
-                      <div key={item.id} className={item.kind === "tool" ? "lg:max-w-[594px] lg:pl-[34px]" : undefined}>
+                      <div key={item.id} className={item.kind === "tool" ? "lg:max-w-[600px] lg:pl-[36px]" : undefined}>
                         {item.kind === "user" ? (
                           <UserBubble text={item.text} />
                         ) : item.kind === "ai" ? (
@@ -249,7 +251,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                 </div>
               </div>
 
-              <footer className="relative z-10 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:px-10 lg:pb-7">
+              <footer className="relative z-10 px-4 pb-[max(env(safe-area-inset-bottom),12px)] pt-2 lg:px-12 lg:pb-8">
                 <div className="mx-auto w-full max-w-[720px]">
                   <Composer value={draft} onChange={setDraft} onSend={submit} busy={state.busy} />
                 </div>
@@ -260,7 +262,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
             <aside
               ref={trayRef}
               aria-label="Your order"
-              className="ask-tray mb-7 mr-8 mt-3 hidden w-[420px] shrink-0 overflow-y-auto rounded-[14px] px-8 py-7 lg:block xl:w-[460px]"
+              className="ask-tray hidden w-[440px] shrink-0 overflow-y-auto px-9 pb-8 pt-3 lg:block xl:w-[480px] xl:px-12"
             >
               <OrderTray
                 view={wide && trayItem ? "order" : empty ? "sample" : "idle"}

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { hasOwnerToken } from "@/lib/my-shops";
 import { cn } from "@/lib/utils";
+import { Arrow } from "./arrow";
 
 // Shown only in the browser that opened this shop (it holds the owner token).
 
@@ -18,8 +18,8 @@ export function OwnerLink({ slug, className }: { slug: string; className?: strin
   );
   if (!owner) return null;
   return (
-    <Link href={`/shop/${slug}`} className={cn("btn-ink mt-6 w-full justify-between!", className)}>
-      Behind the counter <ArrowRight className="size-6" aria-hidden />
+    <Link href={`/shop/${slug}`} className={cn("sf-link", className)}>
+      Behind the counter <Arrow />
     </Link>
   );
 }

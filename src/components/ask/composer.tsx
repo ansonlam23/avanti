@@ -100,7 +100,7 @@ export function Composer({
         e.preventDefault();
         submit();
       }}
-      className="paper flex items-center gap-1.5 rounded-[3px] py-1.5 pl-4 pr-1.5 shadow-[var(--shadow-lift)] focus-within:outline-3 focus-within:outline-offset-2 focus-within:outline-carbon"
+      className="ask-composer flex items-center gap-1.5 py-1.5 pl-4 pr-1.5 lg:py-2 lg:pl-5 lg:pr-2"
     >
       <label htmlFor="ask-input" className="sr-only">
         Ask the AI shopper
@@ -115,7 +115,7 @@ export function Composer({
         autoCorrect="on"
         enterKeyHint="send"
         maxLength={500}
-        className="h-11 min-w-0 flex-1 bg-transparent text-[16px] placeholder:text-ink-muted focus:outline-none"
+        className="h-11 min-w-0 flex-1 bg-transparent text-[16px] text-ink placeholder:text-ink-muted focus:outline-none lg:text-[17px]"
       />
       {canSpeak ? (
         <button
@@ -124,20 +124,20 @@ export function Composer({
           aria-label={listening ? "Stop listening" : "Speak instead"}
           aria-pressed={listening}
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-[3px] transition active:scale-95",
-            listening ? "bg-stamp text-paper" : "text-ink hover:bg-ink/[0.06]",
+            "flex size-11 shrink-0 items-center justify-center border transition-colors",
+            listening ? "border-carbon bg-carbon text-paper" : "border-transparent text-carbon hover:border-ink/20",
           )}
         >
-          {listening ? <Square className="size-4 fill-current" /> : <Mic className="size-5" />}
+          {listening ? <Square className="size-3.5 fill-current" /> : <Mic className="size-5" strokeWidth={1.6} />}
         </button>
       ) : null}
       <button
         type="submit"
         disabled={!ready}
         aria-label="Send"
-        className="flex size-11 shrink-0 items-center justify-center rounded-[3px] bg-ink text-paper transition active:scale-95 disabled:opacity-35"
+        className="flex size-11 shrink-0 items-center justify-center bg-carbon text-paper transition-[background-color,opacity] duration-200 enabled:hover:bg-[#124b56] enabled:active:translate-y-px disabled:bg-carbon/25 disabled:text-paper"
       >
-        <ArrowUp className="size-5" strokeWidth={2.5} />
+        <ArrowUp className="size-5" strokeWidth={1.8} />
       </button>
     </form>
   );

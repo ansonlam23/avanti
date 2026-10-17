@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "motion/react";
+import { Stamp } from "@/components/brand";
 import type { ItemSummary, SearchShop, SearchShopsResult } from "@/lib/ai/shopper-types";
 import { formatClock, formatPriceShort } from "@/lib/format";
-import { EASE, STAGGER } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { RISE, RISE_S } from "./ink";
 
 const MAX_CARDS = 3;
-const TILT = [-0.7, 0.5, -0.3];
 
 export function SearchResults({
   result,
@@ -22,23 +22,23 @@ export function SearchResults({
   const shown = result.shops.slice(0, MAX_CARDS);
   const more = result.shops.length - shown.length;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {shown.map((shop, i) => (
         <motion.div
           key={shop.slug}
-          initial={{ opacity: 0, y: 14, rotate: TILT[i % 3] * 3 }}
-          animate={{ opacity: 1, y: 0, rotate: TILT[i % 3] }}
-          transition={{ duration: 0.45, ease: EASE.out, delay: i * STAGGER.line * 1.5 }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: RISE_S, ease: RISE, delay: i * 0.12 }}
         >
           <ShopCard shop={shop} neededBy={result.needed_by} gone={gone} mine={mine.includes(shop.slug)} />
         </motion.div>
       ))}
-      {more > 0 ? <p className="px-1 text-[14px] text-ink-muted lg:text-[15px]">+{more} more nearby</p> : null}
+      {more > 0 ? <p className="px-1 text-[15px] text-ink-muted lg:text-[16px]">+{more} more nearby</p> : null}
     </div>
   );
 }
 
-/** A shop as a printed slip: name, distance + pickup, and what matched, as receipt lines. */
+/** A shop as a paper slip: name, distance + pickup, and what matched, as slip lines with leaders. */
 export function ShopCard({
   shop,
   neededBy,
@@ -64,19 +64,19 @@ export function ShopCard({
   const extra = Math.max(0, shop.matches.length - 3) + shop.more_matches;
 
   return (
-    <article className="paper rounded-[2px] px-5 pb-4 pt-4 shadow-slip">
-      <div className="flex gap-3">
+    <article className="ask-slip px-5 pb-4 pt-4 lg:px-6 lg:pb-5 lg:pt-5">
+      <div className="flex gap-4">
         <ShopPhoto url={shop.photo_url} name={shop.name} />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-display text-[26px] font-extrabold uppercase leading-none">{shop.name}</h3>
-          <p className="mt-1 truncate text-[14px] text-ink-muted lg:text-[15px]">{meta.join(" · ")}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <h3 className="truncate font-display text-[25px] font-normal leading-[1.1] text-ink lg:text-[27px]">{shop.name}</h3>
+          <p className="mt-1 truncate text-[15px] text-ink-muted lg:text-[16px]">{meta.join(" · ")}</p>
+          <div className="mt-2.5 flex flex-wrap gap-x-2 gap-y-1.5">
             {shop.accepts_ai_orders ? (
               <a
                 href={`/s/${shop.slug}/agent.json`}
                 target="_blank"
                 rel="noreferrer"
-                className="relative inline-flex h-7 items-center rounded-[2px] border-[1.5px] border-ink px-1.5 font-display text-[15px] font-extrabold uppercase leading-none after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']"
+                className="relative inline-flex h-7 items-center gap-1 border border-carbon/45 px-2 text-[15px] font-semibold leading-none text-carbon transition-colors hover:border-carbon after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']"
               >
                 AI-ready ✓
               </a>
@@ -85,15 +85,19 @@ export function ShopCard({
             )}
             {shop.is_demo ? <Chip>demo shop</Chip> : null}
             {mine ? <Chip strong>your shop</Chip> : null}
+            {/* the owner's spending cap for AI orders, said quietly */}
+            {shop.accepts_ai_orders && shop.ai_order_limit_cents ? (
+              <span className="inline-flex h-7 items-center text-[15px] text-ink-muted">AI orders up to {formatPriceShort(shop.ai_order_limit_cents)}</span>
+            ) : null}
           </div>
         </div>
       </div>
       {shop.matches.length ? (
-        <ul className="mt-4 space-y-2 border-t-[1.5px] border-dashed border-ink/25 pt-3">
+        <ul className="mt-4 space-y-2.5 border-t border-dotted border-ink/35 pt-3.5">
           {shop.matches.slice(0, 3).map((item) => (
             <MatchRow key={item.id} item={item} gone={Boolean(gone[item.id])} />
           ))}
-          {extra > 0 ? <li className="text-[14px] text-ink-muted lg:text-[15px]">+{extra} more on the menu</li> : null}
+          {extra > 0 ? <li className="text-[15px] text-ink-muted lg:text-[16px]">+{extra} more on the menu</li> : null}
         </ul>
       ) : null}
     </article>
@@ -102,21 +106,29 @@ export function ShopCard({
 
 function MatchRow({ item, gone }: { item: ItemSummary; gone: boolean }) {
   const soldOut = gone || item.sold_out || item.stock <= 0;
-  const note = [...item.tags.slice(0, 2), !soldOut && item.price_cents !== null && item.stock <= 3 ? `${item.stock} left` : null].filter(Boolean);
+  // the owner sells this one over the counter only: quiet, muted, never looks orderable
+  const inPersonOnly = item.ai_orderable === false;
+  const note = [
+    inPersonOnly ? "in person only" : null,
+    ...item.tags.slice(0, 2),
+    !soldOut && !inPersonOnly && item.price_cents !== null && item.stock <= 3 ? `${item.stock} left` : null,
+  ].filter(Boolean);
   return (
     <li>
-      <div className={cn("relative flex items-baseline gap-2 text-[15px]", soldOut && "text-ink-muted")}>
-        <span className="min-w-0 break-words uppercase">{item.name}</span>
-        <span aria-hidden className="leader" />
-        <span className={cn("shrink-0 font-bold tabular-nums", item.price_cents === null && "font-normal text-ink-muted")}>
+      <div className={cn("flex items-baseline gap-2 text-[16px] lg:text-[17px]", (soldOut || inPersonOnly) && "text-ink-muted")}>
+        <span className={cn("min-w-0 break-words", soldOut && "line-through decoration-ink/50 decoration-1")}>{item.name}</span>
+        <span aria-hidden className="leader min-w-0!" />
+        <span className={cn("shrink-0 font-mono text-[15px] tabular-nums lg:text-[16px]", item.price_cents === null && "font-sans text-ink-muted")}>
           {item.price_cents === null ? "no price" : formatPriceShort(item.price_cents)}
         </span>
-        {soldOut ? <span aria-hidden className="absolute inset-x-[-3px] top-[0.7em] h-[2px] -rotate-[0.6deg] rounded-full bg-carbon/85" /> : null}
       </div>
       {soldOut ? (
-        <p className="pen mt-0.5 w-fit rotate-[-2deg] text-[24px]">{gone ? "sold out just now" : "sold out"}</p>
+        <div className="mt-1.5 flex items-center gap-2.5">
+          <Stamp kind="RELEASED" text="Sold out" size="sm" sound={false} />
+          {gone ? <span className="text-[15px] text-ink-muted">just now</span> : null}
+        </div>
       ) : note.length || item.name_en ? (
-        <p className="text-[14px] leading-snug lg:text-[15px] text-ink-muted">{[item.name_en, ...note].filter(Boolean).join(" · ")}</p>
+        <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">{[item.name_en, ...note].filter(Boolean).join(" · ")}</p>
       ) : null}
     </li>
   );
@@ -132,18 +144,14 @@ export function ShopPhoto({ url, name, size = 64 }: { url: string | null; name: 
         alt=""
         width={size}
         height={size}
-        className="shrink-0 rounded-[2px] bg-paper object-cover p-1 shadow-slip"
-        style={{ width: size, height: size, rotate: "-2deg" }}
+        className="shrink-0 border border-ink/15 bg-paper object-cover"
+        style={{ width: size, height: size }}
       />
     );
   }
   return (
-    <div
-      aria-hidden
-      className="flex shrink-0 items-center justify-center rounded-[2px] bg-ink text-paper"
-      style={{ width: size, height: size }}
-    >
-      <span className="font-display text-[32px] font-black uppercase leading-none">{name.trim().charAt(0) || "?"}</span>
+    <div aria-hidden className="ask-wash flex shrink-0 items-center justify-center text-carbon" style={{ width: size, height: size }}>
+      <span className="pb-1 font-display text-[34px] font-normal leading-none">{name.trim().charAt(0) || "?"}</span>
     </div>
   );
 }
@@ -152,8 +160,8 @@ function Chip({ children, strong }: { children: React.ReactNode; strong?: boolea
   return (
     <span
       className={cn(
-        "inline-flex h-7 items-center rounded-[2px] border-[1.5px] px-1.5 text-[14px] leading-none",
-        strong ? "border-ink font-bold" : "border-ink/30 text-ink-muted",
+        "inline-flex h-7 items-center border px-2 text-[15px] leading-none",
+        strong ? "border-ink/60 font-semibold text-ink" : "border-ink/20 text-ink-muted",
       )}
     >
       {children}

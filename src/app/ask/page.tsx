@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  themeColor: "#e4e0d6",
+  themeColor: "#ebe5de",
 };
 
 // /ask?q=<prompt> prefills the composer (handy for retakes).

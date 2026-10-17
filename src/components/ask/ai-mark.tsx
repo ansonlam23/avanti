@@ -1,6 +1,9 @@
 import { cn } from "@/lib/utils";
 
-/** The AI's mark: a little 3×3 dot-matrix print head. One dot breathes while listening; it prints while thinking. */
+/**
+ * The AI's mark: avanti's lowercase "a" in a hairline square, like a small
+ * seal of the wordmark. It breathes while the AI is thinking.
+ */
 export function AiMark({
   size = 28,
   state = "idle",
@@ -13,12 +16,10 @@ export function AiMark({
   return (
     <span
       aria-hidden
-      className={cn("ask-mark", state === "listening" && "ask-mark-listening", state === "thinking" && "ask-mark-thinking", className)}
-      style={{ width: size, height: size, padding: Math.round(size * 0.17), gap: Math.max(1, Math.round(size * 0.09)) }}
+      className={cn("ask-mark", state === "thinking" && "ask-mark-thinking", className)}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.8) }}
     >
-      {Array.from({ length: 9 }, (_, i) => (
-        <span key={i} />
-      ))}
+      a
     </span>
   );
 }

@@ -1,0 +1,121 @@
+/* /s/[slug] storefront materials (imported by storefront.tsx). Global
+   stylesheet, so every class is prefixed `sf-`. Ink (DESIGN.md): rice paper,
+   teal sumi, one hairline, square corners; the seal is the only strong colour. */
+
+/* The menu slip: rice paper, one ink hairline, a faint cool shadow. Never tilted. */
+.sf-slip {
+  background-color: var(--color-paper);
+  border: 1px solid rgb(22 58 66 / 0.16);
+  box-shadow: 0 22px 44px -34px rgb(22 58 66 / 0.38);
+}
+
+/* A dotted rule, the slip's own divider. */
+.sf-rule {
+  height: 0;
+  border-top: 1px dotted rgb(22 58 66 / 0.38);
+}
+
+/* Primary: a solid brand-teal rectangle, paper text, Marcellus label. */
+.sf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.75rem;
+  padding: 0.5rem 1.25rem;
+  background-color: var(--color-carbon);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  transition:
+    background-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (min-width: 1024px) {
+  .sf-btn {
+    gap: 1.5rem;
+    padding-inline: 1.5rem;
+    font-size: 1.3125rem;
+    letter-spacing: 0.03em;
+  }
+}
+.sf-btn:hover {
+  background-color: #124b56;
+}
+.sf-btn:active {
+  transform: translateY(1px);
+}
+.sf-btn svg {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sf-btn:hover svg {
+  transform: translateX(4px);
+}
+
+/* Secondary: a text link with an arrow; a hairline draws in, the arrow nudges. */
+.sf-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  color: var(--color-carbon);
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+}
+.sf-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.55rem;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sf-link:hover::after {
+  transform: scaleX(1);
+}
+.sf-link svg {
+  flex: none;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sf-link:hover svg {
+  transform: translateX(4px);
+}
+
+/* Calm rise for the page's two halves (0.9 s on the landing's curve). */
+.sf-rise {
+  animation: sf-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sf-rise-late {
+  animation-delay: 0.15s;
+}
+@keyframes sf-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-rise {
+    animation: none;
+  }
+  .sf-btn,
+  .sf-btn svg,
+  .sf-link::after,
+  .sf-link svg {
+    transition: none;
+  }
+}

@@ -16,7 +16,7 @@ export async function generateMetadata(props: PageProps<"/s/[slug]">): Promise<M
   if (!shop) return { title: "Shop not found", robots: { index: false } };
   return {
     title: shop.name,
-    description: shop.tagline ?? `${shop.name} is open on Open Sign: order ahead, pick up, pay at the counter.`,
+    description: shop.tagline ?? `${shop.name} is open on avanti: order ahead, pick up, pay at the counter.`,
     alternates: { types: { "application/json": `/s/${shop.slug}/agent.json` } },
     // visitor sandboxes are private (reachable by link only); never index them
     ...(shop.listed ? {} : { robots: { index: false, follow: false } }),

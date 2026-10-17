@@ -1,11 +1,10 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 import { SimulatedBadge } from "@/components/brand";
-import { EASE, STAGGER } from "@/lib/motion";
 import type { PaymentMode } from "@/lib/types";
-import { AiMark } from "./ai-mark";
+import { Arrow } from "./arrow";
+import { RISE, RISE_S } from "./ink";
 
 export const DEFAULT_CHIPS = [
   "Birthday cake near campus by 6, no nuts",
@@ -24,43 +23,49 @@ export function EmptyState({
   onPick: (text: string) => void;
 }) {
   return (
-    // Phone: the welcome sits right above the composer (thumb reach). Laptop: centered in
+    // Phone: the welcome sits right above the composer (thumb reach). Laptop: centred in
     // the column (the header already carries the mark); short laptop screens tighten it (ask.css).
-    <div className="ask-welcome flex flex-1 flex-col justify-end gap-7 pb-2 pt-6 lg:justify-center lg:gap-10 lg:pb-12 lg:pt-10">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE.out }}>
-        <div className="flex lg:hidden">
-          <AiMark size={44} state="listening" />
-        </div>
-        <h2 className="thermal mt-5 font-display text-[40px] font-extrabold uppercase leading-[0.92] text-balance lg:mt-0 lg:max-w-[640px] lg:text-[68px] lg:leading-[0.9]">
+    <div className="ask-welcome flex flex-1 flex-col justify-end gap-8 pb-3 pt-6 lg:justify-center lg:gap-11 lg:pb-14 lg:pt-10">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: RISE }}>
+        <h2 className="font-display text-[40px] font-normal leading-[1.08] tracking-[0.005em] text-balance text-carbon lg:max-w-[640px] lg:text-[64px] lg:leading-[1.04]">
           What can I find you nearby?
         </h2>
-        <p className="mt-3 text-[16px] leading-snug text-ink-muted lg:mt-5 lg:max-w-[44ch] lg:text-[18px] lg:leading-relaxed">
+        <p className="mt-4 text-[16px] leading-relaxed text-ink-muted lg:mt-5 lg:max-w-[46ch] lg:text-[19px]">
           I order from small shops near campus. Visa holds it until pickup.
         </p>
       </motion.div>
 
-      <ul className="space-y-3" aria-label="Try asking">
-        {chips.map((c, i) => (
-          <motion.li
-            key={c}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: EASE.out, delay: 0.25 + i * STAGGER.line }}
-          >
-            <button
-              type="button"
-              onClick={() => onPick(c)}
-              className="paper group flex min-h-14 w-full items-center justify-between gap-3 rounded-[2px] px-4 py-3 text-left text-[16px] leading-snug shadow-slip transition hover:shadow-[var(--shadow-lift)] active:scale-[0.99] lg:min-h-16 lg:px-5 lg:text-[17px]"
-              style={{ rotate: `${[-0.5, 0.4, -0.3][i % 3]}deg` }}
+      <div>
+        <motion.p
+          className="mb-2 text-[13px] font-semibold uppercase tracking-[0.14em] text-ink-muted"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: RISE_S, ease: RISE, delay: 0.2 }}
+        >
+          Try asking
+        </motion.p>
+        <ul className="ask-try" aria-label="Try asking">
+          {chips.map((c, i) => (
+            <motion.li
+              key={c}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: RISE_S, ease: RISE, delay: 0.25 + i * 0.09 }}
             >
-              <span>{c}</span>
-              <ArrowUpRight aria-hidden className="size-5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </button>
-          </motion.li>
-        ))}
-      </ul>
+              <button
+                type="button"
+                onClick={() => onPick(c)}
+                className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-[16px] leading-snug text-ink lg:min-h-[64px] lg:text-[18px]"
+              >
+                <span className="ask-try-text pb-0.5">{c}</span>
+                <Arrow className="text-carbon" />
+              </button>
+            </motion.li>
+          ))}
+        </ul>
+      </div>
 
-      <p className="flex flex-wrap items-center gap-2 text-[14px] text-ink-muted lg:text-[15px]">
+      <p className="flex flex-wrap items-center gap-2.5 text-[15px] text-ink-muted lg:text-[16px]">
         {mode === "simulated" ? <SimulatedBadge /> : null}
         <span>Test card · no real money</span>
       </p>

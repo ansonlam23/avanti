@@ -6,6 +6,7 @@ import { FocusReveal, Receipt, SignedSlip } from "@/components/brand";
 import { formatCents, formatTime } from "@/lib/format";
 import { EASE, motionSpeed } from "@/lib/motion";
 import type { PublicOrder } from "@/lib/types";
+import { RISE } from "./ink";
 import type { Reveal } from "./use-shopper";
 
 // The two hero beats after "Confirm & hold", as one focus reveal over the chat:
@@ -18,7 +19,7 @@ const AFTER_PRINT_MS = 1500;
 const SAFETY_MS = 9000;
 
 export function pickupQrValue(order: PublicOrder): string {
-  return `Open Sign pickup · code ${order.pickup_code} · order ${order.id.slice(0, 8)}`;
+  return `avanti pickup · code ${order.pickup_code} · order ${order.id.slice(0, 8)}`;
 }
 
 export function receiptProps(order: PublicOrder) {
@@ -81,7 +82,7 @@ export function OrderReveal({
       tone={step === "held" ? "held" : "verified"}
       eyebrow={step === "held" ? "Visa hold" : "Order verified"}
       title={<Beat k={step}>{step === "held" ? "Held, not charged" : "Signed by a known agent"}</Beat>}
-      tilt={step === "held" ? 2 : -3}
+      tilt={0}
       object={(cue) =>
         order ? (
           <AnimatePresence mode="wait" initial={false}>
@@ -97,7 +98,7 @@ export function OrderReveal({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: EASE.out }}
               >
-                <Receipt {...receiptProps(order)} printing onPrinted={onPrinted} />
+                <Receipt {...receiptProps(order)} tilt={0} printing onPrinted={onPrinted} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -123,10 +124,10 @@ function Beat({ k, children }: { k: string; children: ReactNode }) {
   return (
     <motion.span
       key={k}
-      className="block"
+      className="block normal-case"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: EASE.out }}
+      transition={{ duration: 0.6, ease: RISE }}
     >
       {children}
     </motion.span>
