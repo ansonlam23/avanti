@@ -6,6 +6,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Big amounts and counts: Marcellus's zero is a perfect circle and reads as the letter O
+   ("$18.OO", a ring for "0 reached Visa"), so numbers at display size use Red Hat Text's
+   lining, even-width figures instead. */
+@utility font-figures {
+  font-family: var(--font-redhat-text), "Optima", "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.025em;
+}
+
 /* ─────────────────────────────────────────────────────────────
    avanti · "ink" (DESIGN.md)
    The landing page's ink plate, carried into every screen: rice

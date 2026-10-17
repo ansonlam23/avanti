@@ -61,7 +61,7 @@ export function PriceTag({ price_cents, label, variant, className, swing }: Pric
           </div>
         ) : (
           <div className="relative mt-1.5">
-            <p className={cn("font-display text-[40px] leading-[1] tabular-nums", v === "sold-out" && "text-ink-muted")}>{price}</p>
+            <p className={cn("font-figures text-[40px] leading-[1]", v === "sold-out" && "text-ink-muted")}>{price}</p>
             {v === "sold-out" ? (
               <>
                 <svg aria-hidden viewBox="-6 -8 132 16" className="absolute inset-x-0 top-1/2 h-4 w-full -translate-y-1/2 overflow-visible" preserveAspectRatio="none">

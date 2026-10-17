@@ -179,7 +179,7 @@ export function Receipt({
         <div data-row className="relative flex min-h-[60px] items-end justify-end">
           <Money
             cents={shownTotal}
-            className={cn("font-display text-[46px] leading-[0.9] tracking-[0.005em]", muted ? "text-ink-muted" : "text-ink")}
+            className={cn("font-figures text-[46px] leading-[0.9]", muted ? "text-ink-muted" : "text-ink")}
           />
           {showStamps
             ? history.map((k, i) => {

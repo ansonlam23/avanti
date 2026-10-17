@@ -111,13 +111,6 @@ export function ClosedSign({ flips = 0, reason, className, face, sound = true, p
     >
       {/* the tray the slips land in: one ink hairline */}
       <span aria-hidden className="absolute inset-x-3 h-px bg-ink/30" style={{ top: STACK_Y + 70 }} />
-      {slips.length === 0 ? (
-        <span
-          aria-hidden
-          className="absolute left-1/2 w-[200px] -translate-x-1/2 border border-dashed border-ink/25"
-          style={{ top: STACK_Y, height: 64 }}
-        />
-      ) : null}
       {slips.map((s, i) => (
         <SlipOnPile key={s.id} slip={s} level={i} newest={i === slips.length - 1} />
       ))}

@@ -151,7 +151,7 @@ export function BotWall({ blocked, reasons, lastReason, reachedVisa = 0, verifie
       {/* The report: the hero number first. */}
       <div className="paper relative mt-2 px-6 pb-7 pt-7 shadow-slip">
         <div className="text-center">
-          <Count value={reachedVisa} className="block font-display text-[104px] leading-[0.82] text-ink" />
+          <Count value={reachedVisa} className="block font-figures text-[104px] leading-[0.82] text-ink" />
           <p className="label-print mt-3 text-[14px] text-ink">Reached Visa</p>
         </div>
         <div aria-hidden className="print-rule my-5" />

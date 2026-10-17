@@ -214,13 +214,13 @@ function Totals({ held, paid }: { held: number; paid: number }) {
       <div>
         <dt className="label-print text-ink-muted">On hold</dt>
         <dd className="mt-2">
-          <Money cents={held} className="font-display text-[40px] leading-none" />
+          <Money cents={held} className="font-figures text-[40px] leading-none" />
         </dd>
       </div>
       <div>
         <dt className="label-print text-ink-muted">Charged</dt>
         <dd className="mt-2">
-          <Money cents={paid} className="font-display text-[40px] leading-none" />
+          <Money cents={paid} className="font-figures text-[40px] leading-none" />
         </dd>
       </div>
     </dl>

@@ -115,7 +115,7 @@ export function TrayNote({ proposal, held, onShow }: { proposal: OrderProposal; 
         </span>
         <span className="mt-0.5 block text-[15px] text-ink-muted lg:text-[16px]">{held ? "Your receipt is on the right" : "Your order card is on the right"}</span>
       </span>
-      <span className="font-display text-[28px] font-normal leading-none tabular-nums text-ink">{formatCents(proposal.amount_cents)}</span>
+      <span className="font-figures text-[28px] font-normal leading-none text-ink">{formatCents(proposal.amount_cents)}</span>
       <Arrow className="text-carbon transition-transform duration-300 group-hover:translate-x-1" />
     </motion.button>
   );

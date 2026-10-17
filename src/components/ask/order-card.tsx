@@ -128,7 +128,7 @@ function Preview({
           <span className={cn(LABEL, "text-ink-muted")}>Hold</span>
           {mode === "simulated" ? <SimulatedBadge /> : null}
         </span>
-        <Money cents={proposal.amount_cents} className="font-display text-[50px] font-normal leading-[0.9] text-ink" />
+        <Money cents={proposal.amount_cents} className="font-figures text-[50px] font-normal leading-[0.9] text-ink" />
       </div>
 
       <label className="mt-6 block">

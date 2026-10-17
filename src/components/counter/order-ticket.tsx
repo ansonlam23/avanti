@@ -84,7 +84,7 @@ export function OrderTicket({
               <Stamp kind={stamp} size="md" animate={changed || (fresh && order.status === "held")} />
             </span>
           ) : null}
-          <Money cents={order.amount_cents} className={cn("ml-auto font-display text-[52px] leading-[0.9]", quiet ? "text-ink-muted" : "text-ink")} />
+          <Money cents={order.amount_cents} className={cn("ml-auto font-figures text-[52px] leading-[0.9]", quiet ? "text-ink-muted" : "text-ink")} />
         </div>
         <p className="mt-3 flex items-center justify-end gap-2 text-[15px] text-ink-muted">
           {order.payment_mode === "simulated" ? <SimulatedBadge /> : <span>Visa sandbox · test card</span>}
