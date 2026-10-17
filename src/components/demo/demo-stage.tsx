@@ -230,7 +230,7 @@ export function DemoStage({ slug: initial, payments, aiLive }: { slug: string } 
         </div>
 
         {/* what you'll do on the stage, as the slip that sits between the two panes */}
-        <div className="lg:col-span-5 lg:col-start-8 lg:pt-10">
+        <div className="lg:sticky lg:top-10 lg:col-span-5 lg:col-start-8 lg:self-start lg:pt-10">
           <TryThis payments={payments} aiLive={aiLive} className="mx-auto max-w-[460px] lg:text-[17px]" />
         </div>
       </main>

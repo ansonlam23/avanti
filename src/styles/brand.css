@@ -484,8 +484,8 @@
     align-items: center;
     justify-content: center;
     gap: 0.22em;
-    min-width: 2.6em;
-    padding: 0.52em 0.62em 0.46em;
+    min-width: 2.5em;
+    padding: 0.48em 0.56em 0.42em;
     border: max(2px, 0.075em) solid currentColor;
     -webkit-mask-image: var(--ink-mask);
     mask-image: var(--ink-mask);
@@ -504,8 +504,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.24em;
-    letter-spacing: 0.1em;
-    margin-right: -0.1em; /* optical centering for the tracking */
+    letter-spacing: 0.075em;
+    margin-right: -0.075em; /* optical centering for the tracking */
   }
   .stamp-label {
     font-family: var(--font-sans);

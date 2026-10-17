@@ -328,9 +328,9 @@
     content: "";
     position: absolute;
     left: 50%;
-    width: max(100cqw, 720px);
+    width: 100cqw; /* the whole plate, so its two little shops are never cut in half */
     aspect-ratio: 16 / 9;
-    bottom: calc(max(100cqw, 720px) * 9 / 16 * -0.07);
+    bottom: calc(100cqw * 9 / 16 * -0.07);
     transform: translateX(-50%);
     background: url("/landing/land.webp") center / 100% 100% no-repeat;
     animation: land-fade 1.2s 0.25s ease both;
