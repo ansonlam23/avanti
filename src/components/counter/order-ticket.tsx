@@ -1,12 +1,13 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { SimulatedBadge, Stamp, type StampKind } from "@/components/brand";
-import { spring } from "@/components/brand/motion-prefs";
+import { sec } from "@/components/brand/motion-prefs";
 import { Money } from "@/components/common/numbers";
+import { INK_EASE } from "@/components/open/ink";
 import { formatCents, formatTime } from "@/lib/format";
-import { SPRING } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { OrderStatus } from "@/lib/types";
 import type { DashboardOrder } from "@/lib/orders/dashboard";
@@ -18,23 +19,16 @@ const STATUS_STAMP: Partial<Record<OrderStatus, StampKind>> = {
   failed: "FAILED",
 };
 
-/** Small deterministic rest tilt per ticket so the rail looks hand-hung (−1.4°…+1.4°). */
-function tilt(id: string): number {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0;
-  return ((Math.abs(h) % 7) - 3) * 0.45;
-}
-
 function pickupLabel(order: DashboardOrder): string {
-  return order.pickup_time ? `pick up ${formatTime(order.pickup_time).toLowerCase()}` : "pick up today";
+  return order.pickup_time ? `Pick up ${formatTime(order.pickup_time).toLowerCase()}` : "Pick up today";
 }
 
 /**
- * The shop's copy of an order: a yellow carbon order-pad ticket, torn off
- * along its perforation and clipped to the steel rail. The customer, the item
- * and the pickup time are in the owner's blue pen; the money is printed; the
- * decisions are red stamps (VERIFIED by the trust check, HELD → PAID /
- * RELEASED). A new ticket swings in on the rail (SPRING.swing).
+ * The shop's copy of an order: a clean slip on the shop's teal wash, hung
+ * from the rail by a small clip. The customer's name is in the owner's brush;
+ * the money is set large; the decisions are vermilion seals (VERIFIED by the
+ * trust check, HELD → PAID / RELEASED, a faded HELD kept under the new one).
+ * A new ticket rises into place (calm, 0.8 s).
  */
 export function OrderTicket({
   order,
@@ -50,75 +44,65 @@ export function OrderTicket({
   onNoShow: () => void;
 }) {
   const stamp = STATUS_STAMP[order.status];
-  const rest = tilt(order.id);
   const [firstStatus] = useState(order.status);
   const changed = order.status !== firstStatus;
   const history = order.status === "paid" || order.status === "released";
   const amount = formatCents(order.amount_cents);
+  const quiet = order.status === "released" || order.status === "failed";
 
   return (
     <motion.article
       aria-label={`Order: ${order.qty} ${order.item_name} for ${order.customer_name || "a shopper"}, ${order.status} ${amount}`}
       className="relative mx-1"
-      style={{ transformOrigin: "50% -14px" }}
-      initial={{ rotate: -10, y: -34, opacity: 0 }}
-      animate={{ rotate: rest, y: 0, opacity: 1 }}
-      exit={{ opacity: 0, y: 30, rotate: rest + 3, transition: { duration: 0.22 } }}
-      transition={{ rotate: spring(SPRING.swing), y: spring(SPRING.paper), opacity: { duration: 0.12 } }}
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 16, transition: { duration: 0.22 } }}
+      transition={{ duration: sec(0.8), ease: INK_EASE }}
     >
       {/* the clip that holds it on the rail */}
-      <span aria-hidden className="steel-clip absolute -top-[17px] left-1/2 z-10 -translate-x-1/2" />
-      <div className="pad edge-perf-top relative px-6 pb-6 pt-9 shadow-slip">
+      <span aria-hidden className="steel-clip absolute -top-[13px] left-1/2 z-10 -translate-x-1/2" />
+      <div className="pad relative px-6 pb-6 pt-9 lg:px-7">
         {order.agent_id ? (
-          <Stamp kind="VERIFIED" size="sm" animate={fresh} sound={false} className="absolute right-4 top-6" />
+          <Stamp kind="VERIFIED" size="sm" animate={fresh} sound={false} className="absolute right-5 top-7" />
         ) : null}
 
-        <p className="pen pr-28 text-[40px] [overflow-wrap:anywhere]">{order.customer_name || "a shopper"}</p>
-        <p className="pen mt-2 text-[32px] [overflow-wrap:anywhere]">
-          {order.qty} × {order.item_name.toLowerCase()}
+        <p className="pr-32 font-pen text-[42px] leading-none text-ink [overflow-wrap:anywhere]">{order.customer_name || "a shopper"}</p>
+        <p className="mt-4 text-[19px] leading-snug [overflow-wrap:anywhere]">
+          {order.qty} × {order.item_name}
         </p>
-        <p className="pen mt-1.5 text-[28px] opacity-90">{pickupLabel(order)}</p>
+        <p className="mt-1 text-[16px] text-ink-muted">{pickupLabel(order)}</p>
 
-        <div aria-hidden className="mt-4 border-t-2 border-pad-line" />
+        <div aria-hidden className="print-rule mt-5" />
 
-        <div className="relative mt-4 flex min-h-[60px] items-end justify-end">
+        {/* the decision and the money: one row when the slip is wide enough, otherwise the total
+            drops under the seals (right-aligned) so a wide seal never crowds it */}
+        <div className="mt-5 flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-3">
           {stamp ? (
-            <span className="absolute -top-1 left-0">
-              {history ? <Stamp kind="HELD" faded size="md" sound={false} className="absolute left-0 top-0" /> : null}
-              <Stamp
-                kind={stamp}
-                size="md"
-                animate={changed || (fresh && order.status === "held")}
-                className={history ? "relative left-6 top-3" : "relative"}
-              />
+            // seals keep history: the faded HELD impression, then the decision that followed it
+            <span className="flex items-center">
+              {history ? <Stamp kind="HELD" faded size="md" sound={false} className="-mr-3 mt-4" /> : null}
+              <Stamp kind={stamp} size="md" animate={changed || (fresh && order.status === "held")} />
             </span>
           ) : null}
-          <Money
-            cents={order.amount_cents}
-            className={cn(
-              "thermal font-display text-[clamp(40px,13vw,52px)] font-black leading-[0.82]",
-              order.status === "released" || order.status === "failed" ? "text-ink-muted" : "text-ink",
-            )}
-          />
+          <Money cents={order.amount_cents} className={cn("ml-auto font-display text-[52px] leading-[0.9]", quiet ? "text-ink-muted" : "text-ink")} />
         </div>
-        <p className="mt-2.5 flex items-center justify-end gap-2 text-[14px] text-ink-muted lg:text-[15px]">
+        <p className="mt-3 flex items-center justify-end gap-2 text-[15px] text-ink-muted">
           {order.payment_mode === "simulated" ? <SimulatedBadge /> : <span>Visa sandbox · test card</span>}
         </p>
 
         {order.status === "held" ? (
-          <div className="mt-5 grid gap-2.5">
+          <div className="mt-6 flex flex-col items-center gap-1">
             <button type="button" disabled={busy} onClick={onPickedUp} className="btn-ink w-full justify-between!">
               Picked up
-              <span className="font-sans text-[15px] font-normal normal-case tracking-normal opacity-85 max-[359px]:hidden">charge {amount}</span>
+              <span className="font-sans text-[15px] tracking-normal opacity-85 max-[359px]:hidden">charge {amount}</span>
             </button>
-            <button type="button" disabled={busy} onClick={onNoShow} className="btn-line w-full justify-between!">
-              No-show
-              <span className="font-sans text-[15px] font-normal normal-case tracking-normal text-ink-muted max-[359px]:hidden">release hold</span>
+            <button type="button" disabled={busy} onClick={onNoShow} className="link-ink text-[18px]!">
+              No-show, release the hold <ArrowRight className="size-[17px]" strokeWidth={1.5} aria-hidden />
             </button>
           </div>
         ) : null}
         {order.status === "failed" && order.failure_reason ? (
-          <p className="mt-3 text-[14px] text-stamp-deep lg:text-[15px]">{order.failure_reason}</p>
+          <p className="mt-3 text-[15px] text-stamp-deep">{order.failure_reason}</p>
         ) : null}
       </div>
     </motion.article>
@@ -128,37 +112,35 @@ export function OrderTicket({
 /** A compact strip for every other order (held ones can be brought to the front). */
 export function OrderStrip({ order, onOpen }: { order: DashboardOrder; onOpen?: () => void }) {
   const stamp = STATUS_STAMP[order.status];
+  const quiet = order.status === "released" || order.status === "failed";
   const body = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="pen block truncate text-[26px]">{order.customer_name || "a shopper"}</span>
-        <span className="mt-0.5 block truncate text-[14px] text-ink-muted lg:text-[15px]">
+        <span className="block truncate font-pen text-[30px] leading-none text-ink">{order.customer_name || "a shopper"}</span>
+        <span className="mt-1.5 block truncate text-[15px] text-ink-muted lg:text-[16px]">
           {order.qty} × {order.item_name}
         </span>
       </span>
-      <span
-        className={cn(
-          "font-display text-[26px] font-extrabold tabular-nums",
-          order.status === "released" || order.status === "failed" ? "text-ink-muted" : "text-ink",
-        )}
-      >
+      <span className={cn("font-mono text-[18px] font-medium tabular-nums", quiet ? "text-ink-muted" : "text-ink")}>
         {formatCents(order.amount_cents)}
       </span>
       {stamp ? <Stamp kind={stamp} size="sm" sound={false} className="shrink-0" /> : null}
     </>
   );
-  const shell = cn(
-    "flex w-full items-center gap-3 rounded-[2px] px-4 py-3 text-left shadow-slip",
-    order.status === "held" ? "pad" : "paper",
-  );
+  const shell = cn("flex w-full items-center gap-4 px-5 py-3.5 text-left", order.status === "held" ? "pad" : "paper");
   return (
-    <li style={{ rotate: `${tilt(order.id) * 0.5}deg` }}>
+    <li>
       {onOpen ? (
-        <button type="button" onClick={onOpen} className={cn(shell, "min-h-14 transition active:scale-[0.99]")} aria-label={`Show ${order.customer_name || "this"} order in front`}>
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(shell, "min-h-14 transition-colors duration-300 hover:bg-highlight")}
+          aria-label={`Show ${order.customer_name || "this"} order in front`}
+        >
           {body}
         </button>
       ) : (
-        <div className={cn(shell, order.status !== "held" && "opacity-90")}>{body}</div>
+        <div className={shell}>{body}</div>
       )}
     </li>
   );

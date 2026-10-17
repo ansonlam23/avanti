@@ -8,16 +8,19 @@ import type { Box2D } from "@/lib/ai/onboard";
 import { DIET_TAGS } from "@/lib/ai/prompts/onboard";
 import type { PriceSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { DUR, EASE, SPRING, STAGGER, motionSpeed } from "@/lib/motion";
+import { DUR, SPRING, STAGGER, motionSpeed } from "@/lib/motion";
 import { HangTagFace, TagChip } from "./hang-tag";
-import { restAngle, TAG_H, TAG_ORIGIN, TAG_W } from "./tag-geometry";
+import { INK_EASE } from "./ink";
+import { InkToggle } from "./ink-toggle";
+import { flightTurn, TAG_H, TAG_ORIGIN, TAG_W } from "./tag-geometry";
 
-// The menu slip the owner builds in /open. Three modes:
+// The menu slip the owner builds in /open: flat rice paper, a hairline under
+// the title, one hairline between lines. Three modes:
 //  scribble – faint placeholder lines while the AI reads (no fake text)
-//  flight   – the fixed script: each item's price sticker leaves the photo at
-//             ~3× its rest angle, lands on the pop curve and settles; then the
-//             line prints itself and the price counts up. No price = a red
-//             NEEDS A PRICE stamp lands instead of a sticker.
+//  flight   – the fixed script: each item's price label leaves the photo with
+//             a small turn, arcs over and settles square on its line; then the
+//             line writes itself in and the price counts up. No price = the
+//             vermilion "Needs a price" seal lands instead of a label.
 //  review   – tap a line to edit name / price / quantity / tags
 
 export interface MenuRow {
@@ -30,6 +33,8 @@ export interface MenuRow {
   tags: string[];
   stock: number | null;
   box_2d: Box2D | null;
+  /** The owner's "AI can order" switch (default on); off = in person only. */
+  ai_orderable: boolean;
 }
 
 export type RowFlight =
@@ -82,11 +87,20 @@ export function MenuBoard({
   className,
 }: MenuBoardProps) {
   return (
-    <motion.section layout transition={SPRING.resize} aria-label="Your menu" className={cn("slip-drop relative my-1.5", className)}>
-      {/* edges drawn outside the paper (no mask), so stickers can fly in from the photo */}
-      <div className="paper edge-teeth px-5 pb-8 pt-8">
-        <h2 className="thermal truncate text-center font-display text-[30px] font-extrabold uppercase leading-[0.95]">{title}</h2>
-        <div aria-hidden className="print-rule mb-1 mt-4" />
+    <motion.section layout transition={SPRING.resize} aria-label="Your menu" className={cn("slip-drop relative", className)}>
+      <div className="paper px-5 pb-7 pt-7 lg:px-8 lg:pb-8 lg:pt-8">
+        <h2 className="truncate text-center font-display text-[30px] leading-[1.15] lg:text-[34px]">{title}</h2>
+        <div aria-hidden className="print-rule mt-5" />
+        {mode === "review" ? (
+          <motion.p
+            className="-mb-1 mt-3 text-right text-[15px] leading-none text-ink-muted"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, ease: INK_EASE }}
+          >
+            AI can order
+          </motion.p>
+        ) : null}
         {mode === "scribble" ? (
           <ul aria-hidden>
             {Array.from({ length: placeholderRows }, (_, i) => (
@@ -115,7 +129,7 @@ export function MenuBoard({
           <button
             type="button"
             onClick={onAdd}
-            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-[3px] border-2 border-dashed border-ink/30 text-[15px] transition active:scale-[0.98]"
+            className="mt-2 inline-flex min-h-11 items-center gap-2 text-[16px] text-carbon underline decoration-transparent underline-offset-[5px] transition-[text-decoration-color] duration-300 hover:decoration-current"
           >
             <Plus className="size-4" aria-hidden /> Add something
           </button>
@@ -134,18 +148,18 @@ function ScribbleRow({ index }: { index: number }) {
   const reduce = useReducedMotion();
   const w = SCRIBBLE_W[index % SCRIBBLE_W.length];
   return (
-    <li className="flex min-h-[68px] items-center gap-3 border-b border-dashed border-ink/12 py-3 last:border-0">
+    <li className="flex min-h-[72px] items-center gap-3 border-b border-ink/10 py-3.5 last:border-0">
       <div className="min-w-0 flex-1">
         <motion.div
-          className="h-3 rounded-[1px] bg-ink/10"
+          className="h-3 bg-ink/[0.09]"
           style={{ width: `${w * 100}%`, transformOrigin: "left" }}
           initial={{ scaleX: reduce ? 1 : 0 }}
           animate={reduce ? { scaleX: 1 } : { scaleX: [0, 1, 1], opacity: [1, 1, 0.45] }}
-          transition={{ duration: 2.4, delay: index * 0.35, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 2.6, delay: index * 0.35, repeat: Infinity, ease: "easeInOut" }}
         />
-        <div className="mt-2 h-2 rounded-[1px] bg-ink/[0.06]" style={{ width: `${w * 55}%` }} />
+        <div className="mt-2.5 h-2 bg-ink/[0.05]" style={{ width: `${w * 55}%` }} />
       </div>
-      <div className="shrink-0 rounded-[4px] border-2 border-dashed border-ink/15" style={{ width: TAG_W, height: TAG_H }} />
+      <div className="shrink-0 border border-dashed border-ink/20" style={{ width: TAG_W, height: TAG_H }} />
     </li>
   );
 }
@@ -164,14 +178,14 @@ interface BoardRowProps {
   onRemove?: (key: string) => void;
 }
 
-/** Sticker flight length (s at speed 1); touchdown happens at TOUCHDOWN of it. */
+/** Label flight length (s at speed 1); touchdown happens at TOUCHDOWN of it. */
 export const FLIGHT_S = 0.78;
 export const TOUCHDOWN = 0.8;
 
 function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange, onRemove }: BoardRowProps) {
   const reduce = useReducedMotion();
   const k = 1 / motionSpeed(); // ?speed=0.5 slows the whole script for retakes
-  const rest = restAngle(index);
+  const turn = flightTurn(index);
   const phase = mode === "review" ? "landed" : (flight?.phase ?? "waiting");
   const shown = phase === "landed";
   const tagMounted = phase !== "waiting";
@@ -179,23 +193,20 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
   const dy = flight && flight.phase !== "waiting" ? flight.dy : -24;
   const noPrice = row.price_cents === null;
 
-  // The toss: an even glide across, a small arc up, a drop just past the slot,
-  // settle (the pop), then the turn spring starts at touchdown. Memoized so
-  // the "landed" re-render can't restart the keyframes.
-  const tossTo = useMemo(
-    () => ({ x: 0, y: [dy, dy - 34, 9, 0], scale: [0.6, 1.08, 1], rotate: rest, opacity: 1 }),
-    [dy, rest],
-  );
+  // The toss: an even glide across, a small arc up, a soft landing on the
+  // line; the turn settles to square at touchdown. Memoized so the "landed"
+  // re-render can't restart the keyframes.
+  const tossTo = useMemo(() => ({ x: 0, y: [dy, dy - 28, 3, 0], scale: [0.72, 1, 1], rotate: 0, opacity: 1 }), [dy]);
   const D = FLIGHT_S * k;
 
   const content = (
-    <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1 pt-1.5">
+    <div className="flex items-start gap-4">
+      <div className="min-w-0 flex-1 pt-1">
         <motion.p
-          className="text-[16px] uppercase leading-snug [overflow-wrap:anywhere]"
+          className="text-[17px] leading-snug [overflow-wrap:anywhere] lg:text-[18px]"
           initial={mode === "flight" ? { clipPath: "inset(0 100% 0 0)" } : false}
           animate={{ clipPath: shown ? "inset(0 0% 0 0)" : "inset(0 100% 0 0)" }}
-          transition={{ duration: reduce ? 0.01 : 0.5 * k, ease: "linear" }}
+          transition={{ duration: reduce ? 0.01 : 0.55 * k, ease: "linear" }}
         >
           {row.name || <span className="text-ink-muted">Untitled</span>}
         </motion.p>
@@ -204,17 +215,17 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
           animate={{ opacity: shown ? 1 : 0 }}
           transition={{ duration: DUR.micro * k, delay: shown && mode === "flight" ? 0.35 * k : 0 }}
         >
-          {row.name_en ? <p className="text-[14px] leading-snug text-ink-muted lg:text-[15px]">{row.name_en}</p> : null}
+          {row.name_en ? <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">{row.name_en}</p> : null}
           {row.tags.length ? (
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {row.tags.map((t, ci) => (
                 <motion.span
                   key={t}
-                  initial={mode === "flight" ? { opacity: 0, scale: 0.8 } : false}
-                  animate={shown ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+                  initial={mode === "flight" ? { opacity: 0, y: 4 } : false}
+                  animate={shown ? { opacity: 1, y: 0 } : { opacity: 0, y: 4 }}
                   transition={{
-                    duration: DUR.micro * k,
-                    ease: EASE.pop,
+                    duration: 0.4 * k,
+                    ease: INK_EASE,
                     delay: shown && mode === "flight" ? (0.45 + ci * STAGGER.chip) * k : 0,
                   }}
                 >
@@ -226,12 +237,19 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
         </motion.div>
       </div>
 
-      <div className="flex shrink-0 flex-col items-center" style={{ width: TAG_W }}>
+      <div className="flex shrink-0 flex-col items-end" style={{ minWidth: TAG_W }}>
         <div ref={(el) => slotRef?.(row.key, el)} className="relative" style={{ width: TAG_W, height: TAG_H }}>
           {noPrice ? (
-            // no price heard or seen: the stamp lands instead of a sticker
+            // no price heard or seen: the seal lands instead of a label
             shown ? (
-              <Stamp kind="HELD" text="Needs a price" size="sm" animate={mode === "flight"} sound={false} className="absolute right-0 top-1 origin-right scale-90" />
+              <Stamp
+                kind="HELD"
+                text="Needs a price"
+                size="sm"
+                animate={mode === "flight"}
+                sound={false}
+                className="absolute right-0 top-1/2 -translate-y-1/2 [&_.stamp-ink]:px-[0.5em] [&_.stamp-ink]:py-[0.4em]"
+              />
             ) : null
           ) : tagMounted ? (
             <motion.div
@@ -241,10 +259,10 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
                 mode !== "flight"
                   ? false
                   : reduce
-                    ? { opacity: 0, rotate: rest }
-                    : { x: dx, y: dy, rotate: rest * 3, scale: 0.6, opacity: 0 }
+                    ? { opacity: 0, rotate: 0 }
+                    : { x: dx, y: dy, rotate: turn, scale: 0.72, opacity: 0 }
               }
-              animate={mode === "flight" && !reduce ? tossTo : { x: 0, y: 0, rotate: rest, scale: 1, opacity: 1 }}
+              animate={mode === "flight" && !reduce ? tossTo : { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
               transition={
                 reduce
                   ? { duration: 0.15 }
@@ -253,13 +271,8 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
                       y: { duration: D, times: [0, 0.3, TOUCHDOWN, 1], ease: ["easeOut", [0.55, 0, 0.9, 0.55], "easeOut"] },
                       scale: { duration: D, times: [0, 0.72, 1], ease: ["easeOut", "easeInOut"] },
                       opacity: { duration: 0.1 },
-                      // one overshooting turn as it sticks (spring re-timed with ?speed, same damping ratio)
-                      rotate: {
-                        type: "spring",
-                        stiffness: SPRING.tag.stiffness / (k * k),
-                        damping: SPRING.tag.damping / k,
-                        delay: D * TOUCHDOWN,
-                      },
+                      // the turn settles to square as it lands (calm, no overshoot)
+                      rotate: { duration: D * 0.7, ease: INK_EASE, delay: D * 0.45 },
                     }
               }
             >
@@ -268,7 +281,7 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
           ) : null}
         </div>
         <motion.span
-          className="mt-1.5 inline-flex items-center gap-1.5 text-[14px] leading-none text-ink-muted tabular-nums lg:text-[15px]"
+          className="mt-2 inline-flex items-center gap-1.5 font-mono text-[15px] leading-none text-ink-muted tabular-nums"
           initial={mode === "flight" ? { opacity: 0 } : false}
           animate={{ opacity: shown ? 1 : 0 }}
           transition={{ duration: DUR.micro * k, delay: shown && mode === "flight" ? 0.4 * k : 0 }}
@@ -283,7 +296,8 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
   const review = mode === "review";
   const toggle = () => onEdit?.(editing ? null : row.key);
   return (
-    <li className="border-b border-dashed border-ink/15 py-3 last:border-0">
+    <li className="border-b border-ink/10 py-2.5 last:border-0">
+      <div className="flex items-start gap-3">
       {/* same element in every mode, so nothing remounts when the slip turns editable */}
       <div
         role={review ? "button" : undefined}
@@ -301,9 +315,26 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
               }
             : undefined
         }
-        className={cn("-mx-2 rounded-[3px] px-2 py-1", review && "transition active:bg-ink/[0.05]")}
+        className={cn(
+          "-ml-3 min-w-0 flex-1 py-2 pl-3 pr-2 transition-colors duration-300",
+          review && "cursor-pointer hover:bg-highlight/35",
+          editing && "bg-highlight/35",
+        )}
       >
         {content}
+      </div>
+      {/* "AI can order": outside the tap-to-edit area (a switch can't live inside a button) */}
+      <div className="w-[52px] shrink-0 pt-4">
+        {review ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, ease: INK_EASE }}>
+            <InkToggle
+              checked={row.ai_orderable}
+              onCheckedChange={(ai_orderable) => onChange?.(row.key, { ai_orderable })}
+              aria-label={`AI can order ${row.name || "this item"}`}
+            />
+          </motion.div>
+        ) : null}
+      </div>
       </div>
       <AnimatePresence initial={false}>
         {mode === "review" && editing ? (
@@ -312,7 +343,7 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: DUR.micro, ease: EASE.out }}
+            transition={{ duration: 0.35, ease: INK_EASE }}
             className="overflow-hidden"
           >
             <RowEditor
@@ -342,7 +373,7 @@ function PriceSourceMark({ source }: { source: PriceSource }) {
   const { Icon, label } = mark;
   return (
     <span role="img" aria-label={label} title={label} className="inline-flex">
-      <Icon className="size-[15px]" aria-hidden />
+      <Icon className="size-[15px]" strokeWidth={1.75} aria-hidden />
     </span>
   );
 }
@@ -378,22 +409,22 @@ function RowEditor({
   const tagChoices = [...EDIT_TAGS, ...row.tags.filter((t) => !(EDIT_TAGS as readonly string[]).includes(t))];
 
   return (
-    <div className="mt-2 space-y-4 rounded-[3px] bg-paper-shade p-4">
+    <div className="-mx-3 space-y-5 bg-highlight/35 px-3 pb-4 pt-3">
       <label className="block">
-        <span className="label-print mb-1.5 block text-ink-muted">Name</span>
+        <span className="label-print mb-2 block text-ink-muted">Name</span>
         <input value={row.name} onChange={(e) => onChange({ name: e.target.value.slice(0, 80) })} className="field-print" />
       </label>
 
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         <label className="block w-[44%]">
-          <span className="label-print mb-1.5 block text-ink-muted">Price</span>
+          <span className="label-print mb-2 block text-ink-muted">Price</span>
           <span
             className={cn(
-              "flex h-12 items-center rounded-[3px] border-2 bg-white/65 px-3 text-[18px] focus-within:outline-3 focus-within:outline-offset-1 focus-within:outline-carbon",
-              parsed === "invalid" ? "border-stamp-deep" : "border-ink/75",
+              "flex h-12 items-center border bg-paper px-3 transition-colors focus-within:border-carbon focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-carbon",
+              parsed === "invalid" ? "border-stamp-deep" : "border-[rgb(22_58_66/0.34)] hover:border-[rgb(22_58_66/0.55)]",
             )}
           >
-            <span className="text-ink-muted">$</span>
+            <span className="font-mono text-[17px] text-ink-muted">$</span>
             <input
               inputMode="decimal"
               placeholder="—"
@@ -404,18 +435,18 @@ function RowEditor({
                 const p = parsePriceInput(e.target.value);
                 if (p !== "invalid") onChange({ price_cents: p, price_source: p === null ? "missing" : "owner" });
               }}
-              className="h-full w-full min-w-0 bg-transparent pl-1 text-[16px] outline-none placeholder:text-ink-muted"
+              className="h-full w-full min-w-0 bg-transparent pl-1.5 font-mono text-[17px] outline-none placeholder:text-ink-muted"
             />
           </span>
         </label>
         <div className="flex-1">
-          <span className="label-print mb-1.5 block text-ink-muted">How many</span>
+          <span className="label-print mb-2 block text-ink-muted">How many</span>
           <Stepper value={row.stock} onChange={(stock) => onChange({ stock })} min={0} max={999} label="How many" />
         </div>
       </div>
 
       <div>
-        <span className="label-print mb-1.5 block text-ink-muted">Allergens &amp; diet (only what&apos;s true)</span>
+        <span className="label-print mb-2 block text-ink-muted">Allergens &amp; diet (only what&apos;s true)</span>
         <div className="flex flex-wrap gap-2">
           {tagChoices.map((t) => {
             const on = row.tags.includes(t);
@@ -430,8 +461,8 @@ function RowEditor({
                   })
                 }
                 className={cn(
-                  "h-11 rounded-[3px] border-2 px-3 text-[14px] leading-none transition",
-                  on ? "border-ink bg-ink text-paper" : "border-ink/25 text-ink",
+                  "h-11 border px-3.5 text-[15px] leading-none transition-colors duration-200 lg:text-[16px]",
+                  on ? "border-carbon bg-carbon text-paper" : "border-ink/25 bg-paper text-ink hover:border-ink/55",
                 )}
               >
                 {t}
@@ -442,10 +473,10 @@ function RowEditor({
       </div>
 
       <div className="flex items-center justify-between pt-1">
-        <button type="button" onClick={onRemove} className="btn-quiet px-1 text-ink-muted">
+        <button type="button" onClick={onRemove} className="btn-quiet -ml-3 text-ink-muted">
           <Trash2 className="size-4" aria-hidden /> Remove
         </button>
-        <button type="button" onClick={onDone} className="btn-ink min-h-11! px-5! text-[18px]!">
+        <button type="button" onClick={onDone} className="btn-ink min-h-11! px-7! text-[18px]!">
           Done
         </button>
       </div>
@@ -464,11 +495,12 @@ export function Stepper({
   onChange: (v: number | null) => void;
   min: number;
   max: number;
-  /** Kept for callers; every stepper is printed in ink now. */
+  /** Kept for callers; every stepper is drawn in ink now. */
   tone?: "dusk" | "chalk";
   label?: string;
 }) {
-  const btn = "grid size-12 place-items-center rounded-[3px] border-2 border-ink/75 bg-white/50 transition active:bg-ink/10 disabled:opacity-35";
+  const btn =
+    "grid size-12 place-items-center border border-[rgb(22_58_66/0.34)] bg-paper text-ink transition-colors duration-200 hover:border-ink active:bg-highlight disabled:opacity-35 disabled:hover:border-[rgb(22_58_66/0.34)]";
   return (
     <div className="flex h-12 items-center gap-2" role="group" aria-label={label}>
       <button
@@ -478,9 +510,9 @@ export function Stepper({
         onClick={() => onChange(value === null ? null : Math.max(min, value - 1))}
         className={btn}
       >
-        <Minus className="size-5" aria-hidden />
+        <Minus className="size-5" strokeWidth={1.5} aria-hidden />
       </button>
-      <span className="min-w-10 text-center font-display text-[24px] font-extrabold tabular-nums">{value === null ? "—" : value}</span>
+      <span className="min-w-10 text-center font-mono text-[20px] font-medium tabular-nums">{value === null ? "—" : value}</span>
       <button
         type="button"
         aria-label="More"
@@ -488,7 +520,7 @@ export function Stepper({
         onClick={() => onChange(value === null ? Math.max(min, 1) : Math.min(max, value + 1))}
         className={btn}
       >
-        <Plus className="size-5" aria-hidden />
+        <Plus className="size-5" strokeWidth={1.5} aria-hidden />
       </button>
     </div>
   );

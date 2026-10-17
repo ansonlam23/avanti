@@ -2,13 +2,16 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
+import Link from "next/link";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
-import { OpenSign, SoundToggle } from "@/components/brand";
+import { SoundToggle, Wordmark } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import { formatCents } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Item } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
+import { AiLimit } from "./ai-limit";
 import { CodePad } from "./code-pad";
 import { DoorLog } from "./door-log";
 import { MenuRows } from "./menu-rows";
@@ -26,17 +29,21 @@ export interface CounterViewProps {
   onPadSubmit: (code: string) => Promise<boolean>;
   onNoShow: (order: DashboardOrder) => void;
   onToggleSoldOut: (item: Item, soldOut: boolean) => void;
+  /** The owner's per-item "AI can order" switch (absent: shown, read-only). */
+  onToggleAiOrderable?: (item: Item, orderable: boolean) => void;
+  /** The owner's cap on one AI order, in cents (null = no cap). */
+  onAiLimit?: (cents: number | null) => Promise<boolean>;
   onSimulate: () => void;
   /** Which tab opens first (the lab uses it for shots). */
   initialTab?: "orders" | "menu" | "door";
 }
 
-const STICKY_MS = 5000; // an order that just changed stays in front long enough to see its stamp land
+const STICKY_MS = 5000; // an order that just changed stays in front long enough to see its seal land
 
 /**
  * Behind the counter (pure view; CounterApp owns the data). One focal point
- * per tab: the newest ticket on the rail · the menu slip · REACHED VISA 0.
- * Laptop: the same three, side by side as a dashboard (orders lead).
+ * per tab: the newest ticket on the rail · the menu and its switches ·
+ * REACHED VISA 0. Laptop: the same three, side by side (orders lead).
  */
 export function CounterView({
   data,
@@ -49,6 +56,8 @@ export function CounterView({
   onPadSubmit,
   onNoShow,
   onToggleSoldOut,
+  onToggleAiOrderable,
+  onAiLimit,
   onSimulate,
   initialTab = "orders",
 }: CounterViewProps) {
@@ -64,8 +73,8 @@ export function CounterView({
 
   const rail = (
     <>
-      {/* the rail the tickets hang from */}
-      <div aria-hidden className="steel-rail -mx-2" />
+      {/* the rail the tickets hang from: one ink line */}
+      <div aria-hidden className="steel-rail -mx-1" />
       <div aria-live="polite" className="lg:mx-auto lg:max-w-[440px]">
         <AnimatePresence initial={false} mode="popLayout">
           {front ? (
@@ -94,39 +103,64 @@ export function CounterView({
       ) : null}
     </>
   );
-  const menu = <MenuRows items={items} busyId={busy} onToggleSoldOut={onToggleSoldOut} />;
+  const menu = (
+    <div className="flex flex-col gap-6">
+      <AiLimit rules={shop.rules} busy={busy === "ai-limit"} onChange={onAiLimit} />
+      <MenuRows items={items} rules={shop.rules} busyId={busy} onToggleSoldOut={onToggleSoldOut} onToggleAiOrderable={onToggleAiOrderable} />
+    </div>
+  );
   const door = <DoorLog stats={stats} events={events} onSimulate={onSimulate} simulating={simulating} />;
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-16 pt-[max(env(safe-area-inset-top),20px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24 lg:pt-8">
-      <header className="flex items-center gap-3 lg:gap-5">
-        <OpenSign size="sm" mount="bare" state={shop.open ? "on" : "off"} sound={false} />
-        <h1 className="thermal line-clamp-2 min-w-0 flex-1 font-display text-[30px] font-extrabold uppercase leading-[0.95] text-balance lg:flex-none lg:text-[46px] lg:leading-[0.92]">
-          {shop.name}
-        </h1>
-        {shop.is_demo ? <span className="label-print rounded-[2px] border-[1.5px] border-ink/60 px-1.5 text-ink-muted">Demo</span> : null}
-        {wide ? <Totals held={stats.held_cents} paid={stats.paid_cents} /> : null}
-        <SoundToggle compact />
+    <main className="mx-auto w-full max-w-md px-5 pb-16 pt-[max(env(safe-area-inset-top),14px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24 lg:pt-7">
+      {/* the wordmark home; sound and the shop page on the right */}
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/" aria-label="avanti, home" className="py-2 pr-3 transition-opacity hover:opacity-70">
+          <Wordmark className="text-[25px] lg:text-[30px]" />
+        </Link>
+        <div className="flex items-center gap-2 lg:gap-5">
+          <SoundToggle
+            compact={!wide}
+            className="rounded-none border border-ink/15 font-sans text-[13px] font-semibold tracking-[0.12em] hover:border-ink/35 aria-pressed:border-carbon aria-pressed:bg-carbon"
+          />
+          {wide ? (
+            <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="link-ink text-[19px]!">
+              Shop page <ArrowUpRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      <header className="mt-6 flex flex-col gap-4 lg:mt-10 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+        <div className="min-w-0">
+          <p className="flex items-center gap-4">
+            <span className={cn("label-print inline-flex items-center gap-2", shop.open ? "text-carbon" : "text-ink-muted")}>
+              <span aria-hidden className={cn("size-2", shop.open ? "bg-carbon" : "border border-ink-muted")} />
+              {shop.open ? "Open" : "Closed"}
+            </span>
+            {shop.is_demo ? <span className="label-print text-ink-muted">Demo shop</span> : null}
+          </p>
+          <h1 className="mt-2 line-clamp-2 font-display text-[38px] leading-[1.06] text-balance lg:mt-3 lg:text-[58px] lg:leading-[1.02]">
+            {shop.name}
+          </h1>
+        </div>
         {wide ? (
-          <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="btn-quiet -mr-3">
-            Shop page <ArrowUpRight aria-hidden className="size-4" />
-          </a>
-        ) : null}
+          <Totals held={stats.held_cents} paid={stats.paid_cents} />
+        ) : (
+          <p className="text-[16px] text-ink-muted">
+            <Money cents={stats.held_cents} className="font-mono font-medium text-ink" /> on hold ·{" "}
+            <Money cents={stats.paid_cents} className="font-mono font-medium text-ink" /> charged
+          </p>
+        )}
       </header>
-      {wide ? null : (
-        <p className="mt-3 text-[14px] text-ink-muted">
-          <Money cents={stats.held_cents} className="font-bold text-ink" /> on hold ·{" "}
-          <Money cents={stats.paid_cents} className="font-bold text-ink" /> charged
-        </p>
-      )}
 
       {wide ? (
         // Laptop: a dashboard. Orders lead; menu stock and the door log beside them
         // (stacked on the right below 1280 px, three columns from there).
-        <div className="mt-12 grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-start gap-x-14 gap-y-16 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:gap-x-12">
+        <div className="mt-12 grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-start gap-x-14 gap-y-16 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(0,0.95fr)] xl:gap-x-12">
           <section aria-labelledby="counter-orders" className="row-span-2 xl:row-span-1">
             <ColumnHead id="counter-orders" title="Orders" note={held.length ? `${held.length} waiting` : "none waiting"} />
-            <div className="mt-12">{rail}</div>
+            <div className="mt-10">{rail}</div>
           </section>
           <section aria-labelledby="counter-menu">
             <ColumnHead
@@ -142,14 +176,14 @@ export function CounterView({
           </section>
         </div>
       ) : (
-        <TabsPrimitive.Root defaultValue={initialTab} className="mt-6">
-          <TabsPrimitive.List aria-label="Counter" className="grid grid-cols-3 border-b-2 border-ink/80">
+        <TabsPrimitive.Root defaultValue={initialTab} className="mt-7">
+          <TabsPrimitive.List aria-label="Counter" className="grid grid-cols-3 border-b border-ink/15">
             <CounterTab value="orders">Orders{held.length ? ` · ${held.length}` : ""}</CounterTab>
             <CounterTab value="menu">Menu</CounterTab>
             <CounterTab value="door">Door log</CounterTab>
           </TabsPrimitive.List>
 
-          <TabsPrimitive.Content value="orders" className="mt-8 outline-none">
+          <TabsPrimitive.Content value="orders" className="mt-9 outline-none">
             {rail}
           </TabsPrimitive.Content>
 
@@ -173,44 +207,44 @@ export function CounterView({
   );
 }
 
-/** Laptop: the day's totals, printed big in the header (the phone has them as one line). */
+/** Laptop: the day's totals, set large in the header (the phone has them as one line). */
 function Totals({ held, paid }: { held: number; paid: number }) {
   return (
-    <dl className="ml-auto flex items-end gap-9 pr-2">
+    <dl className="flex shrink-0 items-end gap-12 pb-1.5">
       <div>
         <dt className="label-print text-ink-muted">On hold</dt>
-        <dd className="mt-1">
-          <Money cents={held} className="font-display text-[34px] font-extrabold leading-none" />
+        <dd className="mt-2">
+          <Money cents={held} className="font-display text-[40px] leading-none" />
         </dd>
       </div>
       <div>
         <dt className="label-print text-ink-muted">Charged</dt>
-        <dd className="mt-1">
-          <Money cents={paid} className="font-display text-[34px] font-extrabold leading-none" />
+        <dd className="mt-2">
+          <Money cents={paid} className="font-display text-[40px] leading-none" />
         </dd>
       </div>
     </dl>
   );
 }
 
-/** Laptop: each dashboard column is headed like the phone's tab, over a printed dashed rule. */
+/** Laptop: each dashboard column is headed like the phone's tab, over one hairline. */
 function ColumnHead({ id, title, note }: { id: string; title: string; note?: string | null }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 pb-3 [border-bottom:1.5px_dashed_rgb(22_22_22/0.3)]">
-      <h2 id={id} className="font-display text-[24px] font-extrabold uppercase leading-none tracking-[0.03em]">
+    <div className="flex items-baseline justify-between gap-4 border-b border-ink/15 pb-3">
+      <h2 id={id} className="font-display text-[26px] leading-none">
         {title}
       </h2>
-      {note ? <span className="text-[15px] text-ink-muted">{note}</span> : null}
+      {note ? <span className="text-[16px] text-ink-muted">{note}</span> : null}
     </div>
   );
 }
 
-/** A printed tab: the active one is inked and underlined with a heavy rule. */
+/** A tab: the active one is set in ink with a teal rule under it. */
 function CounterTab({ value, children }: { value: string; children: React.ReactNode }) {
   return (
     <TabsPrimitive.Trigger
       value={value}
-      className="relative -mb-[2px] h-12 border-b-4 border-transparent px-1 font-display text-[19px] font-extrabold uppercase tracking-[0.03em] text-ink-muted transition-colors hover:text-ink data-[state=active]:border-ink data-[state=active]:text-ink"
+      className="relative -mb-px h-12 border-b-2 border-transparent px-1 font-display text-[19px] text-ink-muted transition-colors duration-300 hover:text-ink data-[state=active]:border-carbon data-[state=active]:text-ink"
     >
       {children}
     </TabsPrimitive.Trigger>
@@ -219,7 +253,7 @@ function CounterTab({ value, children }: { value: string; children: React.ReactN
 
 /**
  * Which ticket hangs in front: the newest held order, unless an order just
- * changed status (its PAID / RELEASED stamp should land where you're looking).
+ * changed status (its PAID / RELEASED seal should land where you're looking).
  */
 function useFocusedOrder(held: DashboardOrder[], done: DashboardOrder[]): string | null {
   const all = [...held, ...done];
@@ -246,22 +280,16 @@ function useFocusedOrder(held: DashboardOrder[], done: DashboardOrder[]): string
   return held[0]?.id ?? done[0]?.id ?? null;
 }
 
-/** Nothing on the rail yet: a blank page of the order pad waits in the clip. */
+/** Nothing on the rail yet: a blank slip waits in the clip. */
 function EmptyRail() {
   return (
     <div className="relative mx-1 lg:mx-auto lg:max-w-[440px]">
-      <span aria-hidden className="steel-clip absolute -top-[17px] left-1/2 z-10 -translate-x-1/2" />
-      <div className="pad edge-perf-top px-6 pb-10 pt-12 text-center shadow-slip" style={{ rotate: "-0.6deg" }}>
-        <p className="font-display text-[30px] font-extrabold uppercase leading-none">No orders yet</p>
-        <p className="mx-auto mt-3 max-w-[28ch] text-[15px] leading-relaxed text-ink-muted lg:text-[16px]">
+      <span aria-hidden className="steel-clip absolute -top-[13px] left-1/2 z-10 -translate-x-1/2" />
+      <div className="paper px-7 pb-11 pt-12 text-center">
+        <p className="font-display text-[30px] leading-[1.1]">No orders yet</p>
+        <p className="mx-auto mt-3 max-w-[30ch] text-[16px] leading-relaxed text-ink-muted">
           When an AI shopper orders, the ticket clips on here.
         </p>
-        {/* the blank pad's printed rules */}
-        <div aria-hidden className="mx-auto mt-8 max-w-[300px] space-y-5">
-          <div className="border-t-2 border-pad-line" />
-          <div className="border-t-2 border-pad-line" />
-          <div className="border-t-2 border-pad-line" />
-        </div>
       </div>
     </div>
   );

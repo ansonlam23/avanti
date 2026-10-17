@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 import { EASE, SPRING } from "@/lib/motion";
 
 // The owner's counter photo. One element (layoutId) that moves through the
-// flow: a print on the counter → the big photo being read (a scan bar sweeps
-// it) → a banner the items print out of → a small print on the review screen.
+// flow: a print on a paper mat → the big photo being read (a thin scan line
+// sweeps it) → a banner the prices fly out of → a small print on the review
+// screen. Square and straight in every mode.
 
-/** `print`: the big framed print on a laptop's right pane (talk step). */
+/** `print`: the big matted print on a laptop's right pane (talk step). */
 export type PhotoMode = "pinned" | "scan" | "banner" | "thumb" | "print";
 
 interface CounterPhotoProps {
@@ -19,15 +20,13 @@ interface CounterPhotoProps {
   mode: PhotoMode;
   /** Shared-layout id: the same id in two places morphs one into the other. */
   layoutId?: string;
-  /** Item boxes (banner mode): crop marks light up as each item leaves. */
+  /** Item boxes (banner mode): corner marks light up as each item leaves. */
   boxes?: Array<Box2D | null>;
   litBoxes?: ReadonlySet<number>;
   /** The element whose rect maps 1:1 to the image (for flight origins). */
   imageRef?: React.Ref<HTMLDivElement>;
   className?: string;
 }
-
-const ROTATE: Record<PhotoMode, number> = { pinned: -2.5, thumb: 3, print: -1.6, scan: 0, banner: 0 };
 
 export function CounterPhoto({ src, width, height, mode, layoutId, boxes, litBoxes, imageRef, className }: CounterPhotoProps) {
   const reduce = useReducedMotion();
@@ -43,17 +42,13 @@ export function CounterPhoto({ src, width, height, mode, layoutId, boxes, litBox
       data-mode={mode}
       className={cn(
         "open-photo relative mx-auto",
-        framed ? "bg-paper p-1.5 pb-4 shadow-slip" : "shadow-slip",
-        mode === "print" && "p-2.5 pb-8 shadow-[var(--shadow-lift)]",
+        framed ? "paper p-1.5" : "shadow-[0_0_0_1px_rgb(22_58_66/0.16)]",
+        mode === "print" && "p-3 shadow-[0_18px_36px_-28px_rgb(22_58_66/0.45)]",
         className,
       )}
-      style={{
-        ...({ "--r": String(ratio) } as React.CSSProperties),
-        rotate: ROTATE[mode],
-        borderRadius: framed ? 2 : 3,
-      }}
+      style={{ ...({ "--r": String(ratio) } as React.CSSProperties), borderRadius: 0 }}
     >
-      <div ref={imageRef} className="relative overflow-hidden rounded-[2px]" style={{ aspectRatio: `${width} / ${height}` }}>
+      <div ref={imageRef} className="relative overflow-hidden" style={{ aspectRatio: `${width} / ${height}` }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- local blob/data URL */}
         <img src={src} alt="Your counter" draggable={false} className="absolute inset-0 size-full object-cover" />
 
@@ -67,25 +62,35 @@ export function CounterPhoto({ src, width, height, mode, layoutId, boxes, litBox
   );
 }
 
-/** The AI reading the photo: a dark scan bar sweeping, crop marks at the corners. */
+const CORNER = [
+  "left-0 top-0 border-l-2 border-t-2",
+  "right-0 top-0 border-r-2 border-t-2",
+  "bottom-0 left-0 border-b-2 border-l-2",
+  "bottom-0 right-0 border-b-2 border-r-2",
+] as const;
+
+/** The AI reading the photo: one thin paper line sweeping, the corners marked. */
 function ScanOverlay({ reduce }: { reduce: boolean }) {
   return (
     <>
-      {(["left-3 top-3 border-l-[3px] border-t-[3px]", "right-3 top-3 border-r-[3px] border-t-[3px]", "left-3 bottom-3 border-b-[3px] border-l-[3px]", "right-3 bottom-3 border-b-[3px] border-r-[3px]"] as const).map((c) => (
-        <span key={c} aria-hidden className={cn("absolute size-6 border-paper drop-shadow-[0_1px_1px_rgb(0_0_0/0.6)]", c)} />
-      ))}
+      <div aria-hidden className="absolute inset-4">
+        {CORNER.map((c) => (
+          <span key={c} className={cn("absolute size-7 border-paper drop-shadow-[0_0_1px_rgb(22_58_66/0.7)]", c)} />
+        ))}
+      </div>
       {reduce ? (
-        <div aria-hidden className="absolute inset-x-0 top-1/2 h-1 bg-paper shadow-[0_0_0_1px_rgb(22_22_22/0.6)]" />
+        <div aria-hidden className="absolute inset-x-0 top-1/2 h-0.5 bg-paper shadow-[0_0_0_1px_rgb(22_58_66/0.35)]" />
       ) : (
         <motion.div
           aria-hidden
           className="absolute inset-0"
           initial={{ y: "-2%" }}
           animate={{ y: ["-2%", "100%"] }}
-          transition={{ duration: 1.9, ease: EASE.inOut, repeat: Infinity, repeatType: "reverse" }}
+          transition={{ duration: 2.4, ease: EASE.inOut, repeat: Infinity, repeatType: "reverse" }}
         >
-          <div className="absolute inset-x-0 bottom-full h-16 bg-gradient-to-b from-transparent to-paper/25" />
-          <div className="absolute inset-x-0 top-0 h-1 -translate-y-1/2 bg-paper shadow-[0_0_0_1px_rgb(22_22_22/0.55),0_2px_10px_rgb(0_0_0/0.45)]" />
+          {/* a flat wash just behind the line (no gradient, no glow) */}
+          <div className="absolute inset-x-0 bottom-full h-14 bg-paper/[0.14]" />
+          <div className="absolute inset-x-0 top-0 h-0.5 -translate-y-1/2 bg-paper shadow-[0_0_0_1px_rgb(22_58_66/0.3)]" />
         </motion.div>
       )}
     </>
@@ -105,11 +110,11 @@ function BoxMarks({ box, lit }: { box: Box2D; lit: boolean }) {
         width: `${(xmax - xmin) / 10}%`,
       }}
       initial={false}
-      animate={{ opacity: lit ? 1 : 0, scale: lit ? 1 : 1.08 }}
-      transition={{ duration: 0.24, ease: EASE.out }}
+      animate={{ opacity: lit ? 1 : 0, scale: lit ? 1 : 1.06 }}
+      transition={{ duration: 0.3, ease: EASE.out }}
     >
-      {(["left-0 top-0 border-l-[3px] border-t-[3px]", "right-0 top-0 border-r-[3px] border-t-[3px]", "bottom-0 left-0 border-b-[3px] border-l-[3px]", "bottom-0 right-0 border-b-[3px] border-r-[3px]"] as const).map((c) => (
-        <span key={c} className={cn("absolute size-3.5 border-paper drop-shadow-[0_1px_1px_rgb(0_0_0/0.7)]", c)} />
+      {CORNER.map((c) => (
+        <span key={c} className={cn("absolute size-3.5 border-paper drop-shadow-[0_0_1px_rgb(22_58_66/0.8)]", c)} />
       ))}
       <span className="absolute inset-0 bg-paper/15" />
     </motion.div>

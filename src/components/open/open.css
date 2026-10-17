@@ -1,11 +1,109 @@
-/* /open-only layout (imported by open-flow.tsx). Global stylesheet, so every
+/* /open-only styles (imported by open-flow.tsx). Global stylesheet, so every
    class is prefixed `open-`.
 
    Phone: one column, the scene's children stack in DOM order.
    Laptop (≥ 1024): a two-pane stage. Left = the step (heading + its one
    primary action). Right = the result building up: the photo, then the menu
-   slip printing, then the OPEN sign and the shop's slip. Children name their
+   slip filling in, then the sign and the shop's slip. Children name their
    cell with `lg:[grid-area:…]`; the areas per beat live here. */
+
+/* ── The snap frame: paper, with a viewfinder's teal corners ─────────── */
+.open-frame {
+  background-color: var(--color-paper);
+  transition: background-color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.open-frame:hover:not(:disabled),
+.open-frame[data-drag] {
+  background-color: color-mix(in srgb, var(--color-highlight) 38%, var(--color-paper));
+}
+.open-frame:disabled {
+  cursor: progress;
+}
+.open-corner {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 0 solid var(--color-carbon);
+  pointer-events: none;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.open-corner[data-c="tl"] {
+  left: 22px;
+  top: 22px;
+  border-left-width: 1.5px;
+  border-top-width: 1.5px;
+}
+.open-corner[data-c="tr"] {
+  right: 22px;
+  top: 22px;
+  border-right-width: 1.5px;
+  border-top-width: 1.5px;
+}
+.open-corner[data-c="bl"] {
+  left: 22px;
+  bottom: 22px;
+  border-left-width: 1.5px;
+  border-bottom-width: 1.5px;
+}
+.open-corner[data-c="br"] {
+  right: 22px;
+  bottom: 22px;
+  border-right-width: 1.5px;
+  border-bottom-width: 1.5px;
+}
+.open-frame:hover:not(:disabled) .open-corner[data-c="tl"],
+.open-frame[data-drag] .open-corner[data-c="tl"],
+.open-frame[data-busy] .open-corner[data-c="tl"] {
+  transform: translate(9px, 9px);
+}
+.open-frame:hover:not(:disabled) .open-corner[data-c="tr"],
+.open-frame[data-drag] .open-corner[data-c="tr"],
+.open-frame[data-busy] .open-corner[data-c="tr"] {
+  transform: translate(-9px, 9px);
+}
+.open-frame:hover:not(:disabled) .open-corner[data-c="bl"],
+.open-frame[data-drag] .open-corner[data-c="bl"],
+.open-frame[data-busy] .open-corner[data-c="bl"] {
+  transform: translate(9px, -9px);
+}
+.open-frame:hover:not(:disabled) .open-corner[data-c="br"],
+.open-frame[data-drag] .open-corner[data-c="br"],
+.open-frame[data-busy] .open-corner[data-c="br"] {
+  transform: translate(-9px, -9px);
+}
+
+/* A slow breath (the stopwatch's running mark, a photo developing). */
+@keyframes open-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.open-pulse {
+  animation: open-pulse 1.8s ease-in-out infinite;
+}
+
+/* The go-live beat: one faint strip of the landing's ink plate along the
+   bottom of the screen (never behind text: it sits under the content). */
+.open-strip-wrap {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.open-strip {
+  display: block;
+  width: 200vw; /* phones: the middle of the plate (the lake), tall enough to read */
+  max-width: none;
+  height: auto;
+  margin-left: -50vw;
+}
+@media (min-width: 768px) {
+  .open-strip {
+    width: 100vw;
+    margin-left: 0;
+  }
+}
 
 /* The counter photo's size per mode (the ratio comes in as --r). */
 .open-photo {
@@ -24,7 +122,7 @@
   --photo-w: min(24vw, 92px, calc(104px * var(--r)));
 }
 .open-photo[data-mode="print"] {
-  --photo-w: min(100%, 540px, calc(50dvh * var(--r)));
+  --photo-w: min(100%, 560px, calc(52dvh * var(--r)));
 }
 
 @media (min-width: 1024px) {
@@ -39,12 +137,12 @@
 
   .open-scene {
     display: grid;
-    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr);
     column-gap: clamp(48px, 6.5vw, 112px);
     row-gap: 28px;
     align-items: start;
     /* a short step sits in the middle of the screen, not at the top */
-    min-height: calc(100dvh - 170px);
+    min-height: calc(100dvh - 176px);
     padding-block: 8px 32px;
   }
 
@@ -62,7 +160,7 @@
 
   /* Reading → prices: the narration and the photo being read on the left
      (one sticky column); the menu slip filling in on the right, so every
-     sticker's flight crosses the screen in view. */
+     price's flight crosses the screen in view. */
   .open-scene[data-beat="reading"],
   .open-scene[data-beat="tags"] {
     min-height: 0;
@@ -70,7 +168,7 @@
   }
   /* the read failed: the way forward (left) and the photo (right), centered like a short step */
   .open-scene[data-beat="reading"][data-error] {
-    min-height: calc(100dvh - 170px);
+    min-height: calc(100dvh - 176px);
     align-content: center;
     align-items: center;
   }
@@ -82,7 +180,7 @@
     grid-template-areas: "head board" "form board" ". board";
   }
 
-  /* Print: the PRINT key on the left, the printer on the right. */
+  /* Open: the key on the left, the sign waiting on the right. */
   .open-scene[data-beat="switch"] {
     grid-template-rows: 1fr auto auto 1fr;
     grid-template-areas: ". art" "head art" "action art" ". art";
@@ -90,7 +188,9 @@
 
   /* Live: "You're open." + the way in on the left; the sign + the shop's slip on the right. */
   .open-scene[data-beat="live"] {
-    grid-template-rows: 1fr auto auto 1fr;
-    grid-template-areas: ". art" "title art" "actions card" ". card";
+    min-height: 0;
+    padding-block: 24px 0;
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "title art" "actions card" ". card";
   }
 }

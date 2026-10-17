@@ -1,10 +1,11 @@
-// Shared geometry for price stickers (plain module: usable from server and client).
+// Shared geometry for price labels (plain module: usable from server and client).
 
 export const TAG_W = 84;
 export const TAG_H = 44;
-/** Stickers turn around their center when they land. */
+/** Labels turn around their center when they land. */
 export const TAG_ORIGIN = "50% 50%";
 
-/** Each row's sticker rests at its own small angle (degrees). */
-const REST = [-4, 3, -2, 5, -3, 2, -5, 4];
-export const restAngle = (i: number) => REST[i % REST.length];
+/** The small turn a label carries while it flies (degrees). In ink nothing
+ *  rests at an angle: every label settles square (0°) as it lands. */
+const TURN = [-7, 6, -5, 8, -6, 5, -8, 7];
+export const flightTurn = (i: number) => TURN[i % TURN.length];

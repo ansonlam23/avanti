@@ -1,14 +1,14 @@
 "use client";
 
+import { Camera, ImageUp, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
-import { Camera, ImageUp } from "lucide-react";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import { EASE } from "@/lib/motion";
 import { StepHeading } from "./step-heading";
 
-// Beat 1: Snap your counter. A frame with crop marks on the counter + one
-// primary action. On a laptop (no camera): choose a file, drag-and-drop, or a sample.
+// Beat 1: Snap your counter. A paper frame with teal corner brackets + one
+// primary action. On a laptop (no camera): choose a file, drop one on the
+// frame, or try the sample bakery.
 
 /** A real, freely licensed counter photo for people trying the demo without one (the AI still reads it live). */
 const SAMPLE_PHOTO = {
@@ -28,6 +28,8 @@ const useDesktop = () =>
     () => window.matchMedia(FINE_POINTER).matches,
     () => false,
   );
+
+const CORNERS = ["tl", "tr", "bl", "br"] as const;
 
 export function SnapStep({
   busy,
@@ -73,6 +75,7 @@ export function SnapStep({
   };
 
   const working = busy || loadingSample;
+  const Icon = desktop ? ImageUp : Camera;
 
   return (
     // laptop: `contents`, so each piece takes its cell in the scene's two-pane grid (open.css)
@@ -97,72 +100,57 @@ export function SnapStep({
           }
         }}
         disabled={working}
-        whileTap={{ scale: 0.99 }}
+        whileTap={{ scale: 0.995 }}
+        data-drag={dragging || undefined}
+        data-busy={working || undefined}
         aria-label={desktop ? "Choose a photo of your counter" : "Take a photo of your counter"}
         className={cn(
-          "relative grid h-[min(40dvh,360px)] min-h-[230px] w-full place-items-center rounded-[3px] transition-colors",
-          "lg:aspect-[4/3] lg:h-auto lg:max-h-[min(66dvh,560px)] lg:min-h-0 lg:self-center lg:[grid-area:art]",
-          dragging ? "bg-paper/70" : "bg-counter-deep/45 lg:hover:bg-counter-deep/60",
+          "open-frame relative grid h-[min(40dvh,340px)] min-h-[220px] w-full place-items-center",
+          "lg:aspect-[4/3] lg:h-auto lg:max-h-[min(64dvh,540px)] lg:min-h-0 lg:self-center lg:[grid-area:art]",
         )}
       >
-        {/* crop marks, like a print shop's */}
-        {(
-          [
-            "left-4 top-4 border-l-[3px] border-t-[3px]",
-            "right-4 top-4 border-r-[3px] border-t-[3px]",
-            "left-4 bottom-4 border-b-[3px] border-l-[3px]",
-            "right-4 bottom-4 border-b-[3px] border-r-[3px]",
-          ] as const
-        ).map((c) => (
-          <span key={c} aria-hidden className={cn("absolute size-8 border-ink", c)} />
+        {/* a viewfinder's corners: they draw in when a photo is on its way */}
+        {CORNERS.map((c) => (
+          <span key={c} aria-hidden data-c={c} className="open-corner" />
         ))}
-        <span className="flex flex-col items-center gap-3">
-          <motion.span
-            className="grid size-20 place-items-center rounded-full border-[2.5px] border-ink"
-            animate={working ? { scale: [1, 0.92, 1] } : { scale: 1 }}
-            transition={working ? { duration: 1.2, repeat: Infinity, ease: EASE.inOut } : undefined}
-          >
-            {desktop ? <ImageUp className="size-9" aria-hidden /> : <Camera className="size-9" aria-hidden />}
-          </motion.span>
-          {working || dragging || desktop ? (
-            <span className="text-[16px] text-ink-muted">
-              {working ? "Developing your photo…" : dragging ? "Drop it here." : "Drop a photo here"}
-            </span>
-          ) : null}
+        <span className="flex flex-col items-center gap-4 px-8 text-center">
+          <Icon className={cn("size-10 text-carbon", working && "open-pulse")} strokeWidth={1.25} aria-hidden />
+          <span className="text-[16px] text-ink-muted lg:text-[17px]">
+            {working ? "Developing your photo…" : dragging ? "Drop it here." : desktop ? "Drop a photo here" : "Tap to open the camera"}
+          </span>
         </span>
       </motion.button>
 
       {error || sampleError ? (
-        <p role="alert" className="text-[15px] font-bold text-stamp-deep lg:[grid-area:note]">
+        <p role="alert" className="text-[16px] font-semibold text-stamp-deep lg:[grid-area:note]">
           {error ?? sampleError}
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-2 lg:items-start lg:gap-3 lg:[grid-area:actions]">
+      <div className="flex flex-col items-center gap-3 lg:items-start lg:gap-5 lg:[grid-area:actions]">
         {desktop ? (
-          <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full lg:w-auto lg:px-9">
-            <ImageUp className="size-6" aria-hidden /> Choose a photo
+          <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full lg:w-auto lg:min-w-[260px]">
+            Choose a photo
           </button>
         ) : (
           <>
             <button type="button" onClick={() => pick(camera.current)} disabled={working} className="btn-ink w-full">
-              <Camera className="size-6" aria-hidden /> Take photo
+              Take a photo
             </button>
             <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-quiet">
               Upload from library
             </button>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => void loadSample()}
-          disabled={working}
-          className="btn-quiet flex-col gap-0.5! text-center no-underline! lg:items-start lg:px-0 lg:text-left"
-          title={SAMPLE_PHOTO.credit}
-        >
-          <span className="underline decoration-ink/35 decoration-[1.5px] underline-offset-4">No photo handy? Use a sample bakery</span>
-          <span className="text-[14px] text-ink-muted">{SAMPLE_PHOTO.credit}</span>
-        </button>
+        <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+          <span className="flex flex-wrap items-center justify-center gap-x-3 lg:justify-start">
+            <span className="text-[16px] text-ink-muted">No photo handy?</span>
+            <button type="button" onClick={() => void loadSample()} disabled={working} className="link-ink text-[19px]!" title={SAMPLE_PHOTO.credit}>
+              Use a sample bakery <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
+            </button>
+          </span>
+          <span className="text-[15px] text-ink-muted">{SAMPLE_PHOTO.credit}</span>
+        </div>
       </div>
 
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />

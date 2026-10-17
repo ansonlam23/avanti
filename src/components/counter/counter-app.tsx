@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { useShopPings } from "@/lib/realtime/client";
 import type { Item } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { CounterView } from "./counter-view";
+import { speakOrders, useOrderVoice } from "./speak";
 import { useOwnerToken } from "./use-owner-token";
 import { useWide } from "./use-wide";
 
@@ -23,6 +24,7 @@ export function CounterApp({ slug }: { slug: string }) {
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [simulating, setSimulating] = useState(false);
   const known = useRef<Set<string> | null>(null);
+  useOrderVoice();
 
   const api = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -57,6 +59,8 @@ export function CounterApp({ slug }: { slug: string }) {
       }
       if (added.length) {
         sfx.play("doorbell");
+        // …then read them aloud (only when sound is on; the toggle's tap unlocked it)
+        speakOrders(added);
         setFresh((s) => new Set([...s, ...added.map((o) => o.id)]));
         setTimeout(() => setFresh((s) => new Set([...s].filter((id) => !added.some((o) => o.id === id)))), 6000);
       }
@@ -86,6 +90,35 @@ export function CounterApp({ slug }: { slug: string }) {
         description: `${body.held_orders} held order${body.held_orders > 1 ? "s" : ""} still keep their item.`,
       });
     }
+    void refresh();
+  }
+
+  // The owner's rules for AI orders (CONTRACTS §13): a spending cap, and items kept off-limits to AI.
+  async function setAiLimit(cents: number | null): Promise<boolean> {
+    setBusy("ai-limit");
+    const { res, body } = await api(`/api/shops/${slug}/rules`, {
+      method: "POST",
+      body: JSON.stringify({ ai_max_order_cents: cents }),
+    });
+    setBusy(null);
+    if (!res.ok) {
+      toast.error(body?.error?.message ?? "Couldn't change the AI limit");
+      return false;
+    }
+    toast(cents === null ? "AI orders: no cap" : `AI orders up to ${formatCents(cents)}`);
+    void refresh();
+    return true;
+  }
+
+  async function toggleAiOrderable(item: Item, orderable: boolean) {
+    setBusy(item.id);
+    const { res, body } = await api(`/api/items/${item.id}/ai-orderable`, {
+      method: "POST",
+      body: JSON.stringify({ ai_orderable: orderable }),
+    });
+    setBusy(null);
+    if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't update the item");
+    if (!orderable) toast(`${item.name} is in-person only`, { description: "AI shoppers will be asked to order it at the shop." });
     void refresh();
   }
 
@@ -138,6 +171,8 @@ export function CounterApp({ slug }: { slug: string }) {
       onPadSubmit={(code) => (padFor ? pickup(padFor, code) : Promise.resolve(false))}
       onNoShow={(o) => void release(o)}
       onToggleSoldOut={(item, soldOut) => void toggleSoldOut(item, soldOut)}
+      onToggleAiOrderable={(item, orderable) => void toggleAiOrderable(item, orderable)}
+      onAiLimit={setAiLimit}
       onSimulate={() => void simulateBots()}
     />
   );
@@ -145,31 +180,32 @@ export function CounterApp({ slug }: { slug: string }) {
 
 /** Loading: the counter's own shapes, quietly (no layout jump when it fills in). Laptop: the dashboard's three columns. */
 function CounterSkeleton() {
-  const bar = "animate-pulse rounded-[3px] bg-counter-deep";
+  const bar = "animate-pulse bg-counter-deep/80";
   return (
     <main
-      className="mx-auto w-full max-w-md px-5 pt-[max(env(safe-area-inset-top),20px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pt-8"
+      className="mx-auto w-full max-w-md px-5 pt-[max(env(safe-area-inset-top),14px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pt-7"
       aria-busy
       aria-label="Loading the counter"
     >
-      <div className={`h-9 w-2/3 lg:h-12 lg:w-[420px] ${bar}`} />
+      <div className={`h-7 w-24 lg:h-8 ${bar}`} />
+      <div className={`mt-8 h-10 w-2/3 lg:mt-12 lg:h-14 lg:w-[420px] ${bar}`} />
       <div className="lg:hidden">
-        <div className="mt-8 h-3.5 rounded-[7px] bg-counter-deep" />
-        <div className="mx-2 mt-1 h-80 animate-pulse rounded-[3px] bg-counter-deep/70" />
+        <div className="mt-8 h-px bg-ink/15" />
+        <div className="mx-1 mt-10 h-80 animate-pulse bg-counter-deep/60" />
       </div>
-      <div className="mt-12 hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-start gap-x-14 gap-y-16 lg:grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:gap-x-12">
+      <div className="mt-12 hidden grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-start gap-x-14 gap-y-16 lg:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(0,0.95fr)] xl:gap-x-12">
         <div className="row-span-2 xl:row-span-1">
           <div className={`h-6 w-32 ${bar}`} />
-          <div className="mt-14 h-3.5 rounded-[7px] bg-counter-deep" />
-          <div className="mx-auto mt-1 h-[420px] max-w-[440px] animate-pulse rounded-[3px] bg-counter-deep/70" />
+          <div className="mt-12 h-px bg-ink/15" />
+          <div className="mx-auto mt-3 h-[420px] max-w-[440px] animate-pulse bg-counter-deep/60" />
         </div>
         <div>
           <div className={`h-6 w-24 ${bar}`} />
-          <div className="mt-10 h-[420px] animate-pulse rounded-[3px] bg-counter-deep/70" />
+          <div className="mt-10 h-[420px] animate-pulse bg-counter-deep/60" />
         </div>
         <div>
           <div className={`h-6 w-28 ${bar}`} />
-          <div className="mt-10 h-[420px] animate-pulse rounded-[3px] bg-counter-deep/70" />
+          <div className="mt-10 h-[420px] animate-pulse bg-counter-deep/60" />
         </div>
       </div>
     </main>
@@ -182,35 +218,33 @@ function PrivateCounter({ slug }: { slug: string }) {
   );
 }
 
-/** A closed door: the unprinted CLOSED slip, one sentence, a way on (or, for an error, a way back in). */
+/** A closed door: the un-inked sign, one sentence, a way on (or, for an error, a way back in). */
 function Notice({ title, body, slug, retry }: { title: string; body: string; slug?: string; retry?: boolean }) {
   const wide = useWide();
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center lg:max-w-3xl lg:gap-12 lg:py-24">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-6 py-16 text-center lg:max-w-3xl lg:gap-12 lg:py-24">
       <OpenSign text="Closed" size={wide ? "lg" : "md"} mount="bare" state="off" sound={false} />
       <div>
-        <h1 className="thermal font-display text-[34px] font-extrabold uppercase leading-none text-balance lg:text-[64px] lg:leading-[0.92]">
-          {title}
-        </h1>
-        <p className="mx-auto mt-3 max-w-[30ch] text-[15px] leading-relaxed text-ink-muted lg:mt-5 lg:max-w-[40ch] lg:text-[18px]">{body}</p>
+        <h1 className="font-display text-[36px] leading-[1.08] text-balance lg:text-[60px] lg:leading-[1.02]">{title}</h1>
+        <p className="mx-auto mt-4 max-w-[32ch] text-[16px] leading-relaxed text-ink-muted lg:mt-5 lg:max-w-[40ch] lg:text-[18px]">{body}</p>
       </div>
       <div className="flex flex-col items-center gap-3 lg:flex-row lg:gap-8">
         {retry ? (
-          <button type="button" onClick={() => window.location.reload()} className="btn-ink px-7">
-            <RotateCcw aria-hidden className="size-5" /> Try again
+          <button type="button" onClick={() => window.location.reload()} className="btn-ink px-8">
+            Try again
           </button>
         ) : (
-          <Link href="/open" className="btn-ink px-7">
+          <Link href="/open" className="btn-ink px-8">
             Open your own shop <ArrowRight aria-hidden className="size-5" />
           </Link>
         )}
         {slug ? (
-          <Link href={`/s/${slug}`} className="btn-quiet">
-            See this shop&apos;s page
+          <Link href={`/s/${slug}`} className="link-ink text-[19px]!">
+            See this shop&apos;s page <ArrowRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
           </Link>
         ) : retry ? (
-          <Link href="/open" className="btn-quiet">
-            Open your own shop
+          <Link href="/open" className="link-ink text-[19px]!">
+            Open your own shop <ArrowRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
           </Link>
         ) : null}
       </div>

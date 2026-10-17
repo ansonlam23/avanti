@@ -2,7 +2,7 @@
 
 import NumberFlow from "@number-flow/react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, BadgeCheck, Camera, Keyboard, Lock, Mic, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Camera, Keyboard, Lock, Mic } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OpenSign, type NeonState } from "@/components/brand";
 import type { OnboardDraft } from "@/lib/ai/onboard";
@@ -10,12 +10,15 @@ import type { CreateShopRequest, CreateShopResponse } from "@/lib/db/shops";
 import { DUR, EASE, SPRING, motionSpeed } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { CounterPhoto, photoPoint } from "./counter-photo";
+import { INK_EASE, inkRise } from "./ink";
+import strip1600 from "./ink-strip-1600.webp";
+import strip800 from "./ink-strip-800.webp";
 import { LiveCard } from "./live-card";
-import { FLIGHT_S, MenuBoard, TOUCHDOWN, type MenuRow, type RowFlight } from "./menu-board";
+import { FLIGHT_S, MenuBoard, parsePriceInput, TOUCHDOWN, type MenuRow, type RowFlight } from "./menu-board";
 import { blobToDataUrl, dataUrlToBlob, preparePhoto, type PreparedPhoto } from "./photo";
 import { rememberMyShop } from "@/lib/my-shops";
 import { loadLive, loadRun, saveLive, saveRun, type OnboardResponse } from "./run-store";
-import { DEFAULT_BASICS, ShopBasics, type Basics } from "./shop-basics";
+import { aiCapValid, DEFAULT_BASICS, ShopBasics, type Basics } from "./shop-basics";
 import { SignSwitch } from "./sign-switch";
 import { SnapStep } from "./snap-step";
 import { StatusLine, StepHeading } from "./step-heading";
@@ -28,9 +31,9 @@ import { useWide } from "./use-wide";
 import "./open.css";
 
 // /open — "Open in 40 seconds". Four beats, one primary action each:
-// snap → talk → (reading → prices print onto the menu → check) → print your sign → live.
+// snap → talk → (reading → prices land on the menu → check) → open → live.
 // Phone: one column. Laptop: a two-pane stage (open.css): the step on the
-// left, the result building up on the right (photo → menu slip → OPEN sign).
+// left, the result building up on the right (photo → menu slip → the sign).
 
 type Beat = "snap" | "talk" | "reading" | "tags" | "review" | "switch" | "live";
 export type Shot = "tags" | "review" | "live";
@@ -64,6 +67,7 @@ function rowsFrom(draft: OnboardDraft): MenuRow[] {
     tags: it.tags,
     stock: it.est_quantity,
     box_2d: it.box_2d ?? null,
+    ai_orderable: true,
   }));
 }
 
@@ -266,12 +270,18 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
     setFlipped(true);
     setCreating(true);
     setCreateError(null);
+    const aiCap = basics.acceptAi ? parsePriceInput(basics.aiMax) : null;
     const body: CreateShopRequest = {
       name: basics.name.trim(),
       owner_language: response.draft.language,
       photo_url: response.photo_url,
       pickup_window: { start: basics.start, end: basics.end },
-      rules: { max_per_order: basics.maxPerOrder, accept_ai_orders: basics.acceptAi },
+      rules: {
+        max_per_order: basics.maxPerOrder,
+        accept_ai_orders: basics.acceptAi,
+        // the owner's cap on one AI order (omitted = no cap)
+        ...(typeof aiCap === "number" ? { ai_max_order_cents: aiCap } : {}),
+      },
       items: validRows.map((r) => ({
         name: r.name.trim(),
         name_en: r.name_en?.trim() || null,
@@ -280,6 +290,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
         price_source: r.price_cents === null ? "missing" : r.price_source,
         tags: r.tags,
         stock: r.stock ?? 0,
+        ai_orderable: r.ai_orderable,
       })),
     };
     try {
@@ -362,7 +373,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
   const step = BEAT_STEP[beat];
   const scene = beat === "snap" ? "snap" : beat === "talk" ? "talk" : beat === "switch" || beat === "live" ? "sign" : "menu";
   const missing = validRows.filter((r) => r.price_cents === null).length;
-  const canContinue = validRows.length > 0 && basics.name.trim().length > 0 && basics.start < basics.end;
+  const aiCapOk = !basics.acceptAi || aiCapValid(basics.aiMax);
+  const canContinue = validRows.length > 0 && basics.name.trim().length > 0 && basics.start < basics.end && aiCapOk;
   const boardTitle = basics.name.trim() || response?.draft.shop_name || "Today";
   const toSign = () => {
     setEditingKey(null);
@@ -374,9 +386,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
     <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] touch-manipulation flex-col px-5 pb-10 md:max-w-[520px] lg:max-w-page lg:px-10 lg:pb-12">
       <TopBar done={step} current={step} ms={watch.elapsedMs} running={watch.running} started={watch.started} />
 
-      {shotNote ? (
-        <p className="paper mb-5 rounded-[2px] px-4 py-3 text-[15px] shadow-slip lg:max-w-[560px]">{shotNote}</p>
-      ) : null}
+      {shotNote ? <p className="paper mb-5 px-4 py-3 text-[16px] lg:max-w-[560px]">{shotNote}</p> : null}
 
       <LayoutGroup>
         {/* "wait": a scene leaves before the next mounts, so layout-animated
@@ -404,15 +414,18 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
             <Scene key="menu" beat={beat} error={readError !== null} className={cn("gap-6", beat === "review" && "pb-40 lg:pb-0")}>
               {beat === "review" ? (
                 <StepHeading step={3} title="Check your menu." sub="Tap a line to fix it." className="lg:[grid-area:head]">
-                  <div className="mt-1 shrink-0">
-                    <CounterPhoto
-                      src={photo.url}
-                      width={photo.width}
-                      height={photo.height}
-                      mode="thumb"
-                      layoutId="counter-photo"
-                    />
-                  </div>
+                  {/* phone: the photo rides along as a small print; a laptop has the room for the heading instead */}
+                  {wide ? null : (
+                    <div className="mt-1 shrink-0">
+                      <CounterPhoto
+                        src={photo.url}
+                        width={photo.width}
+                        height={photo.height}
+                        mode="thumb"
+                        layoutId="counter-photo"
+                      />
+                    </div>
+                  )}
                 </StepHeading>
               ) : (
                 // laptop: the narration over the photo being read, held in view (sticky) while a
@@ -479,7 +492,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                       const key = `new-${Date.now()}`;
                       setRows((rs) => [
                         ...rs,
-                        { key, name: "", name_en: null, description: null, price_cents: null, price_source: "owner", tags: [], stock: 1, box_2d: null },
+                        { key, name: "", name_en: null, description: null, price_cents: null, price_source: "owner", tags: [], stock: 1, box_2d: null, ai_orderable: true },
                       ]);
                       setEditingKey(key);
                     }}
@@ -489,17 +502,15 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                   {beat === "review" ? (
                     <motion.p
                       className="-mt-1 flex items-start gap-2 px-1 text-[15px] leading-snug text-ink-muted lg:mx-auto lg:w-full lg:max-w-[580px] lg:text-[16px]"
-                      initial={{ opacity: 0, y: 24 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: DUR.element, ease: EASE.out, delay: 0.1 }}
+                      {...inkRise(0.15)}
                     >
-                      <BadgeCheck className="mt-0.5 size-4 shrink-0 text-ink" aria-hidden />
+                      <BadgeCheck className="mt-0.5 size-4 shrink-0 text-carbon" strokeWidth={1.75} aria-hidden />
                       Prices only come from what you said or the photo.
                     </motion.p>
                   ) : null}
                   {/* "I couldn't tell" notes stay with the slip they're about */}
                   {beat === "review" && unclear.length ? (
-                    <div className={cn("grid gap-3 lg:mx-auto lg:w-full lg:max-w-[580px]", unclear.length > 1 && "grid-cols-2")}>
+                    <div className={cn("grid gap-3 lg:mx-auto lg:w-full lg:max-w-[580px]", unclear.length > 1 && "sm:grid-cols-2")}>
                       <AnimatePresence initial={false}>
                         {unclear.map((u, i) => (
                           <StickyNote key={u} text={u} index={i} onDismiss={() => setUnclear((l) => l.filter((x) => x !== u))} />
@@ -511,12 +522,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
               )}
 
               {beat === "review" ? (
-                <motion.div
-                  className="flex flex-col gap-6 lg:[grid-area:form]"
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: DUR.element, ease: EASE.out, delay: 0.1 }}
-                >
+                <motion.div className="flex flex-col gap-6 lg:[grid-area:form]" {...inkRise(0.1)}>
                   <ShopBasics value={basics} onChange={(p) => setBasics((b) => ({ ...b, ...p }))} />
 
                   {/* laptop: "Looks good" sits right under the basics (phones get the fixed key below) */}
@@ -531,31 +537,29 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
               {beat === "switch" ? (
                 <StepHeading
                   step={4}
-                  title="Print your sign."
+                  title="Open your shop."
                   sub="You go live for people and AI shoppers."
                   className="w-full text-left lg:[grid-area:head]"
                 />
               ) : null}
 
               <motion.div layout transition={SPRING.resize} className="relative flex w-full justify-center lg:self-center lg:[grid-area:art]">
-                {/* laptop: before PRINT, the printer shows where the sign will come out */}
-                <AnimatePresence>{wide && sign === "off" ? <SignSlot key="slot" /> : null}</AnimatePresence>
-                <OpenSign text="OPEN" state={sign} size="xl" spill onLit={onLit} className="max-w-full" />
+                <OpenSign text="Open" state={sign} size="lg" spill onLit={onLit} className="max-w-full" />
               </motion.div>
 
               <AnimatePresence mode="wait" initial={false}>
                 {beat === "switch" ? (
                   <motion.div
                     key="switch"
-                    className="flex flex-col items-center gap-4 lg:items-start lg:[grid-area:action]"
+                    className="flex w-full flex-col items-center gap-3 lg:items-start lg:[grid-area:action]"
                     exit={{ opacity: 0, y: 16, transition: { duration: DUR.micro } }}
                   >
                     <SignSwitch on={flipped} busy={creating} onFlip={() => void flip()} />
-                    <p aria-live="polite" className={cn("min-h-6 text-[16px] lg:text-[17px]", createError ? "font-bold text-stamp-deep" : "text-ink-muted")}>
-                      {createError ?? (creating ? "Opening your shop…" : flipped ? "Printing…" : "Press print.")}
+                    <p aria-live="polite" className={cn("min-h-6 text-[16px] lg:text-[17px]", createError ? "font-semibold text-stamp-deep" : "text-ink-muted")}>
+                      {createError ?? (flipped && !creating ? "Your sign is going up…" : " ")}
                     </p>
                     {!flipped && !creating ? (
-                      <button type="button" onClick={() => setBeat("review")} className="btn-quiet -mt-2 lg:px-0">
+                      <button type="button" onClick={() => setBeat("review")} className="btn-quiet -mt-1 text-ink-muted lg:-ml-3">
                         <ArrowLeft className="size-4" aria-hidden /> Back to the menu
                       </button>
                     ) : null}
@@ -569,6 +573,9 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
         </AnimatePresence>
       </LayoutGroup>
 
+      {/* the one faint strip of the landing's ink plate: the shop is open, the world beyond it */}
+      {beat === "live" ? <InkStrip /> : null}
+
       {/* Phone review CTA: always under the thumb (fixed, outside the animated scenes) */}
       <AnimatePresence>
         {beat === "review" && editingKey === null && !wide ? (
@@ -577,8 +584,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
             initial={{ y: "110%" }}
             animate={{ y: 0 }}
             exit={{ y: "110%", transition: { duration: DUR.micro, ease: EASE.in } }}
-            transition={{ duration: DUR.element, ease: EASE.out, delay: 0.25 }}
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[440px] bg-[linear-gradient(180deg,transparent,var(--color-counter)_22%)] px-5 pb-[max(env(safe-area-inset-bottom),16px)] pt-6 md:max-w-[520px]"
+            transition={{ duration: 0.6, ease: INK_EASE, delay: 0.25 }}
+            className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[440px] bg-counter px-5 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-[0_-1px_0_rgb(22_58_66/0.1)] md:max-w-[520px]"
           >
             <ReviewCta missing={missing} canContinue={canContinue} named={basics.name.trim().length > 0} onGo={toSign} />
           </motion.div>
@@ -595,31 +602,34 @@ function Scene({ beat, error, children, className }: { beat: Beat; error?: boole
       data-beat={beat}
       data-error={error || undefined}
       className={cn("open-scene flex flex-col", className)}
-      initial={{ opacity: 0, y: 18 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, transition: { duration: 0.16 } }}
-      transition={{ duration: DUR.micro + 0.08, ease: EASE.out }}
+      transition={{ duration: 0.6, ease: INK_EASE }}
     >
       {children}
     </motion.main>
   );
 }
 
-/** The empty slot under the printer before the sign prints (sized in the sign's own em). */
-function SignSlot() {
+/** The landing's ink plate, one faint strip along the bottom of the screen (under the content, never behind text). */
+function InkStrip() {
   return (
-    <motion.div
-      aria-hidden
-      className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 text-[clamp(96px,min(33vw,30svh),176px)] leading-none"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.15 } }}
-      transition={{ duration: DUR.element, ease: EASE.out, delay: 0.2 }}
-    >
-      <div className="mt-[0.36em] grid h-[1.06em] w-[2.3em] place-items-center rounded-[2px] border-2 border-dashed border-ink/20">
-        <span className="font-sans text-[16px] text-ink-muted">Your sign prints here.</span>
-      </div>
-    </motion.div>
+    <div aria-hidden className="open-strip-wrap -mb-10 mt-auto pt-10 lg:-mb-12 lg:pt-6">
+      <motion.img
+        src={strip1600.src}
+        srcSet={`${strip800.src} 800w, ${strip1600.src} 1600w`}
+        sizes="(min-width: 768px) 100vw, 200vw"
+        width={strip1600.width}
+        height={strip1600.height}
+        alt=""
+        draggable={false}
+        className="open-strip"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.5 }}
+        transition={{ duration: 1.6, ease: "easeOut", delay: 0.5 }}
+      />
+    </div>
   );
 }
 
@@ -628,13 +638,13 @@ function ReviewCta({ missing, canContinue, named, onGo }: { missing: number; can
   return (
     <div>
       {missing > 0 ? (
-        <p className="mb-2.5 text-center text-[15px] leading-snug lg:text-left">
-          <span className="font-bold text-stamp-deep">{missing === 1 ? "1 needs a price" : `${missing} need a price`}</span>
+        <p className="mb-3 text-center text-[15px] leading-snug lg:text-left lg:text-[16px]">
+          <span className="font-semibold text-stamp-deep">{missing === 1 ? "1 needs a price" : `${missing} need a price`}</span>
           <span className="text-ink-muted"> · can&apos;t be ordered yet</span>
         </p>
       ) : null}
       <button type="button" disabled={!canContinue} onClick={onGo} className="btn-ink w-full justify-between!">
-        {named ? "Looks good" : "Add your shop name"} <ArrowRight className="size-6" aria-hidden />
+        {named ? "Looks good" : "Add your shop name"} <ArrowRight className="size-5" aria-hidden />
       </button>
     </div>
   );
@@ -675,41 +685,36 @@ function InputChips({ input }: { input: ReadInput | null }) {
   const secs = input?.audio ? Math.max(1, Math.round(input.audio.durationMs / 1000)) : 0;
   return (
     <motion.p
-      className="-mt-1 flex flex-wrap items-center gap-x-2 px-1 text-[15px] text-ink-muted lg:-mt-2 lg:px-0 lg:text-[17px]"
+      className="-mt-1 flex flex-wrap items-center gap-x-2 px-1 text-[16px] text-ink-muted lg:-mt-2 lg:px-0 lg:text-[17px]"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DUR.micro, ease: EASE.out, delay: 0.15 }}
+      transition={{ duration: 0.5, ease: INK_EASE, delay: 0.15 }}
     >
-      <Camera className="size-4" aria-hidden /> photo
+      <Camera className="size-4" strokeWidth={1.75} aria-hidden /> photo
       {input?.audio ? (
         <>
           <span aria-hidden>+</span>
-          <Mic className="size-4" aria-hidden />
-          <span className="tabular-nums">0:{String(secs).padStart(2, "0")}</span> voice note
+          <Mic className="size-4" strokeWidth={1.75} aria-hidden />
+          <span className="font-mono tabular-nums">0:{String(secs).padStart(2, "0")}</span> voice note
         </>
       ) : input?.notes ? (
         <>
           <span aria-hidden>+</span>
-          <Keyboard className="size-4" aria-hidden /> your notes
+          <Keyboard className="size-4" strokeWidth={1.75} aria-hidden /> your notes
         </>
       ) : null}
     </motion.p>
   );
 }
 
-/** Laptop, while the prices land: what the owner said, so every sticker has its source in view. */
+/** Laptop, while the prices land: what the owner said, so every price has its source in view. */
 function HeardQuote({ text }: { text: string }) {
   return (
-    <motion.figure
-      className="lg:-mt-1"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DUR.element, ease: EASE.out, delay: 0.2 }}
-    >
-      <figcaption className="label-print flex items-center gap-2 text-ink-muted">
-        <Mic className="size-4" aria-hidden /> What I heard
+    <motion.figure className="lg:-mt-1" {...inkRise(0.2, 0.7)}>
+      <figcaption className="flex items-center gap-2 text-[16px] font-semibold text-ink-muted">
+        <Mic className="size-4" strokeWidth={1.75} aria-hidden /> What I heard
       </figcaption>
-      <blockquote className="mt-2 text-[17px] leading-relaxed">“{text}”</blockquote>
+      <blockquote className="mt-3 border-l-2 border-carbon/40 pl-4 text-[17px] leading-relaxed">“{text}”</blockquote>
     </motion.figure>
   );
 }
@@ -728,27 +733,22 @@ function ReadErrorCard({
   className?: string;
 }) {
   const photoProblem = error.code === "bad_photo" || error.code === "photo_too_large" || error.code === "empty";
+  const retry = onRetry && !photoProblem;
   return (
-    <motion.div
-      role="alert"
-      initial={{ opacity: 0, y: 12, rotate: -2 }}
-      animate={{ opacity: 1, y: 0, rotate: -0.6 }}
-      transition={{ duration: 0.45, ease: EASE.pop }}
-      className={cn("slip-drop", className)}
-    >
-      <div className="paper edge-torn-y px-6 pb-8 pt-8">
-        <p className="font-display text-[28px] font-extrabold uppercase leading-[0.98] lg:text-[32px]">{error.message}</p>
-        <div className="mt-6 flex flex-col gap-2.5">
-          {onRetry && !photoProblem ? (
-            <button type="button" onClick={onRetry} className="btn-ink w-full">
-              <RotateCcw className="size-5" aria-hidden /> Try again
+    <motion.div role="alert" className={cn("slip-drop", className)} {...inkRise(0, 0.7)}>
+      <div className="paper px-6 pb-7 pt-7 lg:px-8 lg:pb-8 lg:pt-8">
+        <p className="font-display text-[28px] leading-[1.15] text-balance lg:text-[34px]">{error.message}</p>
+        <div className="mt-7 flex flex-col items-center gap-2 lg:items-start">
+          <button type="button" onClick={retry ? onRetry : onType} className="btn-ink w-full justify-between!">
+            {retry ? "Try again" : "Type it instead"} <ArrowRight className="size-5" aria-hidden />
+          </button>
+          {retry ? (
+            <button type="button" onClick={onType} className="link-ink text-[19px]!">
+              Type it instead <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
           ) : null}
-          <button type="button" onClick={onType} className={cn(onRetry && !photoProblem ? "btn-line" : "btn-ink", "w-full")}>
-            <Keyboard className="size-5" aria-hidden /> Type it instead
-          </button>
-          <button type="button" onClick={onRetake} className="btn-quiet">
-            <Camera className="size-4" aria-hidden /> Retake the photo
+          <button type="button" onClick={onRetake} className="btn-quiet text-ink-muted lg:-ml-3">
+            <ArrowLeft className="size-4" aria-hidden /> Retake the photo
           </button>
         </div>
       </div>
@@ -763,12 +763,12 @@ function HeardLine({ text }: { text: string }) {
       type="button"
       onClick={() => setOpen((o) => !o)}
       aria-expanded={open}
-      className="mt-5 flex w-full items-start gap-2.5 border-t-[1.5px] border-dashed border-ink/25 pt-4 text-left"
+      className="mt-4 flex w-full items-start gap-3 border-t border-ink/10 pt-5 text-left"
     >
-      <Mic className="mt-1 size-4 shrink-0 text-ink-muted" aria-hidden />
+      <Mic className="mt-0.5 size-4 shrink-0 text-ink-muted" strokeWidth={1.75} aria-hidden />
       <span className="min-w-0">
-        <span className="label-print block text-ink-muted">What I heard</span>
-        <span className={cn("mt-1 block text-[15px] leading-snug lg:text-[16px]", !open && "line-clamp-2")}>“{text}”</span>
+        <span className="block text-[15px] font-semibold text-ink-muted lg:text-[16px]">What I heard</span>
+        <span className={cn("mt-1.5 block text-[15px] leading-relaxed lg:text-[16px]", !open && "line-clamp-2")}>“{text}”</span>
       </span>
     </button>
   );
@@ -783,55 +783,45 @@ function LiveScreen({ live, shopName }: { live: { result: CreateShopResponse; el
   const t = formatOpenTime(live.elapsedMs);
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    const id = setTimeout(() => setShown(true), 350);
+    const id = setTimeout(() => setShown(true), 450);
     return () => clearTimeout(id);
   }, []);
-  const enter = (delay: number) => ({
-    initial: { opacity: 0, y: 24 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: DUR.element, ease: EASE.out, delay },
-  });
   return (
-    <motion.div
-      className="flex w-full flex-col items-center gap-6 lg:contents"
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DUR.element, ease: EASE.out }}
-    >
-      <motion.div className="lg:self-center lg:[grid-area:title]" {...enter(0)}>
-        <h1 className="thermal font-display text-[52px] font-black uppercase leading-none lg:text-[88px] lg:leading-[0.9]">You&apos;re open.</h1>
-        <p className="mt-3 flex items-baseline justify-center gap-3 lg:mt-6 lg:justify-start">
-          <span className="label-print text-ink-muted">Open in</span>
-          <span className="dot inline-flex items-baseline text-[40px] lg:text-[56px]">
+    <div className="flex w-full flex-col items-center gap-7 lg:contents">
+      <motion.div className="lg:self-end lg:[grid-area:title]" {...inkRise(0, 0.9)}>
+        <h1 className="font-display text-[56px] leading-[1.02] text-carbon lg:text-[96px] lg:leading-[0.98]">You&apos;re open.</h1>
+        <p className="mt-4 flex items-baseline justify-center gap-2 text-[17px] text-ink-muted lg:mt-6 lg:justify-start lg:text-[19px]">
+          Opened in
+          <span className="inline-flex items-baseline font-mono text-[22px] font-medium text-ink lg:text-[26px]">
             <NumberFlow value={shown ? t.value : 0} locales="en-US" />
-            <span className="ml-1.5 font-sans text-[18px] font-bold tracking-normal">{t.unit}</span>
-            {t.rest ? <span className="ml-2 font-sans text-[18px] font-bold tracking-normal">{t.rest}</span> : null}
+            <span className="ml-1">{t.unit}</span>
+            {t.rest ? <span className="ml-2">{t.rest}</span> : null}
           </span>
         </p>
       </motion.div>
 
-      <motion.div className="w-full lg:mx-auto lg:max-w-[520px] lg:[grid-area:card]" {...enter(0.12)}>
+      <motion.div className="w-full lg:mx-auto lg:max-w-[500px] lg:[grid-area:card]" {...inkRise(0.25)}>
         <LiveCard
           shopName={shopName}
           publicUrl={live.result.public_url}
           agentUrl={live.result.agent_url}
           privateShop={!live.result.shop.listed}
-          className="w-full rotate-[-1deg] text-left"
+          className="w-full text-left"
         />
       </motion.div>
 
-      <motion.div className="flex w-full flex-col items-center gap-6 lg:items-start lg:[grid-area:actions]" {...enter(0.24)}>
-        <a href={live.result.owner_url} className="btn-ink w-full justify-between!">
-          Go behind the counter <ArrowRight className="size-6" aria-hidden />
+      <motion.div className="flex w-full flex-col items-center gap-3 lg:items-start lg:self-start lg:[grid-area:actions]" {...inkRise(0.4)}>
+        <a href={live.result.owner_url} className="btn-ink w-full justify-between! lg:max-w-[400px]">
+          Go behind the counter <ArrowRight className="size-5" aria-hidden />
         </a>
-        <p className="-mt-2 flex items-start gap-2 text-left text-[14px] leading-snug text-ink-muted lg:text-[15px]">
-          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <p className="flex items-start gap-2 text-left text-[15px] leading-snug text-ink-muted lg:text-[16px]">
+          <Lock className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} aria-hidden />
           Your private owner link. Bookmark it.
         </p>
-        <a href={live.result.public_url} className="btn-quiet -mt-2 lg:px-0">
-          See your shop page
+        <a href={live.result.public_url} className="link-ink mt-1 text-[19px]!">
+          See your shop page <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
         </a>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

@@ -7,8 +7,9 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { cn } from "@/lib/utils";
 
 /**
- * The 4-digit pickup code pad: a paper slip with four dot-matrix boxes and
- * printed keys. Submits when 4 digits are in; shakes and clears on a wrong code.
+ * The 4-digit pickup code pad: a paper slip with four square boxes (Red Hat
+ * Mono digits) and flat square keys. Submits when 4 digits are in; shakes and
+ * clears on a wrong code.
  */
 export function CodePad({
   open,
@@ -40,7 +41,7 @@ export function CodePad({
       const ok = await onSubmit(next);
       setBusy(false);
       if (!ok) {
-        await animate(scope.current, { x: [0, -12, 10, -8, 6, 0] }, { duration: 0.4 });
+        await animate(scope.current, { x: [0, -10, 8, -6, 4, 0] }, { duration: 0.4 });
         setCode("");
       }
     }
@@ -71,38 +72,41 @@ export function CodePad({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="paper max-w-[352px] gap-0 rounded-[3px] p-6 shadow-[var(--shadow-lift)] ring-0 sm:max-w-[352px]"
+        className="paper max-w-[360px] gap-0 rounded-none p-7 shadow-[var(--shadow-lift)] ring-0 sm:max-w-[360px]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <DialogTitle className="font-display text-[32px] font-extrabold uppercase leading-none">Pickup code</DialogTitle>
-            <DialogDescription className="mt-2 text-[15px] leading-snug text-ink-muted">
+            <DialogTitle className="font-display text-[32px] font-normal leading-none">Pickup code</DialogTitle>
+            <DialogDescription className="mt-3 text-[16px] leading-snug text-ink-muted">
               Ask for their 4 digits.
-              <span className="mt-0.5 block text-ink">{title}</span>
+              <span className="mt-1 block text-ink">{title}</span>
             </DialogDescription>
           </div>
-          <DialogClose className="-mr-2 -mt-2 grid size-11 shrink-0 place-items-center rounded-[3px] text-ink-muted transition hover:bg-ink/[0.06]" aria-label="Close">
-            <X className="size-5" aria-hidden />
+          <DialogClose
+            className="-mr-3 -mt-3 grid size-11 shrink-0 place-items-center text-ink-muted transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            aria-label="Close"
+          >
+            <X className="size-5" strokeWidth={1.5} aria-hidden />
           </DialogClose>
         </div>
 
-        <div ref={scope} className="my-6 flex justify-center gap-2.5" aria-live="polite" aria-label={`${code.length} of 4 digits entered`}>
+        <div ref={scope} className="my-7 flex justify-center gap-2.5" aria-live="polite" aria-label={`${code.length} of 4 digits entered`}>
           {[0, 1, 2, 3].map((i) => (
             <motion.span
               key={i}
-              animate={{ scale: code[i] ? [1.12, 1] : 1 }}
-              transition={{ duration: 0.18 }}
+              animate={{ scale: code[i] ? [1.06, 1] : 1 }}
+              transition={{ duration: 0.2 }}
               className={cn(
-                "grid h-[76px] w-[62px] place-items-center rounded-[2px] border-2",
-                code[i] ? "border-ink" : "border-ink/25",
+                "grid h-[72px] w-[60px] place-items-center border bg-paper transition-colors duration-200",
+                code[i] ? "border-ink" : i === code.length ? "border-carbon" : "border-ink/20",
               )}
             >
-              <span className={cn("dot text-[44px]", code[i] ? "text-ink" : "text-ink-faint")}>{code[i] ?? "·"}</span>
+              <span className={cn("font-mono text-[36px] font-medium leading-none", code[i] ? "text-ink" : "text-ink-faint")}>{code[i] ?? "·"}</span>
             </motion.span>
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-2">
           {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
             <PadKey key={d} onClick={() => press(d)} disabled={busy}>
               {d}
@@ -113,7 +117,7 @@ export function CodePad({
             0
           </PadKey>
           <PadKey onClick={() => setCode((c) => c.slice(0, -1))} disabled={busy || code.length === 0} aria-label="Delete last digit">
-            <Delete className="size-6" aria-hidden />
+            <Delete className="size-6" strokeWidth={1.5} aria-hidden />
           </PadKey>
         </div>
       </DialogContent>
@@ -126,7 +130,7 @@ function PadKey(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
     <button
       type="button"
       {...props}
-      className="flex h-16 items-center justify-center rounded-[4px] bg-paper-shade font-display text-[30px] font-bold text-ink shadow-[0_1px_0_rgb(255_255_255/0.9)_inset,0_2px_0_rgb(60_50_30/0.18),0_4px_8px_-4px_rgb(60_50_30/0.25)] transition active:translate-y-px active:scale-95 active:bg-counter-deep disabled:opacity-45"
+      className="flex h-16 items-center justify-center border border-ink/15 bg-paper font-mono text-[26px] font-medium text-ink transition-colors duration-200 hover:border-ink/35 hover:bg-highlight/40 active:bg-highlight disabled:opacity-45"
     />
   );
 }

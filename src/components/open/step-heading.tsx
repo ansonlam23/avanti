@@ -3,14 +3,16 @@
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { DUR, EASE } from "@/lib/motion";
+import { INK_EASE } from "./ink";
 
+/** A step's heading: Marcellus, sentence case, one calm line or two. */
 export function StepHeading({
   title,
   sub,
   className,
   children,
 }: {
-  /** Kept for callers; the progress bars already say which step this is. */
+  /** Kept for callers; the progress steps already say which step this is. */
   step?: number;
   title: string;
   sub?: React.ReactNode;
@@ -23,16 +25,16 @@ export function StepHeading({
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.h1
             key={title}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: DUR.micro + 0.08, ease: EASE.out }}
-            className="thermal font-display text-[42px] font-extrabold uppercase leading-[0.92] text-balance lg:text-[64px] lg:leading-[0.9]"
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.7, ease: INK_EASE }}
+            className="font-display text-[40px] font-normal leading-[1.04] text-ink text-balance lg:text-[60px] lg:leading-[1.02]"
           >
             {title}
           </motion.h1>
         </AnimatePresence>
-        {sub ? <p className="mt-3 text-[16px] leading-snug text-ink-muted lg:mt-5 lg:text-[18px] lg:leading-relaxed">{sub}</p> : null}
+        {sub ? <p className="mt-3 text-[16px] leading-relaxed text-ink-muted lg:mt-5 lg:text-[19px]">{sub}</p> : null}
       </div>
       {children}
     </div>
@@ -46,17 +48,17 @@ export function StepHeading({
  */
 export function StatusLine({ text, lead, className }: { text: string; lead?: boolean; className?: string }) {
   return (
-    <div aria-live="polite" className={cn("relative h-8 overflow-hidden", lead && "lg:h-[124px]", className)}>
+    <div aria-live="polite" className={cn("relative h-8 overflow-hidden", lead && "lg:h-[128px]", className)}>
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.p
           key={text}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: DUR.micro, ease: EASE.out }}
+          transition={{ duration: DUR.micro + 0.1, ease: EASE.out }}
           className={cn(
             "text-[17px] leading-8",
-            lead && "lg:thermal lg:font-display lg:text-[60px] lg:font-extrabold lg:uppercase lg:leading-[0.92] lg:text-balance",
+            lead && "lg:font-display lg:text-[56px] lg:leading-[1.05] lg:text-balance",
           )}
         >
           {text}
