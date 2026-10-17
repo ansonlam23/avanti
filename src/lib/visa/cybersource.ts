@@ -97,9 +97,9 @@ export function captureBody(input: CaptureInput) {
 }
 
 const RELEASE_COMMENT: Record<ReleaseInput["reason"], string> = {
-  no_show: "Open Sign: no-show, hold released",
-  cancelled: "Open Sign: order cancelled, hold released",
-  order_failed: "Open Sign: order failed, hold released",
+  no_show: "avanti: no-show, hold released",
+  cancelled: "avanti: order cancelled, hold released",
+  order_failed: "avanti: order failed, hold released",
 };
 
 /**

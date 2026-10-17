@@ -6,7 +6,7 @@ import { buildSignatureBase, parseHttpUrl } from "./signature-base";
 import type { SignedHeaders, SignInput } from "./types";
 
 /**
- * Deliberate deviations from the Open Sign profile. Only for tests and the bot
+ * Deliberate deviations from the avanti profile. Only for tests and the bot
  * simulator, which need correctly signed requests that the verifier must still refuse
  * (a browsing tag, a missing component, an RSA alg, another label).
  */

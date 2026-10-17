@@ -1,4 +1,4 @@
-// Protocol constants for Open Sign's TAP-style signed agent requests
+// Protocol constants for avanti's TAP-style signed agent requests
 // (Ed25519 + RFC 9421 HTTP Message Signatures + RFC 9530 Content-Digest).
 // These are also advertised to agents in /s/<slug>/agent.json → ordering.auth.
 

@@ -1,7 +1,7 @@
 import { isInnerList, parseDictionary, serializeInnerList, serializeString, type Dictionary, type Parameters } from "structured-headers";
 import { SIGNATURE_LABEL } from "./constants";
 
-// RFC 9421 mechanics, independent of Open Sign's policy (that lives in verify.ts):
+// RFC 9421 mechanics, independent of avanti's policy (that lives in verify.ts):
 // derived components (§2.2), field components (§2.1), the signature base (§2.5)
 // and parsing Signature-Input (§4.1) with RFC 8941 structured fields.
 

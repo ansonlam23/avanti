@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30; // Visa calls can take ~15 s; never cut a hold off mid-flight
 
 // Called ONLY by the shopper's "Confirm & hold" tap (the AI has no tool for this).
-// The server re-reads the price from the menu, then the Open Sign Shopper agent
+// The server re-reads the price from the menu, then the avanti shopper agent
 // signs the order and sends it to the shop's endpoint over HTTP.
 const Body = z.object({
   shop_slug: z.string().min(1).max(60),
