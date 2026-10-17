@@ -1,4 +1,6 @@
-# Open Sign
+# avanti
+
+avanti is Italian for "come in!", what you call out when someone knocks. It also means "forward".
 
 **The OPEN sign for AI shoppers.** Small shops go live for AI in 40 seconds (snap a photo, say your prices), and AI shoppers can find them, order, and pay with Visa. Agent orders are signed and verified, so bots get turned away before they reach a card network.
 
