@@ -30,9 +30,6 @@ export function EmptyState({
         <h2 className="font-display text-[40px] font-normal leading-[1.08] tracking-[0.005em] text-balance text-carbon lg:max-w-[640px] lg:text-[64px] lg:leading-[1.04]">
           What can I find you nearby?
         </h2>
-        <p className="mt-4 text-[16px] leading-relaxed text-ink-muted lg:mt-5 lg:max-w-[46ch] lg:text-[19px]">
-          I order from small shops near campus. Visa holds it until pickup.
-        </p>
       </motion.div>
 
       <div>
