@@ -3,7 +3,7 @@ import { loadAgentSignerFromEnv, signRequest } from "@/lib/trust";
 import type { OrderRequest } from "@/lib/types";
 
 /**
- * The "Open Sign Shopper" agent placing an order with a shop, over real HTTP,
+ * The "avanti shopper" agent placing an order with a shop, over real HTTP,
  * exactly like an outside agent would: the JSON body is signed (RFC 9421 +
  * Content-Digest) with the agent's Ed25519 key, then POSTed to the shop's
  * order endpoint, which verifies it before anything else.
@@ -18,7 +18,7 @@ export async function placeSignedOrder(opts: {
   const headers = signRequest({ method: "POST", url, body, signer: loadAgentSignerFromEnv() });
   const res = await fetch(url, {
     method: "POST",
-    headers: { ...headers, "user-agent": "OpenSignShopper/1.0" },
+    headers: { ...headers, "user-agent": "AvantiShopper/1.0" },
     body,
     cache: "no-store",
   });

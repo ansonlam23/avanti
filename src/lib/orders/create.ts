@@ -7,6 +7,7 @@ import { jsonError } from "@/lib/http";
 import { notifyShop } from "@/lib/realtime/server";
 import { supabaseDirectory, supabaseNonceStore, verifyRequest } from "@/lib/trust";
 import { DEMO_TEST_CARD, getPayments } from "@/lib/visa";
+import { checkAiRules } from "./ai-rules";
 import type { Item, Order, PublicOrder, ShopRules } from "@/lib/types";
 
 // The shop's order endpoint (CONTRACTS §9): verify the agent's signature
@@ -91,6 +92,19 @@ export async function handleSignedOrder(req: Request, slug: string): Promise<Res
   const amount = item.price_cents * body.qty; // the only source of truth for money
   if (body.amount_cents !== amount) {
     return jsonError(409, "price_mismatch", `The menu price is now ${amount} cents; please re-confirm`);
+  }
+
+  // 3 · The owner's own AI rules (an item kept off-limits to AI, a spending cap), still before Visa.
+  const refusal = checkAiRules(shop.rules, shop.name, item, amount);
+  if (refusal) {
+    await db.from("events").insert({
+      shop_id: shop.id,
+      type: "order_failed",
+      reason: refusal.code,
+      detail: { item_name: item.name, amount_cents: amount, limit_cents: refusal.limit_cents ?? null, agent_name: verdict.agent.name },
+    });
+    await notifyShop(shop.slug, { kind: "order", status: "failed" });
+    return jsonError(409, refusal.code, refusal.message);
   }
 
   // Idempotent: the same confirm tap never creates two holds.

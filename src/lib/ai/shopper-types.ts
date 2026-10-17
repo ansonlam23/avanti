@@ -87,6 +87,8 @@ export interface ShopSummary {
   earliest_pickup: string | null;
   accepts_ai_orders: boolean;
   max_per_order: number;
+  /** The most one AI order may cost at this shop, in cents; null/absent = no cap. */
+  ai_order_limit_cents?: number | null;
 }
 
 export interface ItemSummary {
@@ -100,6 +102,8 @@ export interface ItemSummary {
   sold_out: boolean;
   /** !sold_out && stock > 0 && price_cents !== null */
   available: boolean;
+  /** false = the owner keeps this item off-limits to AI shoppers ("order it in person"). Absent = true. */
+  ai_orderable?: boolean;
 }
 
 export interface SearchShop extends ShopSummary {

@@ -1,6 +1,7 @@
 // propose_order: validate against the live menu + rules and price it from the DB.
 // It never places anything: the shopper must tap "Confirm & hold". Pure.
 import type { ProposeOrderResult } from "@/lib/ai/shopper-types";
+import { checkAiRules } from "@/lib/orders/ai-rules";
 import { checkPickup, dayTimeLabel, windowLabel } from "./time";
 import { maxPerOrder, pickupWindow, shopSummary, type ShopWithItems } from "./views";
 
@@ -27,6 +28,9 @@ export function proposeOrder(shop: ShopWithItems, args: ProposeArgs, now: Date):
   if (!Number.isInteger(qty) || qty < 1) return fail("bad_qty", "Quantity must be a whole number, at least 1.");
   if (qty > limit) return fail("over_limit", `${shop.name} allows at most ${limit} per order.`);
   if (qty > item.stock) return fail("not_enough_stock", `${shop.name} has only ${item.stock} ${item.name} left.`);
+  // The owner's AI rules: the same check the shop's order endpoint makes, so the AI can explain and adapt first.
+  const refusal = checkAiRules(shop.rules, shop.name, item, item.price_cents * qty);
+  if (refusal) return fail(refusal.code, refusal.message);
 
   const pickup = checkPickup(window, args.pickup_time, now);
   if (!pickup.ok) return fail(pickup.error, `${pickup.message} ${shop.name} picks up ${windowLabel(window)}.`);

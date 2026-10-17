@@ -16,6 +16,10 @@ export interface ShopRules {
   max_per_order: number;
   accept_ai_orders: boolean;
   notes?: string | null;
+  /** The most one AI order may cost, in cents (absent/null = no cap). See src/lib/orders/ai-rules.ts. */
+  ai_max_order_cents?: number | null;
+  /** Item ids the owner keeps off-limits to AI shoppers ("order in person"). */
+  ai_blocked_items?: string[];
 }
 
 /** Public shop row. `owner_token_hash` is server-only and never part of this type. */

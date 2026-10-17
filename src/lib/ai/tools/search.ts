@@ -63,7 +63,7 @@ export function searchCatalog(
       shop: {
         ...summary,
         ready_by_needed: readyByNeeded,
-        matches: hits.slice(0, MAX_MATCHES_PER_SHOP).map((h) => itemSummary(h.item)),
+        matches: hits.slice(0, MAX_MATCHES_PER_SHOP).map((h) => itemSummary(h.item, shop.rules)),
         more_matches: Math.max(0, hits.length - MAX_MATCHES_PER_SHOP),
       },
     });

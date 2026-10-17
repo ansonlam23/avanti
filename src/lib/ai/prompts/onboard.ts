@@ -41,7 +41,7 @@ export const CONFLICTING_TAGS: ReadonlyArray<readonly [DietTag, DietTag]> = [
   ["vegan", "contains-eggs"],
 ];
 
-export const ONBOARD_SYSTEM_PROMPT = `You set up a small shop on Open Sign. The owner gave you ONE photo of their counter (what they sell today) and a voice note or typed notes about it. Turn that into their menu as JSON.
+export const ONBOARD_SYSTEM_PROMPT = `You set up a small shop on avanti. The owner gave you ONE photo of their counter (what they sell today) and a voice note or typed notes about it. Turn that into their menu as JSON.
 
 People will pay these prices and people with allergies will trust these tags, so these rules are absolute:
 

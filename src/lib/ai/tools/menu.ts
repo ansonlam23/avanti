@@ -10,6 +10,6 @@ export function menuResult(shop: ShopWithItems, now: Date): MenuResult {
     shop: { ...shopSummary(shop, now), open: Boolean(shop.open), notes: clip(shop.rules?.notes ?? null) },
     items: sortItems(shop.items ?? [])
       .slice(0, MAX_MENU_ITEMS)
-      .map(itemSummary),
+      .map((item) => itemSummary(item, shop.rules)),
   };
 }

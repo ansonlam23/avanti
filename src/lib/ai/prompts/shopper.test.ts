@@ -9,7 +9,7 @@ describe("shopperSystemPrompt", () => {
   });
 
   it("keeps the hard rules", () => {
-    expect(p).toContain('Open Sign Shopper');
+    expect(p).toContain('avanti shopper');
     expect(p).toMatch(/only prices that appear in tool results/i);
     expect(p).toMatch(/cannot place, pay for or cancel orders/i);
     expect(p).toContain('tap "Confirm & hold"');

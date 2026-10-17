@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { AI_LIMIT_MAX_CENTS, AI_LIMIT_MIN_CENTS } from "@/lib/orders/ai-rules";
 import { newOwnerToken } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db/server";
 import { hasSupabase } from "@/lib/env";
@@ -92,6 +93,8 @@ const createItemSchema = z
       .default([])
       .transform((tags) => [...new Set(tags)]),
     stock: z.number().int().min(0).max(999),
+    /** false = the owner keeps this item off-limits to AI shoppers (stored in rules.ai_blocked_items). */
+    ai_orderable: z.boolean().optional().default(true),
   })
   .transform((it) => ({
     ...it,
@@ -115,6 +118,14 @@ export const createShopRequestSchema = z.object({
   rules: z.object({
     max_per_order: z.number().int().min(1).max(20),
     accept_ai_orders: z.boolean(),
+    /** The most one AI order may cost, in cents (null = no cap). */
+    ai_max_order_cents: z
+      .number()
+      .int()
+      .min(AI_LIMIT_MIN_CENTS)
+      .max(AI_LIMIT_MAX_CENTS)
+      .nullish()
+      .transform((v) => v ?? null),
     notes: optionalText(280),
   }),
   location_label: optionalText(120),
@@ -163,6 +174,7 @@ export async function createShop(input: CreateShopInput): Promise<{ shop: Shop; 
           max_per_order: input.rules.max_per_order,
           accept_ai_orders: input.rules.accept_ai_orders,
           ...(input.rules.notes ? { notes: input.rules.notes } : {}),
+          ...(input.rules.ai_max_order_cents ? { ai_max_order_cents: input.rules.ai_max_order_cents } : {}),
         },
         is_demo: input.is_demo,
         location_label: input.location_label,
@@ -201,6 +213,15 @@ export async function createShop(input: CreateShopInput): Promise<{ shop: Shop; 
     throw new Error(`createShop items: ${itemsRes.error.message}`);
   }
   const items = ((itemsRes.data ?? []) as Item[]).sort((a, b) => a.sort - b.sort);
+
+  // Items the owner kept off-limits to AI during setup → rules.ai_blocked_items (ids exist only now).
+  const blocked = items.filter((it) => input.items[it.sort]?.ai_orderable === false).map((it) => it.id);
+  if (blocked.length) {
+    const rules = { ...shop.rules, ai_blocked_items: blocked };
+    const upd = await db.from("shops").update({ rules }).eq("id", shop.id);
+    if (upd.error) throw new Error(`createShop rules: ${upd.error.message}`);
+    shop.rules = rules; // mutate, don't reassign: keeps TS's non-null narrowing above
+  }
 
   const ev = await db.from("events").insert({
     shop_id: shop.id,

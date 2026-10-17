@@ -12,6 +12,8 @@ export interface DashboardStats {
   paid_cents: number;
   /** Orders that reached the payment step without a verified agent (0 by design; measured, not assumed). */
   unverified_orders: number;
+  /** Verified AI orders the owner's own rules turned down (over the AI cap, or an item kept off-limits to AI). Absent = 0. */
+  refused_by_rules?: number;
 }
 
 export interface Dashboard {
@@ -27,7 +29,7 @@ const SHOP_COLUMNS =
 
 export async function loadDashboard(shopId: string): Promise<Dashboard> {
   const db = getDb();
-  const [shopRes, itemsRes, ordersRes, eventsRes, statsRes, unverifiedRes] = await Promise.all([
+  const [shopRes, itemsRes, ordersRes, eventsRes, statsRes, unverifiedRes, refusedRes] = await Promise.all([
     db.from("shops").select(SHOP_COLUMNS).eq("id", shopId).single(),
     db.from("items").select("*").eq("shop_id", shopId).order("sort").order("created_at"),
     db
@@ -39,6 +41,12 @@ export async function loadDashboard(shopId: string): Promise<Dashboard> {
     db.from("events").select("*").eq("shop_id", shopId).order("created_at", { ascending: false }).limit(60),
     db.rpc("door_stats", { p_shop: shopId }),
     db.from("orders").select("id", { count: "exact", head: true }).eq("shop_id", shopId).is("agent_id", null),
+    db
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("shop_id", shopId)
+      .eq("type", "order_failed")
+      .in("reason", ["over_ai_limit", "not_for_ai"]),
   ]);
 
   const shop = must(shopRes, "load shop") as Shop;
@@ -56,6 +64,7 @@ export async function loadDashboard(shopId: string): Promise<Dashboard> {
     held_cents: 0,
     paid_cents: 0,
     unverified_orders: unverifiedRes.count ?? 0,
+    refused_by_rules: refusedRes.count ?? 0,
   };
   for (const e of counted) {
     const n = Number(e.n);

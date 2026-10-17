@@ -1,6 +1,7 @@
 // DB rows → the small JSON the model and the cards see. Pure.
 import type { ItemSummary, ShopSummary } from "@/lib/ai/shopper-types";
 import type { Item, Shop } from "@/lib/types";
+import { aiOrderLimitCents, isAiOrderable } from "@/lib/orders/ai-rules";
 import { walkMinutes } from "./geo";
 import { dayTimeLabel, earliestPickup, insideWindow } from "./time";
 
@@ -40,7 +41,7 @@ export function pickupWindow(shop: Pick<ShopRow, "pickup_window">) {
   return w && typeof w.start === "string" && typeof w.end === "string" ? { start: w.start, end: w.end } : DEFAULT_WINDOW;
 }
 
-export function itemSummary(item: ItemRow): ItemSummary {
+export function itemSummary(item: ItemRow, rules?: ShopRow["rules"]): ItemSummary {
   return {
     id: item.id,
     name: item.name,
@@ -51,6 +52,7 @@ export function itemSummary(item: ItemRow): ItemSummary {
     stock: Math.max(0, item.stock ?? 0),
     sold_out: Boolean(item.sold_out),
     available: isAvailable(item),
+    ai_orderable: isAiOrderable(rules, item.id),
   };
 }
 
@@ -70,6 +72,7 @@ export function shopSummary(shop: ShopRow, now: Date): ShopSummary {
     earliest_pickup: earliest ? dayTimeLabel(earliest, now) : null,
     accepts_ai_orders: shop.rules?.accept_ai_orders !== false,
     max_per_order: maxPerOrder(shop),
+    ai_order_limit_cents: aiOrderLimitCents(shop.rules),
   };
 }
 
