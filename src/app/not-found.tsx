@@ -1,15 +1,15 @@
 import { NotFoundView } from "@/components/landing/not-found-view";
 
-// Any unknown page: the printer with nothing to print.
+// Any unknown page: the sign was never inked.
 
 export default function NotFound() {
   return (
     <NotFoundView
       eyebrow="Error 404"
-      title="Nothing printed here."
-      text="This page doesn't exist. The printer is fine; the link isn't."
-      primary={{ href: "/", label: "Back to the counter" }}
-      secondary={{ href: "/demo", label: "See both sides" }}
+      title="Nothing hangs here."
+      text="This page doesn't exist. The link may be old or mistyped."
+      primary={{ href: "/", label: "Back to avanti" }}
+      secondary={{ href: "/start", label: "Find your way in" }}
     />
   );
 }

@@ -30,8 +30,8 @@ function LiveReceipt({ mode }: { mode: "sandbox" | "simulated" }) {
           No-show
         </Pill>
       </div>
-      <p className="label-print text-ink-muted" aria-live="polite">
-        {printed ? "printed" : "printing…"} · {status}
+      <p className="font-mono text-[14px] text-ink-muted" aria-live="polite">
+        {printed ? "written" : "writing…"} · {status}
       </p>
     </div>
   );
@@ -42,9 +42,9 @@ export function ReceiptDemos() {
     <Section
       id="receipt"
       title="Receipt"
-      intro="Print script: the paper feeds out of the printer's mouth row by row (75 ms each), is torn off → the total counts up from $0.00 → the stamp thunks down → the receipt shakes. Status changes land a new stamp over the old one; the honest footer is always printed."
+      intro="A clean paper slip: the shop in Marcellus, Red Hat Mono amounts on dotted leaders, the total large with its seal. Script: the lines rise in one after another → the total counts up from $0.00 → the seal is pressed. Status changes press a new seal over the old one; the honest footer is always there."
     >
-      <Stage label="Sandbox · print → pick up / no-show" minH={720}>
+      <Stage label="Sandbox · write in → pick up / no-show" minH={720}>
         {(take) => <LiveReceipt key={take} mode="sandbox" />}
       </Stage>
       <Stage label="Simulated mode" minH={720}>

@@ -49,15 +49,15 @@ function useBeat(take: number, ms: number) {
 
 export const SHOTS: Record<string, Shot> = {
   "neon-on": {
-    title: "OPEN prints out of the printer and tears (hero)",
+    title: "The shop sign inks in on its nail (hero)",
     render: (take) => <OpenSign key={take} size="xl" spill state={take === 0 ? "off" : "flickering-on"} />,
   },
   "neon-off": {
-    title: "OPEN torn away (closing)",
+    title: "The sign is taken down (closing)",
     render: (take) => <OpenSign key={take} size="xl" spill state={take === 0 ? "on" : "sputtering-off"} />,
   },
   "neon-tints": {
-    title: "Shop slips printing, one by one",
+    title: "Shop signs inking in, one by one",
     render: (take) => (
       <div key={take} className="flex flex-col items-center gap-8">
         <Staggered take={take} delay={0} text="Bakery" />
@@ -67,12 +67,12 @@ export const SHOTS: Record<string, Shot> = {
     ),
   },
   "menu-write": {
-    title: "The menu prints line by line",
+    title: "The menu is written in, line by line",
     render: (take) =>
       take === 0 ? null : <ChalkMenu key={take} title="Mai's Bakery" items={MENU} animateIn className="max-w-[350px]" />,
   },
   "menu-soldout": {
-    title: "Sold out: struck in the owner's pen",
+    title: "Sold out: struck with the owner's brush",
     render: (take) => <MenuChange key={take} take={take} change="soldout" />,
   },
   "menu-highlight": {
@@ -80,11 +80,11 @@ export const SHOTS: Record<string, Shot> = {
     render: (take) => <MenuChange key={take} take={take} change="highlight" />,
   },
   tags: {
-    title: "Price labels slap down",
+    title: "Price labels rise in",
     render: (take) => (take === 0 ? null : <Tags key={take} />),
   },
   "receipt-print": {
-    title: "Receipt prints → total counts up → HELD lands",
+    title: "Receipt lines rise in → total counts up → the HELD seal is pressed",
     render: (take) =>
       take === 0 ? null : (
         <div className="scale-[1.12] sm:scale-125">
@@ -93,25 +93,25 @@ export const SHOTS: Record<string, Shot> = {
       ),
   },
   "receipt-paid": {
-    title: "Picked up: PAID lands over HELD",
+    title: "Picked up: the PAID seal over HELD",
     render: (take) => <StatusChange key={take} take={take} to="paid" />,
   },
   "receipt-released": {
-    title: "No-show: RELEASED lands over HELD",
+    title: "No-show: the RELEASED seal over HELD",
     render: (take) => <StatusChange key={take} take={take} to="released" />,
   },
   "stamp-verified": {
-    title: "VERIFIED ✓ lands on paper",
+    title: "The VERIFIED seal is pressed into paper",
     bg: PAPER,
     render: (take) =>
-      take === 0 ? null : <Stamp key={take} kind="VERIFIED" label="Open Sign Shopper" size="lg" animate className="sm:scale-125" />,
+      take === 0 ? null : <Stamp key={take} kind="VERIFIED" label="avanti shopper" size="lg" animate className="sm:scale-125" />,
   },
   "door-flip": {
-    title: "One bot: a REJECTED slip on the spindle",
+    title: "One bot: a REJECTED slip on the pile",
     render: (take) => <Door key={take} take={take} bots={1} />,
   },
   "door-burst": {
-    title: "A 50-bot burst piles up on the spindle",
+    title: "A 50-bot burst piles up",
     render: (take) => <Door key={take} take={take} bots={50} />,
   },
   bots: {
@@ -127,7 +127,7 @@ export const SHOTS: Record<string, Shot> = {
     render: (take) => <Focus key={take} take={take} kind="held" />,
   },
   ticket: {
-    title: "Counter: a new order ticket swings onto the rail",
+    title: "Counter: a new order ticket arrives",
     layout: "page",
     render: (take) => <Counter key={take} take={take} mode="ticket" />,
   },
@@ -167,7 +167,7 @@ export const SHOTS: Record<string, Shot> = {
     render: (take) => <AskShot key={take} stage="order" />,
   },
   "ask-held": {
-    title: "Chat: the printed receipt + VERIFIED slip (lab data)",
+    title: "Chat: the receipt + VERIFIED slip (lab data)",
     layout: "page",
     render: (take) => <AskShot key={take} stage="held" />,
   },
@@ -309,7 +309,7 @@ function Focus({ take, kind }: { take: number; kind: "verified" | "held" }) {
         )
       }
       card={kind === "verified" ? "Checked first. Then Visa was asked for a hold." : undefined}
-      className="h-[calc(100dvh-3rem)] w-full max-w-[430px] rounded-[6px]"
+      className="h-[calc(100dvh-3rem)] w-full max-w-[430px] outline outline-1 -outline-offset-1 outline-ink/16"
     >
       <div className="flex h-full flex-col items-center gap-5 bg-counter p-5">
         <ChalkMenu title="Mai's Bakery" items={MENU.slice(0, 3)} />
@@ -345,7 +345,7 @@ export function ShotView({ name }: { name: string }) {
   if (!shot) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="font-display text-[32px] font-extrabold uppercase">No shot called “{name}”.</p>
+        <p className="font-display text-[32px]">No shot called “{name}”.</p>
         <Link href="/lab" className="btn-quiet">
           Back to the lab
         </Link>

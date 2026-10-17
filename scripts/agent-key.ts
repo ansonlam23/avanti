@@ -13,7 +13,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 const ENV_FILE = ".env.local";
-const AGENT_NAME = "Open Sign Shopper";
+const AGENT_NAME = "avanti shopper";
 const rotate = process.argv.includes("--rotate");
 
 function thumbprint(x: string): string {

@@ -114,7 +114,7 @@ export function AskShot({ stage }: { stage: "results" | "order" | "held" }) {
       <header className="flex items-center gap-3 pb-3 pl-5 pr-3 pt-4">
         <AiMark size={26} state="listening" />
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-[24px] font-extrabold uppercase leading-none">Open Sign Shopper</h1>
+          <h1 className="font-display text-[24px] leading-none">avanti shopper</h1>
           <p className="mt-0.5 text-[14px] leading-tight text-ink-muted">near UW campus</p>
         </div>
       </header>

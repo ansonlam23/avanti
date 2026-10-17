@@ -40,9 +40,9 @@ function DrivenSign({
             setState("flickering-on");
           }}
         >
-          Print
+          Ink in
         </Pill>
-        <Pill onClick={() => setState("sputtering-off")}>Tear away</Pill>
+        <Pill onClick={() => setState("sputtering-off")}>Take down</Pill>
         <Pill onClick={() => setState("on")} active={state === "on"}>
           On
         </Pill>
@@ -50,7 +50,7 @@ function DrivenSign({
           Off
         </Pill>
       </div>
-      <p className="label-print relative z-10 text-ink-muted" aria-live="polite">
+      <p className="relative z-10 font-mono text-[14px] text-ink-muted" aria-live="polite">
         state {state} · onLit ×{lit}
       </p>
     </div>
@@ -61,8 +61,8 @@ export function SignDemos() {
   return (
     <Section
       id="sign"
-      title="OPEN sign"
-      intro="A thermal printer feeds a slip out of its slot in 9 steps (with the print head's jitter), a reverse-printed black block with OPEN in white; then the slip is torn at the cutter and swings to rest (onLit fires). Tear away = the slip drops off and falls. Off = no paper."
+      title="Shop sign"
+      intro="A paper plaque with a double teal rule and the word in Marcellus, hanging from a nail on two strings (mount plate) or on its own (bare). Inking in: the plaque settles in, then the word is brushed on left to right (onLit fires). Taken down: it fades and drops a little. Off: a faint dashed outline."
     >
       <Stage label="Hero · xl · on the counter" width="wide" minH={520}>
         {(take) => <DrivenSign key={take} size="xl" spill />}
@@ -70,7 +70,7 @@ export function SignDemos() {
       <Stage label="Phone · lg" minH={420}>
         {(take) => <DrivenSign key={take} size="lg" />}
       </Stage>
-      <Stage label="Bare slip · md · shop name" minH={360}>
+      <Stage label="Bare plaque · md · shop name" minH={360}>
         {(take) => <DrivenSign key={take} text="Mai's Bakery" size="md" mount="bare" />}
       </Stage>
       <Stage label="Sizes · off and on" minH={420}>
@@ -102,7 +102,7 @@ function HeaderMock() {
     <div className="w-full max-w-md">
       <header className="flex items-center gap-4">
         <OpenSign size="sm" mount="bare" state={open ? "flickering-on" : "off"} />
-        <h1 className="truncate font-display text-[30px] font-extrabold uppercase leading-none">Mai&apos;s Bakery</h1>
+        <h1 className="truncate font-display text-[30px] leading-none">Mai&apos;s Bakery</h1>
       </header>
       <div className="mt-6 flex justify-center">
         <Pill onClick={() => setOpen((o) => !o)}>{open ? "Close the shop" : "Open the shop"}</Pill>

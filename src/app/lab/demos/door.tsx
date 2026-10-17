@@ -37,7 +37,7 @@ function LiveSpindle() {
         <Pill onClick={() => bump(10)}>+10</Pill>
         <Pill onClick={() => bump(50)}>+50</Pill>
       </div>
-      <p className="label-print text-ink-muted">spiked {flips}</p>
+      <p className="font-mono text-[14px] text-ink-muted">piled {flips}</p>
     </div>
   );
 }
@@ -46,8 +46,8 @@ export function SpindleDemos() {
   return (
     <Section
       id="spindle"
-      title="Spindle"
-      intro="Every blocked request prints a small REJECTED slip with a red VOID stamp and its reason, and it drops down the steel spike onto the pile (a slap + a steel tick). The newest reason is always on top."
+      title="Turned away"
+      intro="Every blocked request adds a small REJECTED slip with its reason (and a little vermilion VOID seal on the newest) to a neat pile, with a soft slap. The newest reason is always on top."
     >
       <Stage label="Live · one slip per bot" minH={380}>
         {(take) => <LiveSpindle key={take} />}
@@ -82,7 +82,7 @@ export function BotWallDemos() {
     <Section
       id="bots"
       title="Door log"
-      intro="The bot attack as a Z-report: slips pile up on the spindle, TURNED AWAY ticks up, the reason lines update, and the hero number never moves: REACHED VISA 0. Numbers come from props (the real door log); 50 bots play in ≈2.2 s."
+      intro="The bot attack as a report: slips pile up, TURNED AWAY ticks up, the reason lines update, and the hero number never moves: REACHED VISA 0. Numbers come from props (the real door log); 50 bots play in about 2.2 s."
     >
       <Stage label="Phone · send an attack" minH={780}>
         {(take) => <LiveBotWall key={take} />}
@@ -101,14 +101,14 @@ function FocusDemo() {
         eyebrow="Order verified"
         title="Signed by a known agent"
         object={(cue) => (
-          <div className="paper rounded-[2px] px-7 py-6 shadow-[var(--shadow-lift)]">
-            <p className="label-print text-ink-muted">Signed request</p>
-            <p className="mt-1 font-display text-[26px] font-extrabold uppercase leading-none">Open Sign Shopper</p>
+          <div className="paper px-7 py-6 shadow-lift">
+            <p className="label-print text-[13px] text-ink-muted">Signed request</p>
+            <p className="mt-2 font-display text-[26px] leading-none">avanti shopper</p>
             <Stamp kind="VERIFIED" size="lg" animate={cue} className="mt-4" />
           </div>
         )}
         card={<p>Checked before anything else. Then Visa was asked for a hold.</p>}
-        className="h-[640px] w-full max-w-[390px] rounded-[6px]"
+        className="h-[640px] w-full max-w-[390px] outline outline-1 -outline-offset-1 outline-ink/16"
       >
         <div className="flex h-full flex-col items-center gap-4 bg-counter p-5">
           <Receipt {...ORDER} mode="sandbox" status="held" />
@@ -124,7 +124,7 @@ export function FocusDemos() {
     <Section
       id="focus"
       title="Focus reveal"
-      intro="One reusable focus pull for big moments: the counter pushes in, the room dims → eyebrow 0.4 s → title 0.6 s → the tilted paper object 0.9 s (a stamp can land exactly on that beat) → the supporting slip from 1.1 s."
+      intro="One reusable focus pull for big moments: the page softens under a veil of rice paper (never dark) → eyebrow 0.4 s → title 0.6 s → the paper object rises in at 0.9 s (a seal can be pressed exactly on that beat) → the supporting slip from 1.1 s."
     >
       <Stage label="VERIFIED over the counter" minH={720}>
         {(take) => <FocusDemo key={take} />}

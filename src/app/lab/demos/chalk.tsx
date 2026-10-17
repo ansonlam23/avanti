@@ -34,10 +34,10 @@ export function MenuDemos() {
   return (
     <Section
       id="menu"
-      title="Menu slip"
-      intro="The shop's menu on a thermal slip with torn ends. Missing price: a red NEEDS A PRICE stamp. Sold out: struck through in the owner's blue pen, 'sold out' written beside it. The item a shopper asks about gets a highlighter swipe. animateIn prints it line by line."
+      title="Menu card"
+      intro="The shop's menu on a paper card. Missing price: a small vermilion NEEDS A PRICE seal. Sold out: struck through with the owner's brush, 'sold out' brushed beside it. The item a shopper asks about gets a teal wash. animateIn writes it in, line by line."
     >
-      <Stage label="Prints line by line" minH={640}>
+      <Stage label="Written in, line by line" minH={640}>
         {(take) => <LiveMenu key={take} animateIn />}
       </Stage>
       <Stage label="Static · sold out + highlight" minH={640}>
@@ -75,9 +75,9 @@ export function TagDemos() {
     <Section
       id="labels"
       title="Price labels"
-      intro="Deli-scale labels: the item, the price in heavy type and a real barcode. They land like a sticker being slapped on (SPRING.tag). A missing price gets the red stamp; sold out is struck in the owner's pen."
+      intro="Small paper labels: the item, the price in Marcellus and a real barcode. They rise in calmly. A missing price gets the vermilion seal; sold out is struck with the owner's brush."
     >
-      <Stage label="Slap on" width="wide" minH={300}>
+      <Stage label="Rise in" width="wide" minH={300}>
         {(take) => (
           <div key={take} className="flex flex-wrap items-start justify-center gap-6">
             <PriceTag label="Croissant" price_cents={450} swing />

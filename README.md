@@ -9,7 +9,7 @@ Built at DubHacks '26 (Visa: Reimagine Shopping track). **Live:** https://open-s
 > 🚧 Hackathon build in progress. Full write-up, architecture and "what's real vs. demo" coming before submission.
 
 ## Stack
-Next.js 16 · Tailwind 4 · shadcn/ui · Motion · Supabase · Gemini · Visa Acceptance (Cybersource) sandbox · Ed25519 + RFC 9421 HTTP Message Signatures
+Next.js 16 · Tailwind 4 · shadcn/ui · Motion · Supabase · Claude + Gemini · Visa Acceptance (Cybersource) sandbox · Ed25519 + RFC 9421 HTTP Message Signatures
 
 ## Run locally
 ```bash
