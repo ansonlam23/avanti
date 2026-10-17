@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Block commits that contain secrets. The repo is PUBLIC.
+set -euo pipefail
+
+bad_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)\.env($|\.)' | grep -v -E '(^|/)\.env\.example$' || true)
+if [ -n "$bad_files" ]; then
+  echo "✗ pre-commit: refusing to commit env files:"; echo "$bad_files"; exit 1
+fi
+
+patterns=(
+  'sb_secret_[A-Za-z0-9_-]{10,}'
+  'AIza[0-9A-Za-z_-]{30,}'
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+  'MC4CAQAwBQYDK2VwBCIEI'                 # base64 Ed25519 PKCS#8 private key
+  'eyJhbGciOi[A-Za-z0-9_-]{20,}\.'        # JWT (legacy Supabase keys)
+  'postgres(ql)?://[^:@/[:space:]]+:[^@/[:space:]]+@'   # DB URL with password
+  '(VISA_SHARED_SECRET|AGENT_ED25519_PRIVATE_KEY|SUPABASE_SECRET_KEY|GEMINI_API_KEY)=[^[:space:]]+'
+)
+added=$(git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude).githooks/pre-commit' | grep -E '^\+' | grep -v -E '^\+\+\+' || true)
+for p in "${patterns[@]}"; do
+  if printf '%s\n' "$added" | grep -E -q -- "$p"; then
+    echo "✗ pre-commit: staged changes look like they contain a secret (pattern: $p)."
+    echo "  Move it to .env.local. If this is a false positive, tell the lead."
+    exit 1
+  fi
+done
+exit 0
