@@ -65,10 +65,11 @@ export function EmptyState({
         </ul>
       </div>
 
-      <p className="flex flex-wrap items-center gap-2.5 text-[15px] text-ink-muted lg:text-[16px]">
-        {mode === "simulated" ? <SimulatedBadge /> : null}
-        <span>Test card · no real money</span>
-      </p>
+      {mode === "simulated" ? (
+        <p className="flex flex-wrap items-center gap-2.5 text-[15px] text-ink-muted lg:text-[16px]">
+          <SimulatedBadge />
+        </p>
+      ) : null}
     </div>
   );
 }
