@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { PrivacyPage, type AiUse } from "@/components/privacy/privacy-page";
 import { hasClaude, hasGemini, paymentMode, shopperAiMode } from "@/lib/env";
 
@@ -23,7 +24,15 @@ function shopperAi(): AiUse {
   return { who: "Claude (Anthropic)", what: "runs the AI shopper." };
 }
 
+/** The MCP endpoint on this deployment, whichever host serves the page. */
+async function mcpUrl(): Promise<string> {
+  const h = await headers();
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "open-sign-three.vercel.app").split(",")[0].trim();
+  const proto = (h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")).split(",")[0].trim();
+  return `${proto}://${host}/api/mcp`;
+}
+
 // /privacy: how avanti uses AI and your data. Every line is checked against the code.
-export default function Privacy() {
-  return <PrivacyPage payments={paymentMode()} shopperAi={shopperAi()} />;
+export default async function Privacy() {
+  return <PrivacyPage payments={paymentMode()} shopperAi={shopperAi()} mcpUrl={await mcpUrl()} />;
 }

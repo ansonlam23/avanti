@@ -1,12 +1,14 @@
 import type { CSSProperties, ReactNode } from "react";
 import { SiteFooter } from "@/components/landing/site-footer";
-import { SiteNav } from "@/components/landing/site-nav";
+import { GITHUB_URL, SiteNav } from "@/components/landing/site-nav";
 import type { PaymentMode } from "@/lib/types";
+import { CopyLink } from "./copy-link";
 
 // /privacy: how avanti uses AI and your data. Short on purpose, and every line
 // is checked against the code (the payment line and the shopper's model follow
 // this deployment's real settings). Two sides like /start: the shopper's on
-// paper, the shop's on the teal wash; then one row on the AI itself.
+// paper, the shop's on the teal wash; then one row on the AI itself, and how
+// any outside AI can use avanti (the MCP server) and what it can see.
 
 export interface AiUse {
   /** Who, said as the start of the sentence ("Claude (Anthropic)"). */
@@ -32,7 +34,7 @@ function Line({ children }: { children: ReactNode }) {
   return <li className="border-t border-ink/15 py-4 text-[16px] leading-snug text-ink text-pretty lg:text-[18px]">{children}</li>;
 }
 
-export function PrivacyPage({ payments, shopperAi }: { payments: PaymentMode; shopperAi: AiUse }) {
+export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: PaymentMode; shopperAi: AiUse; mcpUrl: string }) {
   const ai: AiUse[] = [
     { who: "Gemini (Google)", what: "reads the counter photo and voice note." },
     { who: shopperAi.who, what: `${shopperAi.what} avanti doesn't save your chat.` },
@@ -89,6 +91,38 @@ export function PrivacyPage({ payments, shopperAi }: { payments: PaymentMode; sh
               </li>
             ))}
           </ul>
+        </section>
+
+        {/* the MCP server (CONTRACTS §15): the same tools the avanti shopper uses, read-only */}
+        <section aria-labelledby="your-ai" className="lp-rise mt-12 lg:mt-16" style={rise(0.46)}>
+          <h2 id="your-ai" className="font-display text-[30px] font-normal leading-none text-ink lg:text-[36px]">
+            Use avanti from your own AI
+          </h2>
+          <p className="mt-4 max-w-[60ch] text-[16px] leading-snug text-ink-muted text-pretty lg:mt-5 lg:text-[18px]">
+            avanti is an MCP server, so an assistant like Claude can find these shops for you. Add this link to it:
+          </p>
+          <div className="mt-5 lg:mt-6">
+            <CopyLink url={mcpUrl} label="avanti's MCP server link" />
+          </div>
+          <ul className="mt-6 grid sm:grid-cols-2 sm:gap-x-8 lg:mt-8 lg:grid-cols-4">
+            {[
+              { who: "Your AI can", what: "find shops near UW, read live menus, ask a shop about allergens, and start an order." },
+              { who: "It can't", what: "pay or order on its own. It hands you a link, and you confirm in avanti." },
+              { who: "It only sees", what: "public shop info from listed shops: menus, prices, stock and pickup hours. Searches are counted anonymously." },
+              { who: "In Claude:", what: "Settings → Connectors → Add custom connector, then paste the link. It needs a paid Claude plan." },
+            ].map((a) => (
+              <li key={a.who} className="border-t border-ink/15 py-4 text-[16px] leading-snug text-ink-muted text-pretty lg:py-5 lg:text-[18px]">
+                <span className="font-semibold text-ink">{a.who}</span> {a.what}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[16px] text-ink-muted lg:text-[17px]">
+            Claude Desktop, Cursor and other apps:{" "}
+            <a href={`${GITHUB_URL}#use-avanti-from-any-ai`} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+              setup steps on GitHub
+            </a>
+            .
+          </p>
         </section>
       </main>
       <SiteFooter privacyLink={false} />
