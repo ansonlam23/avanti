@@ -4,7 +4,7 @@ import NumberFlow from "@number-flow/react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ArrowRight, BadgeCheck, Lock, Mic } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { OpenSign, type NeonState } from "@/components/brand";
+import { InkBackdrop, OpenSign, type NeonState } from "@/components/brand";
 import type { OnboardDraft } from "@/lib/ai/onboard";
 import type { MenuRevision } from "@/lib/ai/onboard-revise";
 import type { CreateShopRequest, CreateShopResponse } from "@/lib/db/shops";
@@ -497,6 +497,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
 
   return (
     <div className="flex min-h-dvh touch-manipulation flex-col">
+      {/* laptops: the landing's plate, faint and fixed, in the empty paper around every step (never behind content) */}
+      <InkBackdrop />
       {/* the bar spans the screen (the logo sits in /start's spot); the flow is a centred column */}
       <TopBar done={step} current={step} />
       <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col px-5 pb-10 md:max-w-[520px] lg:max-w-page lg:px-10 lg:pb-12">
@@ -679,7 +681,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
         </AnimatePresence>
       </LayoutGroup>
 
-      {/* the one faint strip of the landing's ink plate: the shop is open, the world beyond it */}
+      {/* phones: one faint strip of the landing's ink plate at the foot (the shop is open, the world beyond it);
+          laptops have the fixed plate instead, so /open shows a single plate */}
       {beat === "live" ? <InkStrip /> : null}
 
       {/* Phone: "change anything" + "Looks good", always under the thumb (fixed, outside the
@@ -713,6 +716,7 @@ function Scene({ beat, error, children, className }: { beat: Beat; error?: boole
     <motion.main
       data-beat={beat}
       data-error={error || undefined}
+      data-ink-clear
       className={cn("open-scene flex flex-col", className)}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
@@ -727,7 +731,7 @@ function Scene({ beat, error, children, className }: { beat: Beat; error?: boole
 /** The landing's ink plate, one faint strip along the bottom of the screen (under the content, never behind text). */
 function InkStrip() {
   return (
-    <div aria-hidden className="open-strip-wrap -mb-10 mt-auto pt-10 lg:-mb-12 lg:pt-6">
+    <div aria-hidden className="open-strip-wrap -mb-10 mt-auto pt-10 lg:hidden">
       <motion.img
         src={strip1600.src}
         srcSet={`${strip800.src} 800w, ${strip1600.src} 1600w`}

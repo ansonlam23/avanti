@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { InkBackdrop } from "@/components/brand/ink-backdrop";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { GITHUB_URL, SiteNav } from "@/components/landing/site-nav";
 import type { PaymentMode } from "@/lib/types";
@@ -54,9 +55,11 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
     { who: "Demo shops", what: "are labeled demo." },
   ];
   return (
-    <div className="flex min-h-svh flex-col bg-counter">
-      <SiteNav variant="page" section="privacy" current="trust" />
-      <main className="mx-auto w-full max-w-page flex-1 px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20 lg:pt-14">
+    <div className="flex min-h-svh flex-col">
+      {/* laptops: the landing's plate, faint and fixed, in the empty paper around the text (never behind it) */}
+      <InkBackdrop />
+      <SiteNav variant="page" section="trust" current="trust" />
+      <main data-ink-clear className="mx-auto w-full max-w-page flex-1 px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20 lg:pt-14">
         <h1
           className="lp-rise font-display text-[36px] font-normal leading-[1.08] text-carbon text-balance sm:text-[52px] lg:text-[clamp(3.25rem,1.6rem+2.6vw,4.25rem)]"
           style={rise(0.05)}
@@ -108,7 +111,7 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
         </section>
 
         {/* the MCP server (CONTRACTS §15): the same tools the avanti shopper uses, read-only */}
-        <section aria-labelledby="your-ai" className="lp-rise mt-12 lg:mt-16" style={rise(0.46)}>
+        <section aria-labelledby="your-ai" className="lp-rise mt-12 lg:mt-16 lg:max-w-[720px]" style={rise(0.46)}>
           <h2 id="your-ai" className="font-display text-[30px] font-normal leading-none text-ink lg:text-[36px]">
             Use <span className="text-carbon">avanti</span> from your own AI
           </h2>
@@ -127,7 +130,9 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
           </p>
         </section>
       </main>
-      <SiteFooter privacyLink={false} />
+      <div data-ink-clear className="contents">
+        <SiteFooter privacyLink={false} />
+      </div>
     </div>
   );
 }

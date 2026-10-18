@@ -80,18 +80,25 @@ function useScrolled() {
 export function TopBar({ done, current }: { done: number; current: number }) {
   const scrolled = useScrolled();
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 flex flex-wrap items-center justify-between gap-x-3 pb-3 lg:grid lg:grid-cols-[1fr_auto_1fr]",
-        APP_BAR,
-        scrolled ? "bg-counter shadow-[0_1px_0_rgb(22_58_66/0.1)]" : "bg-transparent",
-        "lg:static lg:bg-transparent lg:pb-6 lg:shadow-none",
-      )}
-    >
-      <AppLogo section="shop" className="justify-self-start" />
-      <StepBars done={done} current={current} />
-      {/* the one top menu: its own row on phones; on laptops the third column, so the steps stay centred */}
-      <SiteMenu current="sell" className="lg:justify-self-end" />
-    </header>
+    <>
+      {/* phones: only the logo + step marks stay pinned (paper behind them once the page scrolls);
+          laptops: one row, not pinned, the steps centred and the menu in the third column */}
+      <header
+        className={cn(
+          "sticky top-0 z-40 flex items-center justify-between gap-x-3",
+          APP_BAR,
+          scrolled ? "bg-counter shadow-[0_1px_0_rgb(22_58_66/0.1)]" : "bg-transparent",
+          "lg:static lg:grid lg:grid-cols-[1fr_auto_1fr] lg:bg-transparent lg:pb-6 lg:shadow-none",
+        )}
+      >
+        <AppLogo section="shop" className="justify-self-start" />
+        <StepBars done={done} current={current} />
+        <SiteMenu current="sell" className="hidden lg:flex lg:justify-self-end" />
+      </header>
+      {/* phones: the menu's own row under the pinned bar; it scrolls away with the page */}
+      <div className="px-5 pb-3 sm:px-8 lg:hidden">
+        <SiteMenu current="sell" />
+      </div>
+    </>
   );
 }

@@ -19,4 +19,5 @@ export { sfx, useSfxMuted, type SfxName, type SfxOptions } from "./sfx";
 export { SoundToggle } from "./sound-toggle";
 export { Wordmark } from "./wordmark";
 export { AppLogo, APP_BAR } from "./app-logo";
+export { InkBackdrop } from "./ink-backdrop";
 export { SiteMenu, GITHUB_URL, type MenuSection } from "./site-menu";
