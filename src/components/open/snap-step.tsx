@@ -142,46 +142,37 @@ export function SnapStep({
         </p>
       ) : null}
 
-      <div className="flex flex-col items-center gap-3 lg:items-start lg:gap-5 lg:[grid-area:actions]">
+      <div className="flex w-full flex-col gap-6 lg:gap-7 lg:[grid-area:actions]">
         {desktop ? (
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full lg:w-auto lg:min-w-[260px]">
-              Choose a photo
-            </button>
-            <button type="button" onClick={skip} disabled={working} className="btn-quiet">
-              Skip the photo
-            </button>
-          </span>
+          <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full justify-between!">
+            Choose a photo <ArrowRight className="size-5" aria-hidden />
+          </button>
         ) : (
-          <>
+          <div className="flex flex-col gap-3">
             <button type="button" onClick={() => pick(camera.current)} disabled={working} className="btn-ink w-full">
               Take a photo
             </button>
-            <span className="flex flex-wrap items-center justify-center gap-x-2">
-              <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-quiet">
-                Upload from library
-              </button>
-              <span aria-hidden className="text-ink-muted">·</span>
-              <button type="button" onClick={skip} disabled={working} className="btn-quiet">
-                Skip the photo
-              </button>
-            </span>
-          </>
-        )}
-        <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-          <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 lg:justify-start">
-            <span className="text-[16px] text-ink-muted">No photo handy?</span>
-            <button
-              type="button"
-              onClick={() => void loadSample()}
-              disabled={working}
-              title={SAMPLE_PHOTO.credit}
-              className="link-ink text-[19px]!"
-            >
-              Use a sample lemonade stand <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
+            <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-line w-full">
+              Upload from library
             </button>
-          </span>
-        </div>
+          </div>
+        )}
+
+        {/* the other ways in, as plain lines between hairlines (like /ask's "Try asking") */}
+        <ul className="open-alt" aria-label="Other ways to start">
+          <li>
+            <button type="button" onClick={() => void loadSample()} disabled={working} title={SAMPLE_PHOTO.credit}>
+              <span className="open-alt-text">Use a sample lemonade stand</span>
+              <ArrowRight className="size-5 shrink-0 text-carbon" strokeWidth={1.5} aria-hidden />
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={skip} disabled={working}>
+              <span className="open-alt-text">Skip the photo, just tell me</span>
+              <ArrowRight className="size-5 shrink-0 text-carbon" strokeWidth={1.5} aria-hidden />
+            </button>
+          </li>
+        </ul>
       </div>
 
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={onChange} />

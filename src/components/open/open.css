@@ -207,3 +207,51 @@
 @media (prefers-reduced-motion: reduce) {
   .open-fresh { animation-duration: 1.4s; }
 }
+
+/* Snap: the other ways in (sample, skip) as plain lines between hairlines, like /ask's "Try asking". */
+.open-alt {
+  border-top: 1px solid rgb(22 58 66 / 0.16);
+}
+.open-alt > li {
+  border-bottom: 1px solid rgb(22 58 66 / 0.16);
+}
+.open-alt button {
+  display: flex;
+  width: 100%;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.75rem;
+  text-align: left;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--color-ink);
+}
+@media (min-width: 1024px) {
+  .open-alt button {
+    min-height: 4rem;
+    font-size: 18px;
+  }
+}
+.open-alt button:disabled {
+  opacity: 0.5;
+}
+.open-alt .open-alt-text {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 2px;
+  transition: background-size 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.open-alt button:hover .open-alt-text {
+  background-size: 100% 1px;
+}
+.open-alt button svg {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.open-alt button:hover svg {
+  transform: translateX(4px);
+}
+
