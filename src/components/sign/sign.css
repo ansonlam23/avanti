@@ -1,0 +1,166 @@
+/* The window sign (src/components/sign). Global CSS with a ws- prefix (CSS Modules are off here). */
+
+.ws-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.ws-bar {
+  width: min(720px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.ws-print {
+  min-height: 48px;
+  padding-inline: 22px;
+  background: var(--color-carbon);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 18px;
+  border: 0;
+  cursor: pointer;
+}
+.ws-print:hover { background: color-mix(in srgb, var(--color-carbon) 88%, black); }
+
+/* The sheet: 3:4 like Letter's printable area, everything sized in container units. */
+.ws-sheet {
+  container-type: inline-size;
+  position: relative;
+  width: min(720px, 100%);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--color-paper);
+  box-shadow: 0 0 0 1px rgb(22 58 66 / 0.16), 0 18px 40px -24px rgb(22 58 66 / 0.35);
+}
+
+.ws-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 7cqw 8cqw 0;
+  color: var(--color-ink);
+}
+
+.ws-head {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ws-mark {
+  font-family: var(--font-display);
+  font-size: 5.6cqw;
+  line-height: 1;
+  color: var(--color-carbon);
+}
+.ws-demo {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.9cqw;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.ws-title {
+  margin: 9cqw 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 10.2cqw;
+  line-height: 1;
+  color: var(--color-carbon);
+  text-wrap: balance;
+}
+.ws-shop {
+  margin: 3.4cqw 0 0;
+  font-family: var(--font-display);
+  font-size: 6cqw;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.ws-lede {
+  margin: 2.6cqw 0 0;
+  max-width: 34ch;
+  font-family: var(--font-sans);
+  font-size: 2.9cqw;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+
+.ws-qr {
+  margin: 5.5cqw 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.4cqw;
+}
+.ws-qr-code {
+  width: 33cqw;
+  aspect-ratio: 1;
+}
+.ws-qr-code svg { width: 100%; height: 100%; display: block; }
+.ws-qr figcaption { display: flex; flex-direction: column; gap: 0.8cqw; }
+.ws-qr-cta {
+  font-family: var(--font-display);
+  font-size: 3.3cqw;
+  color: var(--color-ink);
+}
+.ws-qr-url {
+  font-family: var(--font-mono);
+  font-size: 2.2cqw;
+  color: var(--color-ink-muted);
+}
+
+.ws-foot {
+  margin: auto 0 0;
+  padding-bottom: 24cqw; /* sits clear above the strip */
+  font-family: var(--font-sans);
+  font-size: 2.3cqw;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-muted);
+}
+
+.ws-strip {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 22cqw;
+  object-fit: cover;
+  object-position: center 92%;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 45%);
+  mask-image: linear-gradient(transparent, #000 45%);
+}
+
+@page {
+  size: letter portrait;
+  margin: 0.5in;
+}
+
+@media print {
+  html, body { background: #fff !important; }
+  .ws-page { padding: 0; min-height: 0; display: block; }
+  .ws-bar { display: none; }
+  .ws-sheet {
+    width: 7.5in;
+    box-shadow: none;
+    background: #fff;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
