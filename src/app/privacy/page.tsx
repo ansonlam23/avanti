@@ -17,7 +17,7 @@ function shopperAi(): AiUse {
   const gemini = mode !== "claude" && hasGemini();
   const claude = mode !== "gemini" && hasClaude();
   if (gemini && claude) {
-    return { who: "Gemini (Google)", what: "runs the AI shopper, and Claude (Anthropic) steps in when it's busy." };
+    return { who: "Gemini (Google)", what: "runs the AI shopper, with Claude (Anthropic) as backup." };
   }
   if (gemini) return { who: "Gemini (Google)", what: "runs the AI shopper." };
   return { who: "Claude (Anthropic)", what: "runs the AI shopper." };
