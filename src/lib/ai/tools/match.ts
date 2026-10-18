@@ -14,9 +14,9 @@ export function normalize(s: string | null | undefined): string {
 }
 
 /**
- * Tiny plural stripper. Matching is by word PREFIX (see hasWord), so a stem only
- * has to be a prefix of the singular: cakes → cake, cookies → cook(ie),
- * pastries → pastr(y), boxes → box, tomatoes → tomato.
+ * Tiny plural stripper. Matching is by word start plus a plural ending (see
+ * hasWord), so a stem only has to start the singular: cakes → cake,
+ * cookies → cook(ie), pastries → pastr(y), boxes → box, tomatoes → tomato.
  */
 export function stem(word: string): string {
   if (word.length <= 3) return word;
@@ -90,11 +90,23 @@ export function queryTerms(query: string): QueryTerms {
   return { keywords, diet };
 }
 
-/** Does `haystack` (normalized) contain `word` as the start of a word ("cake" ∈ "chocolate cakes")? */
+/** What may follow a stem inside a word: nothing, or a plural/singular ending (cook+ie, pastr+y, box+es). */
+const ENDINGS = new Set(["", "s", "es", "ie", "ies", "y", "ys"]);
+
+/**
+ * Does `haystack` (normalized) contain `word` as a word, give or take a plural
+ * ending ("cake" ∈ "chocolate cakes", "cook" ∈ "cookie")? Not as any prefix:
+ * "bun" ∉ "bundle", "pho" ∉ "phone", "rose" ∉ "rosemary".
+ */
 export function hasWord(haystack: string, word: string): boolean {
   if (!word) return false;
   const h = ` ${haystack} `;
-  return h.includes(` ${word}`);
+  const needle = ` ${word}`;
+  for (let i = h.indexOf(needle); i !== -1; i = h.indexOf(needle, i + 1)) {
+    const after = h.slice(i + needle.length);
+    if (ENDINGS.has(after.slice(0, after.indexOf(" ")))) return true;
+  }
+  return false;
 }
 
 export interface MatchableItem {

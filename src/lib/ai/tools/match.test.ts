@@ -22,9 +22,18 @@ describe("normalize + stem", () => {
     expect(stem("hummus")).toBe("hummus");
   });
 
-  it("matches word prefixes only", () => {
+  it("matches whole words, give or take a plural ending", () => {
     expect(hasWord("chocolate chip cookie", "cook")).toBe(true);
     expect(hasWord("donut", "nut")).toBe(false);
+    expect(hasWord("butter pastries", "pastr")).toBe(true);
+    expect(hasWord("gift boxes", "box")).toBe(true);
+    expect(hasWord("banh mi sandwich", "banh mi")).toBe(true);
+    // a short synonym is not a prefix of a longer word
+    expect(hasWord("bundle of 3 paperbacks", "bun")).toBe(false);
+    expect(hasWord("bunch of roses", "bun")).toBe(false);
+    expect(hasWord("phone charger", "pho")).toBe(false);
+    expect(hasWord("rosemary focaccia", "rose")).toBe(false);
+    expect(hasWord("cinnamon buns", "bun")).toBe(true);
   });
 });
 
