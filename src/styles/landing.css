@@ -305,65 +305,89 @@
 }
 
 /* ── /start: the chooser ───────────────────────────────────────
-   One question, two equal doors on rice paper (the shopper's on
-   paper, the shop's on the teal wash), one quiet link, and a faint
-   strip of the landing's ink plate at the foot of the page.        */
+   Two equal doors on rice paper (the teal wash comes in on hover or
+   keyboard focus), one quiet link for judges, and the landing's ink
+   plate rising out of the mist at the foot of the page.            */
 @layer components {
   .start-page {
     background: var(--color-counter);
   }
+  /* The plate: its drawn bottom edge (93%) sits on the page's bottom edge. The
+     slice starts in the plate's sky, above the pine tops, and a long fade lets the
+     landscape rise out of the mist into the page's paper (same paper colour).
+     Phones show it 1.5x wide so it isn't tiny; both little shops stay whole. */
   .start-plate {
+    --pw: 150cqw;
+    --ph: min(44vw, 26vh);
     position: relative;
     flex: none;
-    height: clamp(96px, 14vh, 150px);
+    height: var(--ph);
+    /* its top third is mist: tuck it under the page's foot, so the doors centre
+       between the bar and where the landscape actually begins */
+    margin-top: calc(var(--ph) * -0.32);
     overflow: hidden;
     container-type: inline-size;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(transparent, #000 60%);
-    mask-image: linear-gradient(transparent, #000 60%);
-    opacity: 0.85;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgb(0 0 0 / 0.08) 18%,
+      rgb(0 0 0 / 0.36) 40%,
+      rgb(0 0 0 / 0.78) 64%,
+      #000 84%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgb(0 0 0 / 0.08) 18%,
+      rgb(0 0 0 / 0.36) 40%,
+      rgb(0 0 0 / 0.78) 64%,
+      #000 84%
+    );
+    opacity: 0.92;
   }
   .start-plate::before {
-    /* the plate at full width, its drawn bottom edge (93%) on the page's bottom edge */
     content: "";
     position: absolute;
     left: 50%;
-    width: 100cqw; /* the whole plate, so its two little shops are never cut in half */
+    width: var(--pw);
     aspect-ratio: 16 / 9;
-    bottom: calc(100cqw * 9 / 16 * -0.07);
+    bottom: calc(var(--pw) * 9 / 16 * -0.07);
     transform: translateX(-50%);
     background: url("/landing/land.webp") center / 100% 100% no-repeat;
     animation: land-fade 1.2s 0.25s ease both;
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 640px) {
     .start-plate {
-      height: clamp(110px, 18vh, 230px);
+      --pw: 100cqw; /* the whole plate edge to edge, as on the landing */
+      --ph: min(29.4vw, 42vh);
     }
   }
 }
 
-/* Unlayered on purpose: the door hover must beat the paper/pad utilities' outline. */
+/* Unlayered on purpose: the door's wash and hairline must beat the paper utility. */
 .start-door {
   transition:
-    outline-color 300ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    outline-color 350ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 350ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .start-door-arrow {
   transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @media (hover: hover) {
+  .start-door:hover {
+    background-color: var(--color-pad);
+  }
   .start-door:hover:not(:focus-visible) {
-    outline-color: rgb(22 58 66 / 0.5);
-  }
-  .start-door.paper:hover {
-    background-color: #f8f5ef;
-  }
-  .start-door.pad:hover {
-    background-color: #d8e1dc;
+    outline-color: rgb(22 58 66 / 0.3);
   }
   .start-door:hover .start-door-arrow {
     transform: translateX(4px);
   }
+}
+.start-door:focus-visible,
+.start-door:active {
+  background-color: var(--color-pad);
 }
 .start-door:active {
   transform: translateY(1px);
