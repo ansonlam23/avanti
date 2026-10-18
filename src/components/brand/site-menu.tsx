@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const GITHUB_URL = "https://github.com/ansonlam23/open-sign";
+export const GITHUB_URL = "https://github.com/ansonlam23/avanti";
 
 export type MenuSection = "shop" | "sell" | "trust";
 
