@@ -115,12 +115,12 @@ export function CounterView({
           ) : null}
         </AnimatePresence>
       </div>
-      {front === null ? <EmptyRail /> : null}
+      {front === null && rest.length === 0 ? <EmptyRail /> : null}
 
       {rest.length ? (
         <section className="mt-12 lg:mx-auto lg:max-w-[440px]" aria-label="Other orders">
-          <p className="label-print text-ink-muted">{held.length > 1 ? "Also waiting" : "Earlier"}</p>
-          <ul className="mt-4 space-y-3">
+          {held.length > 1 ? <p className="label-print mb-4 text-ink-muted">Also waiting</p> : null}
+          <ul className="space-y-3">
             {rest.map((o) => (
               <OrderStrip key={o.id} order={o} onOpen={o.status === "held" ? () => setPicked(o.id) : undefined} />
             ))}
@@ -329,7 +329,8 @@ function useFocusedOrder(held: DashboardOrder[], done: DashboardOrder[]): string
   }, [sticky]);
 
   if (sticky && all.some((o) => o.id === sticky)) return sticky;
-  return held[0]?.id ?? done[0]?.id ?? null;
+  // Only a waiting order hangs on the rail; finished ones live in the list below.
+  return held[0]?.id ?? null;
 }
 
 /** Nothing on the rail yet: a blank slip waits in the clip. */
