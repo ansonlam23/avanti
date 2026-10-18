@@ -238,8 +238,30 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                 <Wordmark className="text-[26px] lg:text-[30px]" />
                 <span className="text-ink-muted">shopper</span>
               </h1>
-              <p className="mt-1.5 text-[15px] leading-tight text-ink-muted lg:mt-2 lg:text-[16px]">near UW campus</p>
+              <p className="@container mt-1.5 text-[15px] leading-tight text-ink-muted lg:mt-2 lg:text-[16px]">
+                near UW campus
+                {/* phones: how avanti uses AI, in this line (a new tab, so the chat stays put);
+                    the short label only when "New chat" leaves too little room */}
+                <span aria-hidden className="lg:hidden"> · </span>
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener"
+                  className="relative whitespace-nowrap text-carbon underline decoration-transparent decoration-1 underline-offset-4 transition-colors after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] hover:decoration-current lg:hidden"
+                >
+                  <span className="hidden @min-[16.5rem]:inline">How avanti uses AI</span>
+                  <span className="@min-[16.5rem]:hidden">How AI is used</span>
+                </a>
+              </p>
             </div>
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener"
+              className="hidden min-h-11 items-center px-2 text-[16px] text-ink-muted underline decoration-transparent decoration-1 underline-offset-[6px] transition-[color,text-decoration-color] duration-300 hover:text-ink hover:decoration-current lg:inline-flex"
+            >
+              How avanti uses AI
+            </a>
             <SoundToggle compact />
             {state.feed.length ? (
               <button

@@ -106,6 +106,11 @@ export function Storefront({ shop, items }: { shop: Shop; items: Item[] }) {
               Open your own shop <Arrow />
             </Link>
           </p>
+          <p className="mt-1">
+            <Link href="/privacy" className="btn-quiet -ml-0.5 px-0.5 text-[15px] font-normal text-ink-muted hover:text-ink lg:text-[16px]">
+              How avanti uses AI
+            </Link>
+          </p>
         </div>
       </main>
       <SiteFooter />

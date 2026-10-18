@@ -68,6 +68,12 @@ export function Chooser() {
         </p>
       </main>
 
+      <footer className="lp-rise flex justify-center px-5" style={rise(0.52)}>
+        <Link href="/privacy" className="btn-quiet px-2 text-[15px] font-normal text-ink-muted hover:text-ink lg:text-[16px]">
+          How avanti uses AI
+        </Link>
+      </footer>
+
       <div aria-hidden className="start-plate" />
     </div>
   );
