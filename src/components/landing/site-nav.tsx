@@ -11,7 +11,6 @@ type NavLink = { href: string; label: string };
 const DOORS: NavLink[] = [
   { href: "/ask", label: "Shop with AI" },
   { href: "/open", label: "Open a shop" },
-  { href: "/demo", label: "Both sides" },
 ];
 
 const LINK =
