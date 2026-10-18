@@ -70,8 +70,40 @@ export async function extractMenu(input: ExtractMenuInput): Promise<OnboardDraft
   }
   parts.push({ text: onboardUserPrompt({ hasAudio, notes, languageHint }) });
 
-  const raw = await callGemini(parts);
-  return validateDraft(raw, { hasAudio, notes, languageHint });
+  // A weak fallback model sometimes looks at a full counter and lists nothing. An
+  // empty menu is a failed read, not an answer: give the next model(s) a go.
+  let start = 0;
+  let empty: OnboardDraft | null = null;
+  for (let tries = 0; tries <= EMPTY_RETRIES; tries++) {
+    let read: GeminiRead;
+    try {
+      read = await callGeminiFrom(parts, ONBOARD_PROMPT, start);
+    } catch (err) {
+      if (empty) return empty; // the later models are out of quota too: the empty read stands
+      throw err;
+    }
+    const draft = validateDraft(read.raw, { hasAudio, notes, languageHint });
+    if (draft.items.length > 0 || read.index >= read.of - 1) {
+      console.info(`[onboard] ${read.model} read ${draft.items.length} item(s)`);
+      return draft;
+    }
+    console.warn(`[onboard] ${read.model} saw nothing; trying the next model`);
+    empty = draft;
+    start = read.index + 1;
+  }
+  return empty!;
+}
+
+/** How many more models to try after one returns an empty menu (each read takes ~5–10 s). */
+const EMPTY_RETRIES = 2;
+const ONBOARD_PROMPT = { system: ONBOARD_SYSTEM_PROMPT, schema: ONBOARD_RESPONSE_SCHEMA };
+
+interface GeminiRead {
+  raw: unknown;
+  model: string;
+  /** Position of `model` in the fallback list, and the list's length. */
+  index: number;
+  of: number;
 }
 
 /**
@@ -83,12 +115,22 @@ export async function extractMenu(input: ExtractMenuInput): Promise<OnboardDraft
  */
 export async function callGemini(
   parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }>,
-  prompt: { system: string; schema: object } = { system: ONBOARD_SYSTEM_PROMPT, schema: ONBOARD_RESPONSE_SCHEMA },
+  prompt: { system: string; schema: object } = ONBOARD_PROMPT,
 ): Promise<unknown> {
+  return (await callGeminiFrom(parts, prompt, 0)).raw;
+}
+
+/** `callGemini`, starting at the `start`-th model, and saying which model answered. */
+async function callGeminiFrom(
+  parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }>,
+  prompt: { system: string; schema: object },
+  start: number,
+): Promise<GeminiRead> {
   const ai = getGemini();
   const models = [...new Set([geminiModel(), ...env.geminiFallbackModels()])];
   let lastError: unknown;
-  for (const model of models) {
+  for (const [index, model] of models.entries()) {
+    if (index < start) continue;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const res = await ai.models.generateContent({
@@ -107,11 +149,13 @@ export async function callGemini(
         });
         const text = res.text;
         if (!text) throw new OnboardAiError("Gemini returned an empty response", true);
+        let raw: unknown;
         try {
-          return JSON.parse(text);
+          raw = JSON.parse(text);
         } catch {
           throw new OnboardAiError("Gemini returned invalid JSON", true);
         }
+        return { raw, model, index, of: models.length };
       } catch (err) {
         lastError = err;
         if (isQuotaError(err)) break; // this model's free quota is used up: try the next one

@@ -39,6 +39,27 @@ const modelsCalled = () => generateContent.mock.calls.map((c) => (c[0] as { mode
 describe("onboarding model fallback", () => {
   beforeEach(() => generateContent.mockReset());
 
+  it("gives the next model a go when one reads a full counter as empty", async () => {
+    const EMPTY = { ...DRAFT, items: [] };
+    generateContent
+      .mockResolvedValueOnce({ text: JSON.stringify(EMPTY) })
+      .mockResolvedValueOnce({ text: JSON.stringify(DRAFT) });
+    const draft = await extractMenu(input);
+    expect(modelsCalled()).toEqual(["primary", "backup-a"]);
+    expect(draft.items).toHaveLength(1);
+  });
+
+  it("keeps an empty read when every later model is out of quota", async () => {
+    const EMPTY = { ...DRAFT, items: [] };
+    generateContent
+      .mockResolvedValueOnce({ text: JSON.stringify(EMPTY) })
+      .mockRejectedValueOnce(httpError(429))
+      .mockRejectedValueOnce(httpError(429));
+    const draft = await extractMenu(input);
+    expect(modelsCalled()).toEqual(["primary", "backup-a", "backup-b"]);
+    expect(draft.items).toEqual([]);
+  });
+
   it("moves to the next model when one is out of free quota", async () => {
     generateContent.mockRejectedValueOnce(httpError(429)).mockResolvedValueOnce({ text: JSON.stringify(DRAFT) });
     const draft = await extractMenu(input);
