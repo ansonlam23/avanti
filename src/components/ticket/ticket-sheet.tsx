@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { TicketOrder } from "@/lib/orders/progress";
-import { LiveTicket } from "./live-ticket";
+import { LiveTicket, TICKET_COLUMN } from "./live-ticket";
 
 // After "Confirm & hold" the shopper is led to their ticket: it slides up over
 // the chat (CONTRACTS §18). An errand's Confirm all brings every ticket, stacked.
@@ -50,21 +50,19 @@ export function TicketSheet({
           exit={{ y: "100%", transition: { duration: 0.35, ease: [0.4, 0, 1, 1] } }}
           transition={{ duration: 0.7, ease: RISE }}
         >
-          <div className="mx-auto flex min-h-full w-full max-w-[560px] flex-col px-5 pb-[max(env(safe-area-inset-bottom),28px)] pt-[max(env(safe-area-inset-top),16px)] lg:max-w-[960px] lg:pt-8">
-            <div className="flex items-center justify-between gap-4">
+          {/* one centred column (the ticket's width), the way back above it */}
+          <div className="flex min-h-full w-full flex-col items-center px-5 pb-[max(env(safe-area-inset-bottom),28px)] pt-[max(env(safe-area-inset-top),16px)] lg:pt-8">
+            <div className={TICKET_COLUMN}>
               <button ref={back} type="button" onClick={onClose} className="btn-quiet -ml-3 text-[17px]! text-ink">
                 <ArrowLeft className="size-5" strokeWidth={1.6} aria-hidden /> Back to chat
               </button>
+              <h2 className="mt-4 font-display text-[34px] font-normal leading-[1.08] text-carbon lg:text-[44px]">
+                {ids.length > 1 ? "Your tickets" : "Your ticket"}
+              </h2>
             </div>
-            <h2 className="mt-4 font-display text-[34px] font-normal leading-[1.08] text-carbon lg:mt-6 lg:text-[44px]">
-              {ids.length > 1 ? "Your tickets" : "Your ticket"}
-            </h2>
-            <p className="mt-2 text-[16px] leading-snug text-ink-muted lg:text-[17px]">
-              {ids.length > 1 ? "One for each shop. They're saved on this phone." : "Show the code at the counter. It's saved on this phone."}
-            </p>
-            <div className="mt-6 flex flex-col items-center gap-10 lg:mt-8">
+            <div className="mt-6 flex w-full flex-col items-center gap-12 lg:mt-8 lg:gap-16">
               {ids.map((id) => (
-                <LiveTicket key={id} id={id} initial={orders[id] ?? null} wide />
+                <LiveTicket key={id} id={id} initial={orders[id] ?? null} />
               ))}
             </div>
           </div>

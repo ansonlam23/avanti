@@ -1,7 +1,7 @@
 // The pickup ticket's live status (CONTRACTS §18). Pure, unit-tested.
 //
-// After "Confirm & hold" the shopper gets a ticket: Sent → {shop} saw it →
-// Ready → Picked up. Three timestamps on the order drive it (migration 0007):
+// After "Confirm & hold" the shopper gets a ticket: Sent → Preparing → Ready →
+// Picked up. Three timestamps on the order drive it (migration 0007):
 // seen_at (the counter showed it to the owner), ready_at (the owner tapped
 // Ready), here_at (the shopper tapped "I'm here").
 import type { PublicOrder } from "@/lib/types";
@@ -21,34 +21,28 @@ export type TicketOrder = PublicOrder &
     shop_location?: string | null;
   };
 
-export type StepKey = "sent" | "seen" | "ready" | "picked";
+export type StepKey = "sent" | "preparing" | "ready" | "picked";
 
 export interface TicketStep {
   key: StepKey;
   label: string;
   done: boolean;
-  /** The step the order is waiting on (only while held). */
+  /** The step in progress (only while held). */
   current: boolean;
 }
 
-/** Sent → {shop} saw it → Ready → Picked up, for a held or paid order. */
-export function ticketSteps(order: Pick<TicketOrder, "status" | "shop_name"> & OrderProgress): TicketStep[] {
-  const paid = order.status === "paid";
-  const done: Record<StepKey, boolean> = {
-    sent: order.status === "held" || paid,
-    seen: paid || Boolean(order.seen_at || order.ready_at || order.here_at),
-    ready: paid || Boolean(order.ready_at),
-    picked: paid,
-  };
-  const labels: Record<StepKey, string> = {
-    sent: "Sent",
-    seen: `${shortShop(order.shop_name)} saw it`,
-    ready: "Ready",
-    picked: "Picked up",
-  };
-  const keys: StepKey[] = ["sent", "seen", "ready", "picked"];
-  const waiting = order.status === "held" ? keys.find((k) => !done[k]) : undefined;
-  return keys.map((key) => ({ key, label: labels[key], done: done[key], current: key === waiting }));
+/**
+ * Sent → Preparing → Ready → Picked up. While held, exactly one step is the one
+ * in progress: Sent until the counter has shown the order (seen_at), Preparing
+ * until the owner taps Ready, then Ready until pickup. Paid: all four done.
+ */
+export function ticketSteps(order: Pick<TicketOrder, "status"> & OrderProgress): TicketStep[] {
+  const keys: StepKey[] = ["sent", "preparing", "ready", "picked"];
+  const labels: Record<StepKey, string> = { sent: "Sent", preparing: "Preparing", ready: "Ready", picked: "Picked up" };
+  if (order.status === "paid") return keys.map((key) => ({ key, label: labels[key], done: true, current: false }));
+  const held = order.status === "held";
+  const stage = !held ? -1 : order.ready_at ? 2 : order.seen_at ? 1 : 0;
+  return keys.map((key, i) => ({ key, label: labels[key], done: held && i < stage, current: i === stage }));
 }
 
 /** "Mai's Bakery (demo)" → "Mai's Bakery": the step labels stay short. */

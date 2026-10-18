@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { OrderTicket } from "@/components/counter/order-ticket";
+import { TICKET_COLUMN } from "@/components/ticket/live-ticket";
 import { Ticket } from "@/components/ticket/ticket";
 import { TicketStamps } from "@/components/ticket/ticket-stamps";
 import type { LoyaltyCard } from "@/lib/loyalty/stamps";
@@ -62,7 +63,7 @@ export function TicketShot({ take, state }: { take: number; state: TicketShotSta
   const order = ticketOrder(state, readyNow);
   return (
     <main className="flex min-h-dvh w-full justify-center bg-counter px-5 py-10 lg:py-16">
-      <div className="flex w-full max-w-[440px] flex-col gap-5 lg:max-w-[904px] lg:flex-row lg:items-start lg:gap-6">
+      <div className={`${TICKET_COLUMN} flex flex-col gap-6 lg:gap-8`}>
         <Ticket order={order} here={{ busy: false, error: null }} onHere={noop} justReady={state === "ready"} onShare={noop} />
         <TicketStamps card={{ ...CARD, stamps: state === "paid" ? 3 : 2 }} paid={state === "paid"} />
       </div>

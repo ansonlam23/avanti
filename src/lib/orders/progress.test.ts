@@ -1,32 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { hereLine, missingProgressColumn, readyLine, shareText, shortShop, ticketSteps } from "./progress";
 
-const base = { shop_name: "Mai's Bakery (demo)", status: "held" as const };
+const base = { status: "held" as const };
 
 describe("ticketSteps", () => {
-  it("waits on the shop to see a fresh hold", () => {
-    const steps = ticketSteps(base);
-    expect(steps.map((s) => s.label)).toEqual(["Sent", "Mai's Bakery saw it", "Ready", "Picked up"]);
-    expect(steps.map((s) => s.done)).toEqual([true, false, false, false]);
-    expect(steps.find((s) => s.current)?.key).toBe("seen");
+  const steps = (o: Parameters<typeof ticketSteps>[0]) => ticketSteps(o);
+  const now = (o: Parameters<typeof ticketSteps>[0]) => steps(o).find((s) => s.current)?.label;
+
+  it("reads Sent → Preparing → Ready → Picked up", () => {
+    expect(steps(base).map((s) => s.label)).toEqual(["Sent", "Preparing", "Ready", "Picked up"]);
   });
 
-  it("moves on as the owner sees it and marks it ready", () => {
-    expect(ticketSteps({ ...base, seen_at: "t" }).find((s) => s.current)?.key).toBe("ready");
-    const ready = ticketSteps({ ...base, ready_at: "t" });
-    // ready implies seen, even if the counter's "seen" ping was missed
-    expect(ready.map((s) => s.done)).toEqual([true, true, true, false]);
-    expect(ready.find((s) => s.current)?.key).toBe("picked");
+  it("is Sent until the counter has shown the order", () => {
+    expect(now(base)).toBe("Sent");
+    expect(steps(base).some((s) => s.done)).toBe(false);
+    // the shopper saying "I'm here" doesn't mean the shop has seen it
+    expect(now({ ...base, here_at: "t" })).toBe("Sent");
   });
 
-  it("marks every step done once picked up, with nothing current", () => {
-    const steps = ticketSteps({ ...base, status: "paid" });
-    expect(steps.every((s) => s.done)).toBe(true);
-    expect(steps.some((s) => s.current)).toBe(false);
+  it("is Preparing once seen, Ready once the owner taps Ready", () => {
+    expect(now({ ...base, seen_at: "t" })).toBe("Preparing");
+    const ready = steps({ ...base, seen_at: "t", ready_at: "t" });
+    expect(ready.map((s) => s.done)).toEqual([true, true, false, false]);
+    expect(ready.find((s) => s.current)?.label).toBe("Ready");
+    // ready without a recorded "seen" still counts as past Preparing
+    expect(now({ ...base, ready_at: "t" })).toBe("Ready");
   });
 
-  it("has nothing current for a released order", () => {
-    expect(ticketSteps({ ...base, status: "released" }).some((s) => s.current)).toBe(false);
+  it("marks every step done once picked up, with nothing in progress", () => {
+    const paid = steps({ ...base, status: "paid" });
+    expect(paid.every((s) => s.done)).toBe(true);
+    expect(paid.some((s) => s.current)).toBe(false);
+  });
+
+  it("has nothing in progress for a released order", () => {
+    expect(steps({ ...base, status: "released" }).some((s) => s.current || s.done)).toBe(false);
   });
 });
 
