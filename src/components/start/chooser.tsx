@@ -49,8 +49,8 @@ export function Chooser() {
         <h1 className="sr-only">Are you shopping, or are you the shop?</h1>
 
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:gap-8">
-          <Door href="/ask" title="I'm shopping" line="Ask for anything nearby. Pick it up." delay={0.1} />
-          <Door href="/open" title="I'm the shop" line="Snap your counter. Say your prices." delay={0.2} />
+          <Door href="/ask" title="I'm shopping" line="Ask for anything nearby." delay={0.1} />
+          <Door href="/open" title="I'm the shop" line="Take orders from AI shoppers." delay={0.2} />
         </div>
 
         <p className="lp-rise mt-6 text-center lg:mt-[clamp(1.25rem,3.5vh,2.25rem)]" style={rise(0.34)}>
