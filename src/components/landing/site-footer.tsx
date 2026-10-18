@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/utils";
-import { GITHUB_URL } from "./site-nav";
 
-/** One quiet line: the name, who built it, how AI and data are used, where the code is (and whose photo it is, when one is shown). */
+/** One quiet line: the name and how AI and data are used (and whose photo it is, when one is shown). The code's link lives in the top menu. */
 export function SiteFooter({
   photoCredit = false,
   privacyLink = true,
@@ -21,7 +20,6 @@ export function SiteFooter({
           <Link href="/" aria-label="avanti, home" className="inline-flex min-h-11 items-center">
             <Wordmark className="text-[24px]" />
           </Link>
-          <span>Built at DubHacks &apos;26 for the Visa track.</span>
         </p>
         <p className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
           {photoCredit ? (
@@ -39,9 +37,6 @@ export function SiteFooter({
               How avanti uses AI
             </Link>
           ) : null}
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="btn-quiet px-0 text-[15px]">
-            Source on GitHub
-          </a>
         </p>
       </div>
     </footer>
