@@ -53,7 +53,7 @@ export function createAvantiMcpServer(opts: AvantiMcpOptions): McpServer {
   const now = opts.now ?? (() => new Date());
   const isListed = opts.isListedShop ?? dbIsListedShop;
   // Strangers' view: search shows listed shops only (no "my shops" here).
-  const ctx = (): ToolContext => ({ now: now(), myShops: [] });
+  const ctx = (): ToolContext => ({ now: now(), myShops: [], source: "mcp" });
 
   const server = new McpServer(
     {

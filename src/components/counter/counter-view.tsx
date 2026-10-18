@@ -14,6 +14,7 @@ import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { AiLimit } from "./ai-limit";
 import { CodePad } from "./code-pad";
 import { DoorLog } from "./door-log";
+import { InsightsPanel } from "./insights-panel";
 import { MenuRows } from "./menu-rows";
 import { OrderStrip, OrderTicket } from "./order-ticket";
 import { useWide } from "./use-wide";
@@ -127,7 +128,13 @@ export function CounterView({
       <MenuRows items={items} rules={shop.rules} busyId={busy} onToggleSoldOut={onToggleSoldOut} onToggleAiOrderable={onToggleAiOrderable} />
     </div>
   );
-  const door = <DoorLog stats={stats} events={events} onSimulate={onSimulate} simulating={simulating} />;
+  // The door log, then what AI shoppers asked for today (under it on laptop; after it in the phone's tab).
+  const door = (
+    <>
+      <DoorLog stats={stats} events={events} onSimulate={onSimulate} simulating={simulating} />
+      <InsightsPanel slug={shop.slug} orders={orders} />
+    </>
+  );
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-16 pt-[max(env(safe-area-inset-top),14px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24 lg:pt-7">

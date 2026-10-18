@@ -1,5 +1,7 @@
 import "server-only";
 import { isToolName, type ToolFailure, type ToolResult } from "@/lib/ai/shopper-types";
+import { logSearch } from "@/lib/insights/log";
+import type { AiQuerySource } from "@/lib/insights/types";
 import { askShopResult } from "./ask-shop";
 import { loadPublicOrder, loadSearchableShops, loadShop } from "./catalog";
 import { parseToolArgs } from "./declarations";
@@ -17,6 +19,8 @@ export interface ToolContext {
   now: Date;
   /** Slugs of this browser's own (private) shops, from getMyShops(). */
   myShops: string[];
+  /** Who is searching, for the owners' insights log (CONTRACTS §16): "chat" (default, /ask) or "mcp". */
+  source?: AiQuerySource;
 }
 
 function failure(error: string, message: string): ToolFailure {
@@ -33,7 +37,10 @@ export async function runTool(name: string, rawArgs: unknown, ctx: ToolContext):
       case "search_shops": {
         const p = parseToolArgs(name, rawArgs);
         if (!p.ok) return failure("bad_args", p.message);
-        return searchCatalog(await loadSearchableShops(myShops), p.args, now, { myShops });
+        const result = searchCatalog(await loadSearchableShops(myShops), p.args, now, { myShops });
+        // Owner insights: one anonymous row per search, inserted after the response (never awaited here).
+        logSearch(ctx.source ?? "chat", p.args, result);
+        return result;
       }
       // The rest act on a shop the conversation already references (by slug):
       // reachable like its public link, never surfaced by search for strangers.
