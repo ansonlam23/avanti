@@ -14,8 +14,10 @@ import { StepHeading } from "./step-heading";
 /**
  * Real, freely licensed counter photos for people trying the demo without one (the AI still reads them live).
  * - "The Bakery off Augusta", Greenville Daily Photo, CC0 (public domain: no credit required, so none is shown).
- * - "Phil's Fresh Squeezed Lemonade - 2023 Marin County Fair", Sarah Stierch, CC BY 4.0 (credit shown under the
- *   links): its sign has prices, so the AI reads four of them off the photo and marks the covered one "needs a price".
+ * - "Phil's Fresh Squeezed Lemonade - 2023 Marin County Fair", Sarah Stierch, CC BY 4.0
+ *   (commons.wikimedia.org/wiki/File:Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg):
+ *   its sign has prices, so the AI reads four of them off the photo and marks the covered one "needs a price".
+ *   Credited in the link's tooltip and in DEMO-SHOPS.md.
  */
 const SAMPLES = {
   bakery: {
@@ -27,8 +29,6 @@ const SAMPLES = {
 } as const;
 type SampleId = keyof typeof SAMPLES;
 
-const LEMONADE_PAGE = "https://commons.wikimedia.org/wiki/File:Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg";
-const CC_BY_4 = "https://creativecommons.org/licenses/by/4.0/";
 
 const FINE_POINTER = "(hover: hover) and (pointer: fine)";
 function subscribePointer(cb: () => void) {
@@ -180,19 +180,15 @@ export function SnapStep({
             <button type="button" onClick={() => void loadSample("bakery")} disabled={working} className="link-ink text-[19px]!">
               Sample bakery <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
-            <button type="button" onClick={() => void loadSample("lemonade")} disabled={working} className="link-ink text-[19px]!">
+            <button
+              type="button"
+              onClick={() => void loadSample("lemonade")}
+              disabled={working}
+              title="Photo: Sarah Stierch, CC BY 4.0 (Wikimedia Commons)"
+              className="link-ink text-[19px]!"
+            >
               Lemonade stand, with prices <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
-          </span>
-          <span className="mt-1 text-[15px] text-ink-muted">
-            Lemonade stand photo:{" "}
-            <a href={LEMONADE_PAGE} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
-              Sarah Stierch
-            </a>
-            ,{" "}
-            <a href={CC_BY_4} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
-              CC BY 4.0
-            </a>
           </span>
         </div>
       </div>
