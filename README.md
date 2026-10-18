@@ -44,3 +44,20 @@ pnpm db:migrate              # needs SUPABASE_DB_URL
 pnpm keys:agent              # creates the shopper agent's signing key
 pnpm dev
 ```
+
+## Credits
+Demo shops are labeled **demo** and their names are fictional. Payments use Visa sandbox test cards, so no real money moves.
+
+| Shop | Photo | Credit |
+|---|---|---|
+| Mai's Bakery | Bakery display case with handwritten price cards | James Collington, [Pexels 31132630](https://www.pexels.com/photo/31132630/) |
+| Ave Bakery | Whole chocolate cake on a glass stand | American Heritage Chocolate, [Unsplash Id8BO472TbY](https://unsplash.com/photos/Id8BO472TbY) |
+| Góc Phố Market | Cozy corner of an Asian grocery store | Paolo Sanchez, [Pexels 34357798](https://www.pexels.com/photo/34357798/) |
+| Petal Cart | Buckets of flowers outside a shop | Feyza Nur, [Pexels 9153436](https://www.pexels.com/photo/9153436/) |
+| Cielito Taco Truck | Tacos on a table | Amar Preciado, [Pexels 18032209](https://www.pexels.com/photo/18032209/) |
+| Tall Stack Books | A bookstore stall on a street | Ayman N. Yusuf, [Pexels 5810801](https://www.pexels.com/photo/5810801/) |
+| Rabbit & Rook Prints | A wall of colorful art prints | Markus Spiske, [Unsplash dJo4Qhtu2sg](https://unsplash.com/photos/dJo4Qhtu2sg) |
+| Sample on /open | "Phil's Fresh Squeezed Lemonade - 2023 Marin County Fair" | Sarah Stierch, [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+
+Shop photos are used under the [Pexels License](https://www.pexels.com/license/) and the [Unsplash License](https://unsplash.com/license). Landing and brand media credits: `public/landing/CREDITS.md`, `public/brand/CREDITS.md`.
+
