@@ -103,7 +103,9 @@ export function orderSentence(o: DashboardOrder): string {
   const who = o.customer_name ? ` for ${o.customer_name}` : "";
   const when = o.pickup_time ? `pickup at ${formatTime(o.pickup_time)}` : "pickup today";
   const held = o.payment_mode === "simulated" ? "held" : "held on Visa";
-  return `New order: ${what}${who}, ${when}. ${formatCents(o.amount_cents)} ${held}.`;
+  // a regular whose card is full: the owner hears it before they hand the order over
+  const reward = o.reward_due && o.reward ? ` A regular: give ${o.reward}.` : "";
+  return `New order: ${what}${who}, ${when}. ${formatCents(o.amount_cents)} ${held}.${reward}`;
 }
 
 /** One line in the counter's voice (the same voice for orders and replies). */
