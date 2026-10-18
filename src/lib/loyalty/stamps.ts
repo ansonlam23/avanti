@@ -107,7 +107,14 @@ export function toGoLine(toGo: number, reward: string): string {
   return `${toGo} more for ${reward}`;
 }
 
-/** The shopper's card, the pickup that earned it. */
+/** The shopper's card, the pickup that earned it: "This one's on the house: a free cookie". */
+export const EARNED_LEAD = "This one's on the house:";
 export function earnedLine(reward: string): string {
-  return `This one's on the house: ${reward}`;
+  return `${EARNED_LEAD} ${reward}`;
+}
+
+/** Seals per row on the card: one row up to 6, else even rows of at most 6 (7 → 4 + 3, 10 → 5 + 5, 20 → 5 × 4). */
+export function sealColumns(every: number): number {
+  if (every <= 6) return Math.max(1, every);
+  return Math.ceil(every / Math.ceil(every / 6));
 }

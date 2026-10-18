@@ -5,6 +5,7 @@ import {
   ordinal,
   regularLine,
   rewardDue,
+  sealColumns,
   toGoLine,
   visitNumber,
   visitsByOrder,
@@ -129,5 +130,9 @@ describe("copy", () => {
   it("the shopper's card lines", () => {
     expect(toGoLine(2, "a free cookie")).toBe("2 more for a free cookie");
     expect(earnedLine("a free cookie")).toBe("This one's on the house: a free cookie");
+  });
+
+  it("lays seals out in even rows of at most 6", () => {
+    expect([2, 5, 6, 7, 8, 9, 10, 12, 13, 15, 20].map(sealColumns)).toEqual([2, 5, 6, 4, 4, 5, 5, 6, 5, 5, 5]);
   });
 });
