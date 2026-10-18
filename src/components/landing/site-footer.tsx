@@ -3,8 +3,17 @@ import { Wordmark } from "@/components/brand/wordmark";
 import { cn } from "@/lib/utils";
 import { GITHUB_URL } from "./site-nav";
 
-/** One quiet line: the name, who built it, where the code is (and whose photo it is, when one is shown). */
-export function SiteFooter({ photoCredit = false, className }: { photoCredit?: boolean; className?: string }) {
+/** One quiet line: the name, who built it, how AI and data are used, where the code is (and whose photo it is, when one is shown). */
+export function SiteFooter({
+  photoCredit = false,
+  privacyLink = true,
+  className,
+}: {
+  photoCredit?: boolean;
+  /** Off on /privacy itself. */
+  privacyLink?: boolean;
+  className?: string;
+}) {
   return (
     <footer className={cn("mx-auto w-full max-w-page px-6 pb-12 pt-6 md:px-10", className)}>
       <div className="flex flex-col items-center gap-3 border-t border-ink/16 pt-6 text-center text-[15px] leading-relaxed text-ink-muted lg:flex-row lg:justify-between lg:text-left">
@@ -24,6 +33,11 @@ export function SiteFooter({ photoCredit = false, className }: { photoCredit?: b
             >
               Photo: James Collington, Pexels
             </a>
+          ) : null}
+          {privacyLink ? (
+            <Link href="/privacy" className="btn-quiet px-0 text-[15px]">
+              How avanti uses AI
+            </Link>
           ) : null}
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="btn-quiet px-0 text-[15px]">
             Source on GitHub

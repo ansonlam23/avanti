@@ -91,7 +91,7 @@ export function PrivacyPage({ payments, shopperAi }: { payments: PaymentMode; sh
           </ul>
         </section>
       </main>
-      <SiteFooter />
+      <SiteFooter privacyLink={false} />
     </div>
   );
 }
