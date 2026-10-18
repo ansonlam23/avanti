@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { Fragment, useMemo } from "react";
 import { Receipt, SimulatedBadge, Stamp } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import type { OrderProposal } from "@/lib/ai/shopper-types";
@@ -11,6 +12,8 @@ import { cn } from "@/lib/utils";
 import { RISE } from "./ink";
 import { receiptProps } from "./order-reveal";
 import type { ProposalState } from "./use-shopper";
+import { factsFor, orderReasons } from "./why";
+import { useWhySources } from "./why-store";
 
 // The order card: a paper slip not placed yet, with ONE action. Money
 // decisions always land on paper. After the tap, a focus reveal plays
@@ -97,9 +100,13 @@ function Preview({
     : failed
       ? `Try again · hold ${amount}`
       : `Confirm & hold ${amount}`;
+  // "Why this shop?": only facts the chat's own cards hold (why.ts); nothing guessed.
+  const sources = useWhySources();
+  const reasons = useMemo(() => orderReasons(proposal, factsFor(sources, proposal)), [sources, proposal]);
+  const walkInWhy = reasons.some((r) => r.kind === "walk");
   const meta = [
     `Pickup ${proposal.pickup_label}`,
-    proposal.walk_minutes !== null ? `${proposal.walk_minutes} min walk` : null,
+    proposal.walk_minutes !== null && !walkInWhy ? `${proposal.walk_minutes} min walk` : null,
     proposal.is_demo ? "demo shop" : null,
   ].filter(Boolean);
 
@@ -111,6 +118,18 @@ function Preview({
       <p className={cn(LABEL, "text-ink-muted")}>Not placed yet</p>
       <h3 className="mt-2 font-display text-[30px] font-normal leading-[1.08] text-ink">{proposal.shop_name}</h3>
       <p className="mt-1.5 text-[15px] text-ink-muted lg:text-[16px]">{meta.join(" · ")}</p>
+      {reasons.length ? (
+        <p className="mt-1 text-[15px] leading-snug text-ink-muted lg:text-[16px]">
+          <span className="font-semibold text-ink">Why:</span>
+          {reasons.map((r, i) => (
+            // each reason stays whole; the line only breaks between them
+            <Fragment key={r.kind}>
+              {i ? " · " : " "}
+              <span className="whitespace-nowrap">{r.text}</span>
+            </Fragment>
+          ))}
+        </p>
+      ) : null}
 
       <div aria-hidden className="ask-rule my-4" />
       <p className="flex items-baseline gap-2 text-[16px] lg:text-[17px]">

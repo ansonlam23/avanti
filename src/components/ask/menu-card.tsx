@@ -1,10 +1,12 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useMemo } from "react";
 import { ChalkMenu } from "@/components/brand";
 import type { AskShopResult, MenuResult } from "@/lib/ai/shopper-types";
 import { formatClock, formatPriceShort } from "@/lib/format";
 import { RISE, RISE_S } from "./ink";
+import { useShareWhy } from "./why-store";
 
 /** get_menu → the shop's live menu slip (sold-out lines struck in the owner's pen). Square, never tilted. */
 export function MenuCard({
@@ -16,6 +18,8 @@ export function MenuCard({
   gone: Record<string, true>;
   highlightId?: string | null;
 }) {
+  // the live tags and the owner's AI cap back the order card's "Why" line
+  useShareWhy(useMemo(() => ({ kind: "menu" as const, result }), [result]));
   const { shop } = result;
   const items = result.items.slice(0, 8).map((i) => {
     const note = i.name_en ?? (i.tags.length ? i.tags.slice(0, 3).join(" · ") : null);
@@ -53,6 +57,8 @@ export function MenuCard({
  * The shop's own words: on the teal wash (the shop's side).
  */
 export function ShopSaysCard({ result }: { result: AskShopResult }) {
+  // what was asked ("nuts?") and the item's own tags back the order card's "Why" line
+  useShareWhy(useMemo(() => ({ kind: "ask" as const, result }), [result]));
   if (!result.topics.length) return null;
   return (
     <motion.section

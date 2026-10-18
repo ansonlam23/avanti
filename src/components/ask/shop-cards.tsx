@@ -1,11 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
+import { Fragment, useMemo } from "react";
 import { Stamp } from "@/components/brand";
 import type { ItemSummary, SearchShop, SearchShopsResult } from "@/lib/ai/shopper-types";
-import { formatClock, formatPriceShort } from "@/lib/format";
+import { formatPriceShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { RISE, RISE_S } from "./ink";
+import { askedNeeds, shopLine } from "./why";
+import { useShareWhy, useWhySources } from "./why-store";
 
 const MAX_CARDS = 3;
 
@@ -18,6 +21,8 @@ export function SearchResults({
   gone: Record<string, true>;
   mine: readonly string[];
 }) {
+  // what this search found (tags, deadline, the owner's AI cap) backs the order card's "Why" line
+  useShareWhy(useMemo(() => ({ kind: "search" as const, result }), [result]));
   if (!result.shops.length) return null;
   const shown = result.shops.slice(0, MAX_CARDS);
   const more = result.shops.length - shown.length;
@@ -38,7 +43,7 @@ export function SearchResults({
   );
 }
 
-/** A shop as a paper slip: name, distance + pickup, and what matched, as slip lines with leaders. */
+/** A shop as a paper slip: name, why it fits (the need it meets, distance, pickup), and what matched. */
 export function ShopCard({
   shop,
   neededBy,
@@ -50,17 +55,10 @@ export function ShopCard({
   gone: Record<string, true>;
   mine: boolean;
 }) {
-  const when =
-    neededBy && shop.ready_by_needed !== null
-      ? shop.ready_by_needed
-        ? `ready by ${neededBy}`
-        : `can't make ${neededBy}`
-      : shop.pickup_open_now
-        ? `pickup till ${formatClock(shop.pickup_window.end)}`
-        : shop.earliest_pickup
-          ? `pickup from ${shop.earliest_pickup}`
-          : null;
-  const meta = [shop.walk_minutes !== null ? `${shop.walk_minutes} min walk` : shop.location_label, when].filter(Boolean);
+  // reasons first, said short: "nut-free · 11 min walk · ready by 6 PM" (only what the shop's data says)
+  const sources = useWhySources();
+  const asked = useMemo(() => askedNeeds(sources), [sources]);
+  const meta = shopLine(shop, neededBy, asked, gone);
   const extra = Math.max(0, shop.matches.length - 3) + shop.more_matches;
 
   return (
@@ -69,7 +67,15 @@ export function ShopCard({
         <ShopPhoto url={shop.photo_url} name={shop.name} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-display text-[25px] font-normal leading-[1.1] text-ink lg:text-[27px]">{shop.name}</h3>
-          <p className="mt-1 truncate text-[15px] text-ink-muted lg:text-[16px]">{meta.join(" · ")}</p>
+          <p className="mt-1 text-[15px] leading-snug text-ink-muted lg:text-[16px]">
+            {meta.map((part, i) => (
+              <Fragment key={part}>
+                {i ? " · " : null}
+                {/* short parts stay whole; a long street name may still wrap */}
+                <span className={part.length <= 24 ? "whitespace-nowrap" : undefined}>{part}</span>
+              </Fragment>
+            ))}
+          </p>
           <div className="mt-2.5 flex flex-wrap gap-x-2 gap-y-1.5">
             {shop.accepts_ai_orders ? (
               <a
@@ -119,7 +125,7 @@ function MatchRow({ item, gone }: { item: ItemSummary; gone: boolean }) {
         <span className={cn("min-w-0 break-words", soldOut && "line-through decoration-ink/50 decoration-1")}>{item.name}</span>
         <span aria-hidden className="leader min-w-0!" />
         <span className={cn("shrink-0 font-mono text-[15px] tabular-nums lg:text-[16px]", item.price_cents === null && "font-sans text-ink-muted")}>
-          {item.price_cents === null ? "no price" : formatPriceShort(item.price_cents)}
+          {item.price_cents === null ? "needs a price" : formatPriceShort(item.price_cents)}
         </span>
       </div>
       {soldOut ? (
