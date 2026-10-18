@@ -8,11 +8,10 @@ import { useEffect, useRef } from "react";
 // birds cross the sky behind the wordmark. Only "avanti" and one quiet link
 // sit on top. Styles: `land-*` in src/styles/landing.css. Media: /public/landing.
 //
-// The robot is alive in small ways, all in the plate's ink: its screen eyes blink,
-// their pupils follow you, they go wide when you come close and smile (^ ^) for
-// "get started", after a surprise, at its visitor and now and then on their own;
+// The robot is alive in small ways, all in the plate's ink: its screen always
+// smiles (^ ^) and blinks now and then; its head follows you (or the lead crane);
 // a few seconds after the page opens (and on later passes) one of the small birds
-// lands on its monitor for a while. A plum blossom sits in its lapel.
+// lands on its monitor and rides along for a while. A plum blossom sits in its lapel.
 
 const MEDIA = "/landing";
 const FW = 1920; // the plate's own pixel grid (1920 × 1080)
@@ -43,8 +42,8 @@ const EYES: readonly (readonly [Eye, Eye])[] = [
   [[452.0, 144.0, 52.4, 77.0], [555.4, 150.0, 49.3, 76.2]],
   [[460.1, 144.4, 50.8, 76.2], [560.1, 150.9, 47.0, 76.2]],
 ];
-// The same screens with the eyes painted out (a 6 × 3 sheet of 251 × 144 cells), so the eyes can close, smile or
-// go wide: per head frame, the region [x, y, w, h] it covers in the robot canvas.
+// The same screens with the eyes painted out (a 6 × 3 sheet of 251 × 144 cells), so the smile can be drawn on:
+// per head frame, the region [x, y, w, h] it covers in the robot canvas.
 const EYELESS = {
   src: `${MEDIA}/robot-eyes.webp`,
   cw: 251,
@@ -71,13 +70,10 @@ const CLOTHES = [{ src: `${MEDIA}/robot-blossom.webp`, x: 500, y: 548 }];
 // (fx, fy); drawn a touch larger than the flock (`size`) so it reads on the monitor.
 const PERCHED = { src: `${MEDIA}/bird-perch.webp`, cw: 102, ch: 87, fx: 48, fy: 78, scale: 3, size: 1.25 };
 
-// The eyes' own look: pale paper with a soft halo on the dark screen and a thin ring; ink pupils with a catchlight.
+// The smile's look, the screen's own glow: pale paper with a soft halo on the dark screen.
 const EYE_PAPER = "#ede7e0";
 const EYE_GLOW = "rgba(242, 237, 229, 0.95)";
-const EYE_RING = "rgba(84, 112, 118, 0.5)";
-const PUPIL = "#0c2f38";
-const PUPIL_R = 12.5; // one pupil size in every head frame and every state (robot canvas px): pupils move, never scale
-type EyeMode = "open" | "squint" | "closed" | "happy" | "wide";
+type EyeMode = "happy" | "closed"; // ^ ^, or the blink's quick squeeze to a soft line
 
 type Flyer = { src: string; frames: number; cw: number; ch: number; ax: number; ay: number; lag: number; dy: number; phase: number; scale?: number; img?: HTMLImageElement };
 
@@ -147,84 +143,37 @@ export function InkLanding() {
       return { ...c, im };
     });
     let ready = false;
-    let eyelessReady = false;
     let cur = R.ref;
     let target = R.ref;
     let stepClock = 0;
     let lastPointer = -1e9;
-    let pointer = { x: 0, y: 0 }; // the mouse, in client px
     let hovered = false; // "get started" under the mouse
     let focused = false; // "get started" focused
-    let mode: EyeMode = "open";
-    const look = { x: 0, y: 0.15 }; // where the pupils point: a vector inside the unit circle, eased
-    const want = { x: 0, y: 0.15 };
+    let glow = 0; // the smile glows a touch brighter while "get started" is hovered or focused (eased 0–1)
+    let mode: EyeMode = "happy";
     let painted = ""; // what the head canvas shows now, so identical frames aren't repainted
-    const pupils = !reduce; // reduced motion: the plain open eyes
 
-    const faceAt = (k: number) => {
-      const [a, b] = EYES[k];
-      return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 };
-    };
     const drawEye = ([cx, cy, w, h]: Eye, m: EyeMode) => {
+      // happy: an upturned arc (^); closed: the blink's soft line with a little smile in it
+      const happy = m === "happy";
+      const y = cy + h * (happy ? 0.16 : 0.08);
       rx.save();
       rx.shadowColor = EYE_GLOW;
-      rx.shadowBlur = 16;
-      rx.fillStyle = EYE_PAPER;
+      rx.shadowBlur = 16 + 8 * glow;
       rx.strokeStyle = EYE_PAPER;
       rx.lineCap = "round";
-      if (m === "wide" || m === "squint") {
-        const sx = m === "wide" ? 1.18 : 1.02;
-        const sy = m === "wide" ? 1.14 : 0.3;
-        const y = cy + (m === "squint" ? h * 0.12 : 0);
-        rx.beginPath();
-        rx.ellipse(cx, y, (w / 2) * sx, (h / 2) * sy, 0, 0, Math.PI * 2);
-        rx.fill();
-        rx.fill();
-        rx.shadowBlur = 0;
-        rx.strokeStyle = EYE_RING;
-        rx.lineWidth = 2.2;
-        rx.beginPath();
-        rx.ellipse(cx, y, (w / 2) * sx - 1.5, Math.max(1, (h / 2) * sy - 1.5), 0, 0, Math.PI * 2);
-        rx.stroke();
-      } else {
-        // closed: a soft line with a little smile in it; happy: an upturned arc (^ ^)
-        const happy = m === "happy";
-        const y = cy + h * (happy ? 0.16 : 0.08);
-        rx.lineWidth = w * (happy ? 0.19 : 0.13);
-        rx.beginPath();
-        rx.moveTo(cx - w * 0.44, y);
-        rx.quadraticCurveTo(cx, happy ? cy - h * 0.42 : y + h * 0.14, cx + w * 0.44, y);
-        rx.stroke();
-        rx.stroke();
-      }
-      rx.restore();
-    };
-    const drawPupil = ([cx, cy, w, h]: Eye, wide: boolean) => {
-      // the same size everywhere; only how far it can travel follows the eye (wide eyes are drawn 1.18 × 1.14)
-      const r = PUPIL_R;
-      const ew = wide ? w * 1.18 : w;
-      const eh = wide ? h * 1.14 : h;
-      const x = cx + look.x * Math.max(0, ew / 2 - r - 5);
-      const y = cy + look.y * Math.max(0, eh / 2 - r - 6);
-      rx.save();
-      rx.fillStyle = PUPIL;
-      rx.shadowColor = "rgba(12, 47, 56, 0.45)";
-      rx.shadowBlur = 2;
+      rx.lineWidth = w * (happy ? 0.19 : 0.13);
       rx.beginPath();
-      rx.arc(x, y, r, 0, Math.PI * 2);
-      rx.fill();
-      rx.shadowBlur = 0;
-      rx.fillStyle = "rgba(243, 238, 231, 0.9)";
-      rx.beginPath();
-      rx.arc(x - r * 0.34, y - r * 0.36, r * 0.26, 0, Math.PI * 2);
-      rx.fill();
+      rx.moveTo(cx - w * 0.44, y);
+      rx.quadraticCurveTo(cx, happy ? cy - h * 0.42 : y + h * 0.14, cx + w * 0.44, y);
+      rx.stroke();
+      rx.stroke();
       rx.restore();
     };
     const paintHead = () => {
       if (!ready) return;
       const k = cur;
-      const m: EyeMode = mode !== "open" && !eyelessReady ? "open" : mode;
-      const sig = `${k}|${m}|${pupils ? `${Math.round(look.x * 60)},${Math.round(look.y * 60)}` : "-"}`;
+      const sig = `${k}|${mode}|${Math.round(glow * 12)}`;
       if (sig === painted) return;
       painted = sig;
       const [px, py, pw, ph] = R.patch;
@@ -234,13 +183,10 @@ export function InkLanding() {
       rx.drawImage(body, 0, 0);
       rx.clearRect(px, py, pw, ph);
       rx.drawImage(heads, c * pw, r * ph, pw, ph, px, py, pw, ph);
-      const eyes = EYES[k];
-      if (m !== "open") {
-        const [ex, ey, ew, eh] = EYELESS.rects[k];
-        rx.drawImage(eyeless, c * EYELESS.cw, r * EYELESS.ch, ew, eh, ex, ey, ew, eh);
-        for (const e of eyes) drawEye(e, m);
-      }
-      if (pupils && (m === "open" || m === "wide")) for (const e of eyes) drawPupil(e, m === "wide");
+      // the screen without its old oval eyes, then the smile on it
+      const [ex, ey, ew, eh] = EYELESS.rects[k];
+      rx.drawImage(eyeless, c * EYELESS.cw, r * EYELESS.ch, ew, eh, ex, ey, ew, eh);
+      for (const e of EYES[k]) drawEye(e, mode);
       // the blossom over the head patch (the body image already has it below)
       rx.save();
       rx.beginPath();
@@ -249,7 +195,8 @@ export function InkLanding() {
       for (const cl of clothes) rx.drawImage(cl.im, cl.x, cl.y);
       rx.restore();
     };
-    Promise.all([body.decode(), heads.decode(), ...clothes.map((c) => c.im.decode())])
+    // the canvas takes over from the still (which already smiles) once everything it draws is ready
+    Promise.all([body.decode(), heads.decode(), eyeless.decode(), ...clothes.map((c) => c.im.decode())])
       .then(() => {
         if (!alive) return;
         ready = true;
@@ -258,88 +205,38 @@ export function InkLanding() {
         robot.dataset.live = "true";
       })
       .catch(() => {});
-    eyeless
-      .decode()
-      .then(() => {
-        eyelessReady = true;
-        painted = "";
-        paintHead();
-      })
-      .catch(() => {});
     const lookAt = (t: number) => {
       // t in [-1, 1]: the viewer's left … right
       t = Math.max(-1, Math.min(1, t));
       return Math.round(t < 0 ? R.ref * (1 + t) : R.ref + t * (R.frames - 1 - R.ref));
     };
 
-    /* ---------- the eyes: a blink every few seconds, wide when you come close, and long ^ ^ smiles:
-       while "get started" is hovered or focused and 3 s after, 3.5 s after a surprise, at the bird once it has
-       landed, and now and then on their own (3–5 s). A blink during a smile is a quick squeeze. ---------- */
-    let surpriseAt = -1e9;
-    let smileFrom = -1e9; // a smile can outlast its cause
-    let smileUntil = -1e9;
-    const smile = (from: number, until: number) => {
-      // extend a smile that is on (or about to be) rather than cut it short
-      if (from <= smileUntil && smileFrom <= from) smileUntil = Math.max(smileUntil, until);
-      else {
-        smileFrom = from;
-        smileUntil = until;
-      }
-    };
-    let nextIdleSmile = performance.now() + 9000 + Math.random() * 6000;
+    /* ---------- the eyes: always ^ ^, with a blink every 3–6 s (sometimes two): a quick squeeze, ~110 ms ---------- */
     let nextBlink = performance.now() + 2500 + Math.random() * 2500;
     let blinkAt = -1e9;
     let twice = false;
-    const blinkPhase = (t: number): EyeMode | null => (t < 0 ? null : t < 40 ? "squint" : t < 150 ? "closed" : t < 190 ? "squint" : null);
-    const eyeMode = (now: number, birdHere: boolean): EyeMode => {
-      if (now - surpriseAt < 900) return "wide";
+    const squeezed = (t: number) => t >= 0 && t < 110;
+    const eyeMode = (now: number): EyeMode => {
       if (now >= nextBlink) {
         blinkAt = now;
         twice = Math.random() < 0.25;
         nextBlink = now + 3000 + Math.random() * 3000;
       }
       const tb = now - blinkAt;
-      const blink = blinkPhase(tb) ?? (twice ? blinkPhase(tb - 300) : null);
-      let happy = hovered || focused || (now >= smileFrom && now < smileUntil);
-      if (now >= nextIdleSmile) {
-        // a smile of its own now and then, when nothing else is going on
-        if (!happy && !birdHere) {
-          smile(now, now + 3000 + Math.random() * 2000);
-          happy = true;
-        }
-        nextIdleSmile = now + 12000 + Math.random() * 8000;
-      }
-      if (happy) return blink === "closed" ? "closed" : "happy";
-      return blink ?? "open";
+      return squeezed(tb) || (twice && squeezed(tb - 300)) ? "closed" : "happy";
     };
 
     const onPointer = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
-      const now = performance.now();
-      pointer = { x: e.clientX, y: e.clientY };
-      lastPointer = now;
+      lastPointer = performance.now();
       const b = robot.getBoundingClientRect();
       target = lookAt((e.clientX - (b.left + b.width / 2)) / Math.max(260, innerWidth * 0.42));
-      // come close to its face and the eyes go wide for a moment
-      const f = faceAt(cur);
-      const fx = b.left + (f.x / R.w) * b.width;
-      const fy = b.top + (f.y / R.h) * b.height;
-      if (!hovered && !focused && now - surpriseAt > 4000 && Math.hypot(e.clientX - fx, e.clientY - fy) < Math.max(90, b.height * 0.3)) {
-        surpriseAt = now;
-        smile(now + 900, now + 900 + 3500); // then a long smile
-      }
     };
     if (finePointer && !reduce) addEventListener("pointermove", onPointer, { passive: true });
     const onEnter = () => (hovered = true);
-    const onLeave = () => {
-      hovered = false;
-      smile(performance.now(), performance.now() + 3000); // keep smiling a while after the pointer leaves
-    };
+    const onLeave = () => (hovered = false);
     const onFocus = () => (focused = true);
-    const onBlur = () => {
-      focused = false;
-      smile(performance.now(), performance.now() + 3000);
-    };
+    const onBlur = () => (focused = false);
     startLink.addEventListener("pointerenter", onEnter);
     startLink.addEventListener("pointerleave", onLeave);
     startLink.addEventListener("focus", onFocus);
@@ -373,13 +270,13 @@ export function InkLanding() {
       const y = yBase + c.dy + 90 * (1 - p) * (1 - p) - 12 * p + 7 * Math.sin(t * 0.7 + c.phase);
       return { x, y, f: Math.floor(t * 24 + c.phase) % c.frames };
     };
-    // the lander's state: in the flock, flying in, perched, flying off, or gone until the flock's next pass
+    // the lander's state: in the flock, flying in, perched, flying off, or gone until the flock's next pass.
     // While perched it rides the head: `k` is the head frame it last stood on, `wob`/`wv` a small balancing tilt
-    // (a damped spring nudged when the head steps), `glanceAt` the robot's next short look up at it.
+    // (a damped spring nudged when the head steps).
     const lander = {
       phase: "flock" as "flock" | "in" | "perch" | "out" | "gone",
       t0: 0, x: 0, y: 0, fx: 0, fy: 0, act: 1, actAt: 0, landed: -1e9, stay: 7000,
-      k: R.ref, wob: 0, wv: 0, glanceAt: 0,
+      k: R.ref, wob: 0, wv: 0,
     };
     const drawBirds = (t: number) => {
       bx.clearRect(0, 0, bc.width, bc.height);
@@ -407,7 +304,6 @@ export function InkLanding() {
       bx.drawImage(perchImg, f * PERCHED.cw, 0, PERCHED.cw, PERCHED.ch, -PERCHED.fx * s * k, -PERCHED.fy * s * k, PERCHED.cw * s * k, PERCHED.ch * s * k);
       bx.restore();
     };
-    const toRobot = (x: number, y: number) => ({ x: (x - rob.x) / rob.s, y: (y - rob.y) / rob.s });
     // the perch on head frame `kk`, in plate px
     const perchAt = (kk: number) => ({ x: rob.x + PERCH[kk][0] * rob.s, y: rob.y + (PERCH[kk][1] + FEET_DOWN) * rob.s });
     const updateLander = (t: number, now: number, dt: number) => {
@@ -448,8 +344,6 @@ export function InkLanding() {
           L.k = cur;
           L.wob = 0;
           L.wv = 0;
-          L.glanceAt = now + 3800 + 1200 + Math.random() * 1500;
-          smile(now + 1000, now + 3800); // it looks up at its visitor, smiles, then gets back to you
         }
         return;
       }
@@ -535,12 +429,11 @@ export function InkLanding() {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       drawBirds(t);
-      const lead = birdAt(cranes[0], t);
-      const craneNear = Math.abs(lead.x - FW / 2) < 820;
-      const recent = finePointer && now - lastPointer < 2600;
       if (ready) {
         // the head first (a bird on it or not), so a perched bird is drawn on this frame's monitor
-        if (!recent) target = craneNear ? lookAt((lead.x - FW / 2) / 640) : R.ref; // watch the lead crane while it is close
+        const lead = birdAt(cranes[0], t);
+        const recent = finePointer && now - lastPointer < 2600;
+        if (!recent) target = Math.abs(lead.x - FW / 2) < 820 ? lookAt((lead.x - FW / 2) / 640) : R.ref; // watch the lead crane while it is close
         stepClock += dt;
         if (cur !== target && stepClock > 1 / 20) {
           stepClock = 0;
@@ -549,39 +442,8 @@ export function InkLanding() {
       }
       updateLander(t, now, dt);
       if (ready) {
-        // the pupils: on the bird as it comes in and just after it lands (then the smile), on it again for a short
-        // glance every few seconds while it stays; otherwise on you, else on the lead crane, else just ahead
-        let watchBird = lander.phase === "in" || (lander.phase === "out" && now - lander.t0 < 700);
-        if (lander.phase === "perch") {
-          const since = now - lander.landed;
-          if (since < 1000) watchBird = true;
-          else if (since >= 3800) {
-            if (now >= lander.glanceAt + 700) lander.glanceAt = now + 2500 + Math.random() * 2000;
-            watchBird = now >= lander.glanceAt;
-          }
-        }
-        let to: { x: number; y: number } | null = null;
-        if (watchBird) to = toRobot(lander.x, lander.y - 8);
-        else if (recent) {
-          const b = robot.getBoundingClientRect();
-          to = { x: ((pointer.x - b.left) / b.width) * R.w, y: ((pointer.y - b.top) / b.height) * R.h };
-        } else if (craneNear) to = toRobot(lead.x, lead.y);
-        if (to) {
-          const f = faceAt(cur);
-          const dx = to.x - f.x;
-          const dy = to.y - f.y;
-          const d = Math.hypot(dx, dy) || 1;
-          const a = Math.min(1, d / 170);
-          want.x = (dx / d) * a;
-          want.y = (dy / d) * a;
-        } else {
-          want.x = 0;
-          want.y = 0.15;
-        }
-        const ease = Math.min(1, dt * 9);
-        look.x += (want.x - look.x) * ease;
-        look.y += (want.y - look.y) * ease;
-        mode = eyeMode(now, lander.phase === "in" || lander.phase === "perch");
+        glow += ((hovered || focused ? 1 : 0) - glow) * Math.min(1, dt * 8);
+        mode = eyeMode(now);
         paintHead();
       }
       raf = requestAnimationFrame(frame);
@@ -627,7 +489,7 @@ export function InkLanding() {
           <source src={`${MEDIA}/land.mp4`} type="video/mp4" />
         </video>
         <div ref={robotRef} className="land-robot">
-          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed still under the head canvas */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed still under the head canvas (it smiles too) */}
           <img src={`${MEDIA}/robot-body.webp`} alt="" width={827} height={808} decoding="sync" />
           <canvas ref={headRef} width={827} height={808} />
         </div>
