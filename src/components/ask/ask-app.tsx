@@ -239,11 +239,9 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
               <h1 className="sr-only">avanti shopper</h1>
               {/* the avanti logo + who's talking: "avanti shopper" */}
               <AppLogo section="shopper" />
-              <p className="@container -mt-1 w-full text-[15px] leading-tight text-ink-muted lg:-mt-0.5 lg:text-[16px]">
-                near UW campus
-                {/* phones: how avanti uses AI, in this line (a new tab, so the chat stays put);
-                    the short label only when "New chat" leaves too little room */}
-                <span aria-hidden className="lg:hidden"> · </span>
+              {/* phones: how avanti uses AI, under the logo (a new tab, so the chat stays put);
+                  the short label only when "New chat" leaves too little room. Laptops show it at the right. */}
+              <p className="@container -mt-1 w-full text-[15px] leading-tight text-ink-muted lg:hidden">
                 <a
                   href="/privacy"
                   target="_blank"
