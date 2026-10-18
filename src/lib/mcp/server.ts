@@ -33,7 +33,7 @@ const TIME_HELP =
 const slugArg = z.string().describe('The shop\'s slug from search_shops, e.g. "mais-bakery".');
 
 export interface AvantiMcpOptions {
-  /** Absolute origin for order links, e.g. "https://open-sign-three.vercel.app". */
+  /** Absolute origin for order links, e.g. "https://try-avanti.vercel.app". */
   origin: string;
   /** How avanti's payments run right now (shown next to every order link). */
   paymentMode: PaymentMode;

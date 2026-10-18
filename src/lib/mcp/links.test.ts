@@ -5,13 +5,13 @@ const cake = { qty: 1, item_name: "Chocolate cake", item_name_en: null, shop_nam
 
 describe("linkOrigin", () => {
   it("uses NEXT_PUBLIC_APP_URL when it's a valid http(s) URL (origin only)", () => {
-    expect(linkOrigin("https://open-sign-three.vercel.app/", "http://localhost:3100")).toBe("https://open-sign-three.vercel.app");
-    expect(linkOrigin(" https://open-sign-three.vercel.app/some/path ", "http://x")).toBe("https://open-sign-three.vercel.app");
+    expect(linkOrigin("https://try-avanti.vercel.app/", "http://localhost:3100")).toBe("https://try-avanti.vercel.app");
+    expect(linkOrigin(" https://try-avanti.vercel.app/some/path ", "http://x")).toBe("https://try-avanti.vercel.app");
   });
 
   it("falls back to the request origin when unset or not a URL", () => {
     expect(linkOrigin(undefined, "http://localhost:3100")).toBe("http://localhost:3100");
-    expect(linkOrigin("", "https://open-sign-three.vercel.app")).toBe("https://open-sign-three.vercel.app");
+    expect(linkOrigin("", "https://try-avanti.vercel.app")).toBe("https://try-avanti.vercel.app");
     expect(linkOrigin("not a url", "http://localhost:3100")).toBe("http://localhost:3100");
     expect(linkOrigin("ftp://files.example", "http://localhost:3100")).toBe("http://localhost:3100");
   });
@@ -51,9 +51,9 @@ describe("order prompt", () => {
 describe("orderLink", () => {
   it("is <origin>/ask?q=<prompt>, form-encoded so Markdown never breaks it", () => {
     const prompt = orderPrompt(cake, { asap: false });
-    const link = orderLink("https://open-sign-three.vercel.app", prompt);
+    const link = orderLink("https://try-avanti.vercel.app", prompt);
     expect(link).toBe(
-      "https://open-sign-three.vercel.app/ask?q=Order+1+%C3%97+Chocolate+cake+from+Mai%27s+Bakery%2C+pickup+today+at+5%3A30+PM",
+      "https://try-avanti.vercel.app/ask?q=Order+1+%C3%97+Chocolate+cake+from+Mai%27s+Bakery%2C+pickup+today+at+5%3A30+PM",
     );
     expect(link).not.toMatch(/[\s'()]/);
     expect(new URL(link).searchParams.get("q")).toBe(prompt);

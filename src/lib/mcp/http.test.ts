@@ -87,8 +87,8 @@ describe("POST /api/mcp", () => {
       return JSON.parse(body.result.content[1].text).order_link as string;
     };
     expect(await link()).toMatch(/^http:\/\/localhost:3100\/ask\?q=Order\+1\+%C3%97\+Chocolate\+cake\+from\+Mai%27s\+Bakery%2C\+pickup\+/);
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://open-sign-three.vercel.app");
-    expect(await link()).toMatch(/^https:\/\/open-sign-three\.vercel\.app\/ask\?q=Order\+1\+/);
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://try-avanti.vercel.app");
+    expect(await link()).toMatch(/^https:\/\/try-avanti\.vercel\.app\/ask\?q=Order\+1\+/);
   });
 
   it("is rate limited per IP with the shared limiter (429, JSON-RPC error, CORS)", async () => {

@@ -26,7 +26,7 @@ export default async function WindowSignPage(props: PageProps<"/s/[slug]/sign">)
 
   // The QR points at this deployment, whichever host it runs on.
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "open-sign-three.vercel.app";
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "try-avanti.vercel.app";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const shopUrl = `${proto}://${host}/s/${shop.slug}`;
   const qrSvg = await QRCode.toString(shopUrl, {
