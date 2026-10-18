@@ -41,4 +41,5 @@ export const LIMITS = {
   demoCopy: [30, 3600],
   confirm: [60, 600],
   bots: [30, 600],
+  mcp: [240, 600], // MCP requests per IP per 10 min: DB reads only, and Claude/ChatGPT connectors share cloud IPs
 } as const satisfies Record<string, readonly [number, number]>;
