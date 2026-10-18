@@ -1,6 +1,5 @@
 "use client";
 
-import NumberFlow from "@number-flow/react";
 import { motion } from "motion/react";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -8,8 +7,7 @@ import { APP_BAR, AppLogo } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { INK_EASE } from "./ink";
 
-// The way through /open: the avanti logo home, three quiet steps and a real
-// stopwatch (Red Hat Mono) that runs from the first tap until the shop opens.
+// The way through /open: the avanti logo home and three quiet steps.
 // Phone: three short ink rules. Laptop: the steps by name, a teal rule under
 // the one you're on (it glides to the next step).
 
@@ -67,28 +65,6 @@ export function StepBars({ done, current }: { done: number; current: number }) {
   );
 }
 
-export function StopwatchChip({ ms, running, started }: { ms: number; running: boolean; started: boolean }) {
-  const total = Math.floor(ms / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return (
-    <div
-      aria-label={`Stopwatch ${m} minutes ${s} seconds`}
-      className={cn(
-        "inline-flex items-center gap-2.5 font-mono text-[18px] font-medium leading-none tabular-nums lg:text-[20px]",
-        started ? "text-ink" : "text-ink-muted",
-      )}
-    >
-      <span aria-hidden className={cn("size-1.5 bg-carbon", running ? "open-pulse" : "opacity-0")} />
-      <span className="inline-flex items-baseline">
-        <NumberFlow value={m} locales="en-US" />
-        <span>:</span>
-        <NumberFlow value={s} locales="en-US" format={{ minimumIntegerDigits: 2 }} trend={1} />
-      </span>
-    </div>
-  );
-}
-
 /** True once the page has scrolled (the phone header then gets its paper behind it). */
 function useScrolled() {
   const [scrolled, setScrolled] = useState(false);
@@ -101,19 +77,7 @@ function useScrolled() {
   return scrolled;
 }
 
-export function TopBar({
-  done,
-  current,
-  ms,
-  running,
-  started,
-}: {
-  done: number;
-  current: number;
-  ms: number;
-  running: boolean;
-  started: boolean;
-}) {
+export function TopBar({ done, current }: { done: number; current: number }) {
   const scrolled = useScrolled();
   return (
     <header
@@ -126,9 +90,8 @@ export function TopBar({
     >
       <AppLogo section="shop" className="justify-self-start" />
       <StepBars done={done} current={current} />
-      <div className="justify-self-end">
-        <StopwatchChip ms={ms} running={running} started={started} />
-      </div>
+      {/* laptop: an empty third column keeps the steps centred */}
+      <span aria-hidden className="hidden lg:block" />
     </header>
   );
 }
