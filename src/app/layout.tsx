@@ -39,6 +39,9 @@ export const metadata: Metadata = {
   },
   description:
     "avanti opens any small shop to AI shoppers: snap the counter, say your prices, and verified AI shoppers can order, with the money held on Visa until pickup.",
+  // From the home screen, avanti opens as its own app: no Safari bars (manifest.ts sets display: standalone).
+  appleWebApp: { capable: true, title: "avanti", statusBarStyle: "default" },
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {

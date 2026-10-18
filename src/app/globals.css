@@ -223,3 +223,10 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* No rubber-band past the page (iOS Safari and the home-screen app): the content is the whole screen. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
