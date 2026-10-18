@@ -55,8 +55,15 @@ const EYELESS = {
     [356, 74, 233, 143], [366, 74, 229, 144], [375, 74, 226, 144], [388, 75, 220, 143], [395, 75, 216, 144], [404, 76, 210, 143],
   ] as const,
 };
-// The top of the monitor above the screen's centre, per head frame (y in the robot canvas): where a bird stands.
-const PERCH_TOP = [21, 20, 17, 16, 14, 12, 11, 10, 8, 8, 8, 8, 10, 11, 11, 11, 12, 14];
+// Where a bird stands, per head frame: the monitor's top edge above the screen's centre, measured from the head
+// patches' alpha as [x, y, slope] in the robot canvas (the edge tilts as the head turns). The bird rides on it.
+const PERCH: readonly (readonly [number, number, number])[] = [
+  [326.5, 20.9, -0.043], [331.1, 19.0, -0.037], [343.4, 16.6, -0.0219], [354.6, 15.3, -0.0241], [365.9, 13.6, -0.0226],
+  [382.6, 11.6, 0], [391.6, 10.8, 0], [405.2, 9.1, 0.024], [417.6, 8.7, 0.0235], [432.1, 8.4, 0.0156],
+  [450.4, 7.7, 0.0338], [460.2, 8.7, 0.0388], [472.3, 10.1, 0.0403], [480.3, 10.4, 0.0502], [488.1, 10.8, 0.0622],
+  [498.3, 11.8, 0.0725], [503.7, 12.7, 0.0753], [510.1, 13.8, 0.0842],
+];
+const FEET_DOWN = 2; // the feet sit this far into the monitor's outline (robot px)
 // A plum blossom with a pine tuft in the lapel, in the robot's ink. It is baked into robot-body.webp too; the canvas
 // redraws it only where the head patch covers the body.
 const CLOTHES = [{ src: `${MEDIA}/robot-blossom.webp`, x: 500, y: 548 }];
@@ -144,7 +151,6 @@ export function InkLanding() {
     let cur = R.ref;
     let target = R.ref;
     let stepClock = 0;
-    let hold = false; // a bird is landing on (or sitting on) the monitor: the head keeps still
     let lastPointer = -1e9;
     let pointer = { x: 0, y: 0 }; // the mouse, in client px
     let hovered = false; // "get started" under the mouse
@@ -313,7 +319,7 @@ export function InkLanding() {
       pointer = { x: e.clientX, y: e.clientY };
       lastPointer = now;
       const b = robot.getBoundingClientRect();
-      if (!hold) target = lookAt((e.clientX - (b.left + b.width / 2)) / Math.max(260, innerWidth * 0.42));
+      target = lookAt((e.clientX - (b.left + b.width / 2)) / Math.max(260, innerWidth * 0.42));
       // come close to its face and the eyes go wide for a moment
       const f = faceAt(cur);
       const fx = b.left + (f.x / R.w) * b.width;
@@ -368,7 +374,13 @@ export function InkLanding() {
       return { x, y, f: Math.floor(t * 24 + c.phase) % c.frames };
     };
     // the lander's state: in the flock, flying in, perched, flying off, or gone until the flock's next pass
-    const lander = { phase: "flock" as "flock" | "in" | "perch" | "out" | "gone", t0: 0, x: 0, y: 0, fx: 0, fy: 0, act: 1, actAt: 0, landed: -1e9, stay: 7000 };
+    // While perched it rides the head: `k` is the head frame it last stood on, `wob`/`wv` a small balancing tilt
+    // (a damped spring nudged when the head steps), `glanceAt` the robot's next short look up at it.
+    const lander = {
+      phase: "flock" as "flock" | "in" | "perch" | "out" | "gone",
+      t0: 0, x: 0, y: 0, fx: 0, fy: 0, act: 1, actAt: 0, landed: -1e9, stay: 7000,
+      k: R.ref, wob: 0, wv: 0, glanceAt: 0,
+    };
     const drawBirds = (t: number) => {
       bx.clearRect(0, 0, bc.width, bc.height);
       for (const c of flyers) {
@@ -385,15 +397,20 @@ export function InkLanding() {
       if (!loaded(sbImg)) return;
       bx.drawImage(sbImg, f * SMALL.cw, 0, SMALL.cw, SMALL.ch, ox + (x - SMALL.ax) * k, oy + (y - SMALL.ay) * k, SMALL.cw * k, SMALL.ch * k);
     };
-    const drawPerched = (x: number, y: number, f: number) => {
-      // feet at (x, y)
+    const drawPerched = (x: number, y: number, f: number, ang = 0) => {
+      // feet at (x, y), tilted about the feet by `ang`
       if (!loaded(perchImg)) return;
       const s = PERCHED.size / PERCHED.scale;
-      bx.drawImage(perchImg, f * PERCHED.cw, 0, PERCHED.cw, PERCHED.ch, ox + (x - PERCHED.fx * s) * k, oy + (y - PERCHED.fy * s) * k, PERCHED.cw * s * k, PERCHED.ch * s * k);
+      bx.save();
+      bx.translate(ox + x * k, oy + y * k);
+      if (ang) bx.rotate(ang);
+      bx.drawImage(perchImg, f * PERCHED.cw, 0, PERCHED.cw, PERCHED.ch, -PERCHED.fx * s * k, -PERCHED.fy * s * k, PERCHED.cw * s * k, PERCHED.ch * s * k);
+      bx.restore();
     };
     const toRobot = (x: number, y: number) => ({ x: (x - rob.x) / rob.s, y: (y - rob.y) / rob.s });
-    const perchPoint = () => ({ x: rob.x + faceAt(cur).x * rob.s, y: rob.y + (PERCH_TOP[cur] + 2.5) * rob.s });
-    const updateLander = (t: number, now: number) => {
+    // the perch on head frame `kk`, in plate px
+    const perchAt = (kk: number) => ({ x: rob.x + PERCH[kk][0] * rob.s, y: rob.y + (PERCH[kk][1] + FEET_DOWN) * rob.s });
+    const updateLander = (t: number, now: number, dt: number) => {
       const L = lander;
       if (L.phase === "flock") {
         if (!ready) return;
@@ -405,8 +422,6 @@ export function InkLanding() {
           L.t0 = now;
           L.fx = p.x;
           L.fy = p.y + 8; // its feet, under the body
-          hold = true;
-          target = cur;
         }
         return;
       }
@@ -415,14 +430,14 @@ export function InkLanding() {
         if (birdAt(landerFlyer, t).x > FW + 60) L.phase = "flock";
         return;
       }
-      const P = perchPoint();
+      const P = perchAt(cur); // the head keeps turning: the perch is wherever the monitor's top edge is now
       if (L.phase === "in") {
         const u = Math.min(1, (now - L.t0) / 1800);
         const e = 1 - Math.pow(1 - u, 3);
         L.x = bez(L.fx, P.x + (L.fx >= P.x ? 260 : -260), P.x, e); // it comes in from its own side
         L.y = bez(L.fy, P.y - 170, P.y, e);
         if (u < 0.86) drawFlight(L.x, L.y - 8, Math.floor(t * 24 * (1 - 0.45 * u)) % SMALL.frames);
-        else drawPerched(L.x, L.y, 2);
+        else drawPerched(L.x, L.y, 2, Math.atan(PERCH[cur][2]) * e);
         if (u >= 1) {
           L.phase = "perch";
           L.t0 = now;
@@ -430,7 +445,11 @@ export function InkLanding() {
           L.stay = 6500 + Math.random() * 1500;
           L.act = Math.random() < 0.6 ? 1 : 2;
           L.actAt = now + 1200 + Math.random() * 800;
-          smile(now + 1000, now + 3800); // it looks up at its visitor, smiles, then watches it again
+          L.k = cur;
+          L.wob = 0;
+          L.wv = 0;
+          L.glanceAt = now + 3800 + 1200 + Math.random() * 1500;
+          smile(now + 1000, now + 3800); // it looks up at its visitor, smiles, then gets back to you
         }
         return;
       }
@@ -449,16 +468,29 @@ export function InkLanding() {
             L.actAt = now + 1300 + Math.random() * 1100;
           }
         }
+        // it rides the head: its feet stay on the top edge of whichever frame shows, it leans with the edge, and
+        // a step of the head nudges a small balancing wobble (a damped spring, clamped to ±6°)
+        if (cur !== L.k) {
+          L.wv -= (PERCH[cur][0] - PERCH[L.k][0]) * 0.15;
+          L.k = cur;
+        }
+        const W0 = 22;
+        const ZETA = 0.4;
+        const n = Math.max(1, Math.ceil(dt / 0.008));
+        for (let i = 0; i < n; i++) {
+          const h = dt / n;
+          L.wv += (-W0 * W0 * L.wob - 2 * ZETA * W0 * L.wv) * h;
+          L.wob = Math.max(-0.105, Math.min(0.105, L.wob + L.wv * h));
+        }
         L.x = P.x;
         L.y = P.y;
-        drawPerched(P.x, P.y + dy, f);
+        drawPerched(P.x, P.y + dy, f, Math.atan(PERCH[cur][2]) + L.wob);
         // it stays a while (6.5–8 s), then flies off on its own; the mouse doesn't scare it
         if (now - L.t0 > L.stay) {
           L.phase = "out";
           L.t0 = now;
           L.fx = P.x;
           L.fy = P.y;
-          hold = false;
         }
         return;
       }
@@ -503,21 +535,33 @@ export function InkLanding() {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       drawBirds(t);
-      updateLander(t, now);
+      const lead = birdAt(cranes[0], t);
+      const craneNear = Math.abs(lead.x - FW / 2) < 820;
+      const recent = finePointer && now - lastPointer < 2600;
       if (ready) {
-        const lead = birdAt(cranes[0], t);
-        const craneNear = Math.abs(lead.x - FW / 2) < 820;
-        const recent = finePointer && now - lastPointer < 2600;
-        if (hold) target = cur;
-        else if (!recent) target = craneNear ? lookAt((lead.x - FW / 2) / 640) : R.ref; // watch the lead crane while it is close
+        // the head first (a bird on it or not), so a perched bird is drawn on this frame's monitor
+        if (!recent) target = craneNear ? lookAt((lead.x - FW / 2) / 640) : R.ref; // watch the lead crane while it is close
         stepClock += dt;
         if (cur !== target && stepClock > 1 / 20) {
           stepClock = 0;
           cur += Math.sign(target - cur);
         }
-        // the pupils: on the bird when it comes to visit, else on you, else on the lead crane, else just ahead
+      }
+      updateLander(t, now, dt);
+      if (ready) {
+        // the pupils: on the bird as it comes in and just after it lands (then the smile), on it again for a short
+        // glance every few seconds while it stays; otherwise on you, else on the lead crane, else just ahead
+        let watchBird = lander.phase === "in" || (lander.phase === "out" && now - lander.t0 < 700);
+        if (lander.phase === "perch") {
+          const since = now - lander.landed;
+          if (since < 1000) watchBird = true;
+          else if (since >= 3800) {
+            if (now >= lander.glanceAt + 700) lander.glanceAt = now + 2500 + Math.random() * 2000;
+            watchBird = now >= lander.glanceAt;
+          }
+        }
         let to: { x: number; y: number } | null = null;
-        if (lander.phase === "in" || lander.phase === "perch" || (lander.phase === "out" && now - lander.t0 < 700)) to = toRobot(lander.x, lander.y - 8);
+        if (watchBird) to = toRobot(lander.x, lander.y - 8);
         else if (recent) {
           const b = robot.getBoundingClientRect();
           to = { x: ((pointer.x - b.left) / b.width) * R.w, y: ((pointer.y - b.top) / b.height) * R.h };
