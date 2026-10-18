@@ -3,13 +3,12 @@
 import NumberFlow from "@number-flow/react";
 import { motion } from "motion/react";
 import { Check } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Wordmark } from "@/components/brand";
+import { APP_BAR, AppLogo } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { INK_EASE } from "./ink";
 
-// The way through /open: the wordmark home, three quiet steps and a real
+// The way through /open: the avanti logo home, three quiet steps and a real
 // stopwatch (Red Hat Mono) that runs from the first tap until the shop opens.
 // Phone: three short ink rules. Laptop: the steps by name, a teal rule under
 // the one you're on (it glides to the next step).
@@ -119,14 +118,13 @@ export function TopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 -mx-5 grid grid-cols-[1fr_auto_1fr] items-center px-5 pb-3 pt-[max(env(safe-area-inset-top),12px)]",
+        "sticky top-0 z-40 flex items-center justify-between gap-3 pb-3 lg:grid lg:grid-cols-[1fr_auto_1fr]",
+        APP_BAR,
         scrolled ? "bg-counter shadow-[0_1px_0_rgb(22_58_66/0.1)]" : "bg-transparent",
-        "lg:static lg:-mx-10 lg:bg-transparent lg:px-10 lg:pb-6 lg:pt-8 lg:shadow-none",
+        "lg:static lg:bg-transparent lg:pb-6 lg:shadow-none",
       )}
     >
-      <Link href="/" aria-label="avanti, home" className="justify-self-start py-2 pr-3 transition-opacity hover:opacity-70">
-        <Wordmark className="text-[25px] lg:text-[30px]" />
-      </Link>
+      <AppLogo section="shop" className="justify-self-start" />
       <StepBars done={done} current={current} />
       <div className="justify-self-end">
         <StopwatchChip ms={ms} running={running} started={started} />

@@ -496,8 +496,10 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
   );
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] touch-manipulation flex-col px-5 pb-10 md:max-w-[520px] lg:max-w-page lg:px-10 lg:pb-12">
+    <div className="flex min-h-dvh touch-manipulation flex-col">
+      {/* the bar spans the screen (the logo sits in /start's spot); the flow is a centred column */}
       <TopBar done={step} current={step} ms={watch.elapsedMs} running={watch.running} started={watch.started} />
+      <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col px-5 pb-10 md:max-w-[520px] lg:max-w-page lg:px-10 lg:pb-12">
 
       {shotNote ? <p className="paper mb-5 px-4 py-3 text-[16px] lg:max-w-[560px]">{shotNote}</p> : null}
 
@@ -700,6 +702,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

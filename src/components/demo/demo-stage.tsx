@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SimulatedBadge, Wordmark } from "@/components/brand";
+import { APP_BAR, AppLogo, SimulatedBadge } from "@/components/brand";
 import { SiteNav } from "@/components/landing/site-nav";
 import { getMyShops, hasOwnerToken, rememberMyShop } from "@/lib/my-shops";
 import type { PaymentMode, Shop } from "@/lib/types";
@@ -114,16 +114,14 @@ export function DemoStage({ slug: initial, payments, aiLive }: { slug: string } 
 
   if (slug) {
     return (
-      <main className="flex min-h-dvh flex-col items-center px-4 pb-8 pt-4 md:px-8">
-        <header className="flex w-full max-w-page flex-wrap items-center justify-between gap-3 pb-5 md:px-2">
-          <Link href="/" aria-label="avanti, home" className="flex min-h-11 items-baseline gap-4">
-            <Wordmark className="text-[28px]" />
-            <span className="font-display text-[22px] leading-none text-ink-muted">both sides</span>
-          </Link>
-          <button type="button" onClick={() => setSlug(null)} className="btn-quiet">
+      <div className="flex min-h-dvh flex-col">
+        <header className={cn("flex w-full flex-wrap items-center justify-between gap-3 pb-2", APP_BAR)}>
+          <AppLogo section="demo" />
+          <button type="button" onClick={() => setSlug(null)} className="btn-quiet -mr-3">
             Switch shop
           </button>
         </header>
+        <main className="flex flex-1 flex-col items-center px-4 pb-8 md:px-8">
 
         {/* laptops and tablets: the two real phones (scaled to the window height) */}
         <div className="lp-devices hidden w-full max-w-page flex-wrap items-start justify-center gap-x-10 gap-y-8 md:flex">
@@ -147,13 +145,14 @@ export function DemoStage({ slug: initial, payments, aiLive }: { slug: string } 
           </div>
           <TryThis payments={payments} aiLive={aiLive} className="mt-2" />
         </div>
-      </main>
+        </main>
+      </div>
     );
   }
 
   return (
     <>
-      <SiteNav variant="page" />
+      <SiteNav variant="page" section="demo" />
       <main className="mx-auto grid w-full max-w-page flex-1 gap-14 px-6 pb-20 pt-8 lg:grid-cols-12 lg:gap-x-6 lg:px-10 lg:pt-12">
         <div className="lg:col-span-6">
           <p className="lp-rise label-print text-[13px] text-ink-muted">Both sides</p>

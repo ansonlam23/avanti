@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { Wordmark } from "@/components/brand/wordmark";
+import { APP_BAR, AppLogo } from "@/components/brand/app-logo";
 import { cn } from "@/lib/utils";
 
 export const GITHUB_URL = "https://github.com/ansonlam23/open-sign";
@@ -18,21 +18,15 @@ const LINK =
   "inline-flex min-h-11 items-center gap-1.5 px-3 text-[16px] font-medium text-ink-muted underline decoration-transparent decoration-1 underline-offset-[6px] transition-[color,text-decoration-color] duration-300 hover:text-ink hover:decoration-current";
 
 /**
- * The top bar on public pages. Quiet on purpose: the avanti wordmark (the
- * way home) and a few text links on laptops; just the wordmark on phones.
+ * The top bar on public pages. Quiet on purpose: the avanti logo (the way home,
+ * with the page's `section` word) and a few text links on laptops; just the logo
+ * on phones. Full width, so the logo sits in /start's spot on every page.
  * `variant` is kept for callers; both read the same now.
  */
-export function SiteNav({ className }: { variant?: "landing" | "page"; className?: string }) {
+export function SiteNav({ section, className }: { variant?: "landing" | "page"; section?: string; className?: string }) {
   return (
-    <header
-      className={cn(
-        "mx-auto flex w-full max-w-page items-center justify-between px-5 pb-1 pt-[max(env(safe-area-inset-top),16px)] sm:px-8 lg:px-10 lg:pb-2 lg:pt-7",
-        className,
-      )}
-    >
-      <Link href="/" aria-label="avanti, home" className="-ml-1 inline-flex min-h-11 items-center px-1">
-        <Wordmark className="text-[28px] lg:text-[30px]" />
-      </Link>
+    <header className={cn("flex w-full items-center justify-between pb-1 lg:pb-2", APP_BAR, className)}>
+      <AppLogo section={section} />
       <nav aria-label="Try avanti" className="hidden items-center lg:flex">
         {DOORS.map((l) => (
           <Link key={l.href} href={l.href} className={LINK}>

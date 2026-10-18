@@ -2,10 +2,9 @@
 
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import Link from "next/link";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
-import { SoundToggle, Wordmark } from "@/components/brand";
+import { APP_BAR, AppLogo, SoundToggle } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -142,12 +141,11 @@ export function CounterView({
   );
 
   return (
-    <main className="mx-auto w-full max-w-md px-5 pb-16 pt-[max(env(safe-area-inset-top),14px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24 lg:pt-7">
-      {/* the wordmark home; talk, sound and the shop's pages on the right (the voice slip drops from here) */}
-      <div className="relative flex items-center justify-between gap-4">
-        <Link href="/" aria-label="avanti, home" className="py-2 pr-3 transition-opacity hover:opacity-70">
-          <Wordmark className="text-[25px] lg:text-[30px]" />
-        </Link>
+    <>
+      {/* the avanti logo home; talk, sound and the shop's pages on the right (the voice slip drops from here).
+          The bar spans the screen, so the logo sits in /start's spot; the counter below is a centred column. */}
+      <div className={cn("relative flex items-center justify-between gap-4", APP_BAR)}>
+        <AppLogo section="shop" />
         <div className="flex items-center gap-2 lg:gap-7">
           {wide ? (
             <>
@@ -168,6 +166,7 @@ export function CounterView({
         </div>
       </div>
 
+    <main className="mx-auto w-full max-w-md px-5 pb-16 md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24">
       <header className="mt-6 flex flex-col gap-4 lg:mt-10 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -258,6 +257,7 @@ export function CounterView({
         onSubmit={onPadSubmit}
       />
     </main>
+    </>
   );
 }
 

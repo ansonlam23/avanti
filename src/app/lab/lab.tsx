@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { SoundToggle } from "@/components/brand";
+import { APP_BAR, AppLogo, SoundToggle } from "@/components/brand";
 import { motionSpeed } from "@/lib/motion";
 import { MenuDemos, TagDemos } from "./demos/chalk";
 import { BotWallDemos, FocusDemos, SoundDemos, SpindleDemos } from "./demos/door";
@@ -28,11 +28,15 @@ const SPEEDS = [0.25, 0.5, 1, 2];
 export function Lab({ shot }: { shot: string | null }) {
   if (shot) return <ShotView name={shot} />;
   return (
+    <>
+    {/* the avanti logo home, in /start's spot like every page */}
+    <div className={APP_BAR}>
+      <AppLogo />
+    </div>
     <main className="mx-auto w-full max-w-[1280px] px-4 pb-24 sm:px-8">
       <header className="flex flex-wrap items-center gap-3 py-6">
         <div className="mr-auto">
-          <p className="font-display text-[22px] leading-none text-carbon">avanti</p>
-          <h1 className="mt-2 font-display text-[44px] leading-none">Design lab</h1>
+          <h1 className="font-display text-[44px] leading-none">Design lab</h1>
         </div>
         <SpeedPicker />
         <SoundToggle />
@@ -81,6 +85,7 @@ export function Lab({ shot }: { shot: string | null }) {
       <FocusDemos />
       <SoundDemos />
     </main>
+    </>
   );
 }
 

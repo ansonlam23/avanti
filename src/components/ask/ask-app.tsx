@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Receipt, SoundToggle, Wordmark } from "@/components/brand";
+import { AppLogo, Receipt, SoundToggle } from "@/components/brand";
 import type { MenuResult } from "@/lib/ai/shopper-types";
 import { getMyShops } from "@/lib/my-shops";
 import type { PaymentMode } from "@/lib/types";
@@ -232,14 +232,14 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
     >
       <OrderReveal reveal={state.reveal} order={revealOrder} onChange={setReveal}>
         <div className="flex h-full flex-col">
-          <header className="relative z-10 flex items-center gap-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),14px)] lg:px-12 lg:pb-3 lg:pt-6">
-            <div className="min-w-0 flex-1">
-              {/* the avanti wordmark + who's talking: "avanti shopper" */}
-              <h1 className="flex items-baseline gap-[0.3em] font-display text-[26px] font-normal leading-none tracking-[0.01em] lg:text-[30px]">
-                <Wordmark className="text-[26px] lg:text-[30px]" />
-                <span className="text-ink-muted">shopper</span>
-              </h1>
-              <p className="@container mt-1.5 text-[15px] leading-tight text-ink-muted lg:mt-2 lg:text-[16px]">
+          {/* The bar spans the screen even where the chat is a centred column (tablets,
+              very wide screens), so the logo sits in /start's spot on every page. */}
+          <header className="relative z-10 mx-[calc((min(100vw,480px)-100vw)/2)] flex items-center gap-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),18px)] sm:pl-8 sm:pr-6 md:mx-[calc((min(100vw,640px)-100vw)/2)] lg:mx-[calc((min(100vw,1600px)-100vw)/2)] lg:px-12 lg:pb-3 lg:pt-8">
+            <div className="flex min-w-0 flex-1 flex-col items-start">
+              <h1 className="sr-only">avanti shopper</h1>
+              {/* the avanti logo + who's talking: "avanti shopper" */}
+              <AppLogo section="shopper" />
+              <p className="@container -mt-1 w-full text-[15px] leading-tight text-ink-muted lg:-mt-0.5 lg:text-[16px]">
                 near UW campus
                 {/* phones: how avanti uses AI, in this line (a new tab, so the chat stays put);
                     the short label only when "New chat" leaves too little room */}

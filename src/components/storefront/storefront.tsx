@@ -21,7 +21,7 @@ export function Storefront({ shop, items }: { shop: Shop; items: Item[] }) {
   const aiCap = aiOrderLimitCents(shop.rules);
   return (
     <>
-      <SiteNav variant="page" />
+      <SiteNav variant="page" section="shop" />
       <main className="mx-auto grid w-full max-w-page px-5 pb-12 pt-6 sm:px-8 lg:grid-cols-12 lg:gap-x-6 lg:px-10 lg:pb-24 lg:pt-14">
         <header className="sf-rise mx-auto w-full max-w-[480px] lg:sticky lg:top-12 lg:col-span-5 lg:mx-0 lg:max-w-none lg:self-start">
           {shop.photo_url ? (

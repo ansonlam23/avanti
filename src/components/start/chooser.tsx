@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { Wordmark } from "@/components/brand/wordmark";
+import { APP_BAR, AppLogo } from "@/components/brand/app-logo";
+import { cn } from "@/lib/utils";
 
 // /start: two equal doors, one quiet way in for judges.
 // Calm on purpose: lots of paper, the landing's ink plate rising out of the mist
@@ -38,10 +39,8 @@ function Door({ href, title, line, delay }: { href: string; title: string; line:
 export function Chooser() {
   return (
     <div className="start-page flex min-h-svh flex-col">
-      <header className="flex w-full items-center justify-between gap-4 px-5 pt-[max(env(safe-area-inset-top),18px)] sm:px-8 lg:px-12 lg:pt-8">
-        <Link href="/" aria-label="avanti, home" className="-ml-1 inline-flex min-h-11 items-center px-1">
-          <Wordmark className="text-[30px] lg:text-[34px]" />
-        </Link>
+      <header className={cn("flex w-full items-center justify-between gap-4", APP_BAR)}>
+        <AppLogo />
         <Link href="/privacy" className="lp-rise btn-quiet -mr-2 px-2 text-[16px] font-normal text-ink-muted hover:text-ink lg:text-[17px]" style={rise(0.4)}>
           How we use AI
         </Link>
