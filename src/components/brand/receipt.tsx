@@ -26,6 +26,7 @@ export interface ReceiptProps {
   mode: PaymentMode;
   pickupCode?: string | null;
   orderId?: string | null;
+  /** Kept for callers; the footer now just says "Visa sandbox". */
   cardLast4?: string | null;
   time?: string | null; // preformatted, e.g. "Pickup 5:30 PM"
   /** Write the slip in, line by line (first appearance). */
@@ -59,9 +60,6 @@ const LINE: Record<OrderStatus, string> = {
   failed: "Didn't go through. Not charged.",
 };
 
-/** Where each seal in the history lands (older first): left of the total. */
-const STAMP_SPOT = ["left-0 -top-2", "left-6 top-1"];
-
 const COUNT_HOLD = 0.95; // NumberFlow's roll before the seal
 
 type Phase = "feed" | "count" | "stamp" | "done";
@@ -82,7 +80,6 @@ export function Receipt({
   status,
   mode,
   pickupCode,
-  cardLast4,
   time,
   printing,
   className,
@@ -175,29 +172,43 @@ export function Receipt({
 
         <div data-row className="print-rule my-4" />
 
-        {/* The total: the seal on the left, the money on the right. */}
-        <div data-row className="relative flex min-h-[60px] items-end justify-end">
+        {/* The total: the money on the right; the seal centred in the paper to its
+            left, at the middle of the total and the line under it (the box reaches
+            down over that line). A later seal lands over the faded first one. */}
+        <div data-row className="flex min-h-[60px] items-end gap-3">
+          <div className="relative min-w-0 flex-1 self-stretch">
+            {showStamps ? (
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-x-0 -bottom-9 top-0 z-10 flex items-center",
+                  // one seal: centred in the paper; two (paid / released over a faded HELD): from the left, clear of the money
+                  history.length > 1 ? "justify-start" : "justify-center",
+                )}
+              >
+                <div className="relative">
+                  {history.map((k, i) => {
+                    const top = i === history.length - 1;
+                    return (
+                      <Stamp
+                        key={k}
+                        kind={k}
+                        size={k === "RELEASED" ? "sm" : "md"}
+                        faded={!top}
+                        animate={top && fresh === k}
+                        onSlam={top && fresh === k ? landed : undefined}
+                        sound={sound}
+                        className={i === 0 ? "relative" : "absolute left-4 top-3"}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
           <Money
             cents={shownTotal}
             className={cn("font-figures text-[46px] leading-[0.9]", muted ? "text-ink-muted" : "text-ink")}
           />
-          {showStamps
-            ? history.map((k, i) => {
-                const top = i === history.length - 1;
-                return (
-                  <Stamp
-                    key={k}
-                    kind={k}
-                    size={k === "RELEASED" ? "sm" : "md"}
-                    faded={!top}
-                    animate={top && fresh === k}
-                    onSlam={top && fresh === k ? landed : undefined}
-                    sound={sound}
-                    className={cn("absolute z-10", STAMP_SPOT[i] ?? STAMP_SPOT[0])}
-                  />
-                );
-              })
-            : null}
         </div>
         <p data-row className="mt-2.5 text-right text-[15px] text-ink-muted">
           {LINE[status]}
@@ -218,10 +229,10 @@ export function Receipt({
           {simulated ? (
             <>
               <SimulatedBadge />
-              <span>No Visa call · no money moved</span>
+              <span>No Visa call</span>
             </>
           ) : (
-            <span>Test card{cardLast4 ? ` ···· ${cardLast4}` : ""} · Visa sandbox · no money moved</span>
+            <span>Visa sandbox</span>
           )}
         </p>
       </article>

@@ -407,13 +407,11 @@ function ErrandSummary({
         <Money cents={big.cents} className="font-figures text-[50px] font-normal leading-[0.9] text-ink" />
       </div>
 
-      <div className="mt-5 flex items-center gap-4 border-t border-ink/15 pt-4">
+      <div className="mt-5 flex items-center justify-center gap-4 border-t border-ink/15 pt-4">
         <Stamp kind="VERIFIED" size="sm" sound={false} className="shrink-0" />
-        <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">Signed by avanti shopper, each checked before Visa.</p>
+        <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">Signed by avanti shopper.</p>
       </div>
-      <p className="mt-3 text-[15px] leading-snug text-ink-muted">
-        {simulated ? "Test card ···· 1111 · no Visa call · no money moved" : "Test card ···· 1111 · Visa sandbox · no money moved"}
-      </p>
+      <p className="mt-3 text-center text-[15px] leading-snug text-ink-muted">{simulated ? "No Visa call" : "Visa sandbox"}</p>
       <p className="sr-only" aria-live="polite">
         {`${placed.length} ${placed.length === 1 ? "hold" : "holds"}: ${formatCents(big.cents)} ${big.label.toLowerCase()}.`}
       </p>

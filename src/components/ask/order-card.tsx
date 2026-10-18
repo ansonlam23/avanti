@@ -246,9 +246,9 @@ export function PrintedReceipt({ order }: { order: PublicOrder; heldMs?: number 
     <div className="mx-auto w-full max-w-[360px] pb-2">
       <Receipt {...receiptProps(order)} tilt={0} className="w-full" />
       {order.status !== "failed" ? (
-        <div className="ask-slip mt-3 flex items-center gap-4 px-4 py-3.5">
+        <div className="ask-slip mt-3 flex items-center justify-center gap-4 px-4 py-3.5">
           <Stamp kind="VERIFIED" size="sm" sound={false} className="shrink-0" />
-          <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">Signed by avanti shopper, checked before Visa.</p>
+          <p className="text-[15px] leading-snug text-ink-muted lg:text-[16px]">Signed by avanti shopper.</p>
         </div>
       ) : null}
       <p className="sr-only" aria-live="polite">
