@@ -10,10 +10,12 @@ import { StepHeading } from "./step-heading";
 // primary action. On a laptop (no camera): choose a file, drop one on the
 // frame, or try the sample bakery. Or skip the photo and just tell me.
 
-/** A real, freely licensed counter photo for people trying the demo without one (the AI still reads it live). */
+/**
+ * A real, freely licensed counter photo for people trying the demo without one (the AI still reads it live).
+ * "The Bakery off Augusta", Greenville Daily Photo, CC0 (public domain: no credit required, so none is shown).
+ */
 const SAMPLE_PHOTO = {
   url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/The_Bakery_off_Augusta.jpg/1280px-The_Bakery_off_Augusta.jpg",
-  credit: "“The Bakery off Augusta”, Greenville Daily Photo, CC0",
 };
 
 const FINE_POINTER = "(hover: hover) and (pointer: fine)";
@@ -163,11 +165,10 @@ export function SnapStep({
         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
           <span className="flex flex-wrap items-center justify-center gap-x-3 lg:justify-start">
             <span className="text-[16px] text-ink-muted">No photo handy?</span>
-            <button type="button" onClick={() => void loadSample()} disabled={working} className="link-ink text-[19px]!" title={SAMPLE_PHOTO.credit}>
+            <button type="button" onClick={() => void loadSample()} disabled={working} className="link-ink text-[19px]!">
               Use a sample bakery <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
           </span>
-          <span className="text-[15px] text-ink-muted">{SAMPLE_PHOTO.credit}</span>
         </div>
       </div>
 
