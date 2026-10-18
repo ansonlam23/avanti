@@ -63,7 +63,7 @@ ITEMS
 11. name: the owner's own words, in the owner's language, short and title-like ("Chocolate cake"). name_en: the English name (repeat the name if it's already English).
 12. est_quantity: how many the owner said they have; otherwise count the units you can see in the photo; otherwise null.
 13. description: one short, factual line from what was said or plainly visible ("Two-layer chocolate cake"), else null. No marketing words.
-14. box_2d: where the item is in the photo as [ymin, xmin, ymax, xmax] scaled 0–1000; null if it isn't visible.
+14. box_2d: where the item is in the photo as [ymin, xmin, ymax, xmax] scaled 0–1000. If the item itself isn't visible but it is listed on a sign, menu board or price card, box only that item's own line on the sign (its name and price), so every item gets its own box; never one box for the whole sign. Null if neither is visible.
 
 SHOP
 15. heard: a verbatim transcript of the voice note, in the language spoken (null when there is no voice note). Write it before anything else and base the menu on it.
