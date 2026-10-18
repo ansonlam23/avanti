@@ -8,7 +8,7 @@ import { StepHeading } from "./step-heading";
 
 // Beat 1: Snap your counter. A paper frame with teal corner brackets + one
 // primary action. On a laptop (no camera): choose a file, drop one on the
-// frame, or try the sample bakery.
+// frame, or try the sample bakery. Or skip the photo and just tell me.
 
 /** A real, freely licensed counter photo for people trying the demo without one (the AI still reads it live). */
 const SAMPLE_PHOTO = {
@@ -36,11 +36,14 @@ export function SnapStep({
   error,
   onFirstTap,
   onFile,
+  onSkip,
 }: {
   busy: boolean;
   error: string | null;
   onFirstTap: () => void;
   onFile: (file: File) => void;
+  /** No photo: go straight to the menu and tell me what you sell. */
+  onSkip: () => void;
 }) {
   const camera = useRef<HTMLInputElement>(null);
   const library = useRef<HTMLInputElement>(null);
@@ -75,6 +78,10 @@ export function SnapStep({
   };
 
   const working = busy || loadingSample;
+  const skip = () => {
+    onFirstTap();
+    onSkip();
+  };
   const Icon = desktop ? ImageUp : Camera;
 
   return (
@@ -129,17 +136,28 @@ export function SnapStep({
 
       <div className="flex flex-col items-center gap-3 lg:items-start lg:gap-5 lg:[grid-area:actions]">
         {desktop ? (
-          <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full lg:w-auto lg:min-w-[260px]">
-            Choose a photo
-          </button>
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-ink w-full lg:w-auto lg:min-w-[260px]">
+              Choose a photo
+            </button>
+            <button type="button" onClick={skip} disabled={working} className="btn-quiet">
+              Skip the photo
+            </button>
+          </span>
         ) : (
           <>
             <button type="button" onClick={() => pick(camera.current)} disabled={working} className="btn-ink w-full">
               Take a photo
             </button>
-            <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-quiet">
-              Upload from library
-            </button>
+            <span className="flex flex-wrap items-center justify-center gap-x-2">
+              <button type="button" onClick={() => pick(library.current)} disabled={working} className="btn-quiet">
+                Upload from library
+              </button>
+              <span aria-hidden className="text-ink-muted">·</span>
+              <button type="button" onClick={skip} disabled={working} className="btn-quiet">
+                Skip the photo
+              </button>
+            </span>
           </>
         )}
         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">

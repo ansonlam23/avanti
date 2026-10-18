@@ -2,10 +2,11 @@
 
 import NumberFlow from "@number-flow/react";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, BadgeCheck, Camera, Keyboard, Lock, Mic } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Lock, Mic } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OpenSign, type NeonState } from "@/components/brand";
 import type { OnboardDraft } from "@/lib/ai/onboard";
+import type { MenuRevision } from "@/lib/ai/onboard-revise";
 import type { CreateShopRequest, CreateShopResponse } from "@/lib/db/shops";
 import { DUR, EASE, SPRING, motionSpeed } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -17,35 +18,50 @@ import { LiveCard } from "./live-card";
 import { FLIGHT_S, MenuBoard, parsePriceInput, TOUCHDOWN, type MenuRow, type RowFlight } from "./menu-board";
 import { blobToDataUrl, dataUrlToBlob, preparePhoto, type PreparedPhoto } from "./photo";
 import { rememberMyShop } from "@/lib/my-shops";
+import { applyRevision, changeSummary, menuForRevise, pruneUnclear } from "./revise";
 import { loadLive, loadRun, saveLive, saveRun, type OnboardResponse } from "./run-store";
 import { aiCapValid, DEFAULT_BASICS, ShopBasics, type Basics } from "./shop-basics";
 import { SignSwitch } from "./sign-switch";
 import { SnapStep } from "./snap-step";
 import { StatusLine, StepHeading } from "./step-heading";
 import { StickyNote } from "./sticky-note";
-import { TalkStep } from "./talk-step";
+import { TellBox, type TellNote } from "./tell-box";
 import { TopBar } from "./top-bar";
+import { useKeyboardInset } from "./use-keyboard";
 import { useStopwatch } from "./use-stopwatch";
 import type { Recording } from "./use-recorder";
 import { useWide } from "./use-wide";
 import "./open.css";
 
-// /open — "Open in 40 seconds". Four beats, one primary action each:
-// snap → talk → (reading → prices land on the menu → check) → open → live.
+// /open — "Open in 40 seconds". Three beats, one primary action each:
+// snap (or skip) → (reading → prices land on the menu → check: change anything
+// by talking or typing) → open → live.
 // Phone: one column. Laptop: a two-pane stage (open.css): the step on the
 // left, the result building up on the right (photo → menu slip → the sign).
 
-type Beat = "snap" | "talk" | "reading" | "tags" | "review" | "switch" | "live";
+type Beat = "snap" | "reading" | "tags" | "review" | "switch" | "live";
 export type Shot = "tags" | "review" | "live";
 
-const BEAT_STEP: Record<Beat, number> = { snap: 0, talk: 1, reading: 2, tags: 2, review: 2, switch: 3, live: 4 };
+const BEAT_STEP: Record<Beat, number> = { snap: 0, reading: 1, tags: 1, review: 1, switch: 2, live: 3 };
 
 interface ReadError {
   code: string;
   message: string;
 }
 
-type ReadInput = { audio?: Recording; notes?: string };
+/** One "change anything": a voice note or typed words. */
+type TellInput = { audio?: Recording; notes?: string };
+
+/** Case-insensitive dedupe for the "I couldn't tell" notes. */
+function dedupeNotes(list: string[]): string[] {
+  const seen = new Set<string>();
+  return list.filter((n) => {
+    const k = n.toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 
 function audioExt(mime: string): string {
   if (mime.includes("webm")) return "webm";
@@ -88,8 +104,11 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
   const [photo, setPhoto] = useState<PreparedPhoto | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [lastInput, setLastInput] = useState<ReadInput | null>(null);
-  const [typeFirst, setTypeFirst] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [tellNote, setTellNote] = useState<TellNote | null>(null);
+  const [fresh, setFresh] = useState<{ keys: ReadonlySet<string>; n: number }>({ keys: new Set(), n: 0 });
+  const [heard, setHeard] = useState<string | null>(null);
+  const [language, setLanguage] = useState<string | null>(null);
   const [readError, setReadError] = useState<ReadError | null>(null);
   const [response, setResponse] = useState<OnboardResponse | null>(null);
   const [rows, setRows] = useState<MenuRow[]>([]);
@@ -108,6 +127,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const slotEls = useRef(new Map<string, HTMLDivElement>());
   const photoEl = useRef<HTMLDivElement | null>(null);
+  const tellSeq = useRef(0);
+  const keyboard = useKeyboardInset();
 
   const clearTimers = useCallback(() => {
     timers.current.forEach(clearTimeout);
@@ -178,37 +199,19 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
       setResponse(resp);
       setRows(list);
       setUnclear(resp.draft.unclear);
+      setHeard(resp.draft.heard);
+      setLanguage(resp.draft.language);
+      setTellNote(null);
       setBasics((b) => ({ ...b, name: b.name || resp.draft.shop_name || "" }));
       playTags(list);
     },
     [playTags],
   );
 
-  // ── Beat 1 → 2: photo ────────────────────────────────────────────────
-  const onFile = useCallback(async (file: File) => {
-    setPhotoBusy(true);
-    setPhotoError(null);
-    try {
-      const p = await preparePhoto(file);
-      setPhoto((old) => {
-        if (old) URL.revokeObjectURL(old.url);
-        return p;
-      });
-      setBeat("talk");
-      window.scrollTo({ top: 0 });
-    } catch (err) {
-      setPhotoError((err as Error).message || "I couldn't open that photo. Try another one.");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }, []);
-
-  // ── Beat 2 → 3: read the menu (one real Gemini call) ─────────────────
+  // ── Beat 1 → 2: read the photo (one real Gemini call) ────────────────
   const readMenu = useCallback(
-    async (input: ReadInput) => {
-      if (!photo) return;
+    async (p: PreparedPhoto) => {
       clearTimers();
-      setLastInput(input);
       setReadError(null);
       setResponse(null);
       setBeat("reading");
@@ -216,9 +219,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
       const started = performance.now();
 
       const fd = new FormData();
-      fd.append("photo", photo.blob, "counter.jpg");
-      if (input.audio) fd.append("audio", input.audio.blob, `voice-note.${audioExt(input.audio.mimeType)}`);
-      if (input.notes) fd.append("notes", input.notes);
+      fd.append("photo", p.blob, "counter.jpg");
       fd.append("language_hint", navigator.language || "en");
 
       let res: Response;
@@ -239,7 +240,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
       if (!resp?.draft?.items?.length) {
         setReadError({
           code: "empty",
-          message: "I didn't spot anything to sell. Try another photo, or tell me what you have.",
+          message: "I didn't spot anything to sell. Try another photo, or just tell me what you have.",
         });
         return;
       }
@@ -248,33 +249,128 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
       later(wait, () => applyResponse(resp));
 
       const elapsedAtDraftMs = watch.read();
-      blobToDataUrl(photo.blob)
+      blobToDataUrl(p.blob)
         .then((dataUrl) =>
           saveRun({
             v: 1,
             response: resp,
-            photo: { dataUrl, width: photo.width, height: photo.height },
+            photo: { dataUrl, width: p.width, height: p.height },
             elapsedAtDraftMs,
             savedAt: new Date().toISOString(),
           }),
         )
         .catch(() => {});
     },
-    [photo, clearTimers, later, applyResponse, watch],
+    [clearTimers, later, applyResponse, watch],
+  );
+
+  const onFile = useCallback(
+    async (file: File) => {
+      setPhotoBusy(true);
+      setPhotoError(null);
+      try {
+        const p = await preparePhoto(file);
+        setPhoto((old) => {
+          if (old) URL.revokeObjectURL(old.url);
+          return p;
+        });
+        void readMenu(p);
+      } catch (err) {
+        setPhotoError((err as Error).message || "I couldn't open that photo. Try another one.");
+      } finally {
+        setPhotoBusy(false);
+      }
+    },
+    [readMenu],
+  );
+
+  // ── Or skip the photo: an empty menu, and the owner just tells me ────
+  const skipPhoto = useCallback(() => {
+    clearTimers();
+    setPhoto((old) => {
+      if (old) URL.revokeObjectURL(old.url);
+      return null;
+    });
+    setResponse(null);
+    setReadError(null);
+    setRows([]);
+    setUnclear([]);
+    setHeard(null);
+    setTellNote(null);
+    setBeat("review");
+    window.scrollTo({ top: 0 });
+  }, [clearTimers]);
+
+  // ── Change anything: voice or typed words → only the changes (one Gemini call) ──
+  const tell = useCallback(
+    async (input: TellInput) => {
+      if (changing) return;
+      setChanging(true);
+      setTellNote(null);
+      setEditingKey(null);
+      const { menu, keys } = menuForRevise(rows);
+      const fd = new FormData();
+      fd.append("menu", JSON.stringify(menu));
+      if (input.audio) fd.append("audio", input.audio.blob, `change.${audioExt(input.audio.mimeType)}`);
+      if (input.notes) fd.append("notes", input.notes);
+      if (basics.name.trim()) fd.append("shop_name", basics.name.trim());
+      fd.append("language_hint", language || navigator.language || "en");
+      try {
+        let res: Response;
+        let json: { revision?: MenuRevision; error?: { message?: string } } | null = null;
+        try {
+          res = await fetch("/api/onboard/revise", { method: "POST", body: fd });
+          json = await res.json().catch(() => null);
+        } catch {
+          setTellNote({ text: "No connection. Check your signal and try again.", tone: "error" });
+          return;
+        }
+        if (!res.ok || !json?.revision) {
+          setTellNote({ text: json?.error?.message ?? "I didn't catch that. Try again.", tone: "error" });
+          return;
+        }
+        const revision = json.revision;
+        const n = ++tellSeq.current;
+        const newKey = (i: number) => `said-${n}-${i}`;
+        const applied = applyRevision(rows, revision.changes, keys, newKey);
+        setRows((cur) => applyRevision(cur, revision.changes, keys, newKey).rows);
+        const gone = rows.filter((r) => !applied.rows.some((x) => x.key === r.key)).map((r) => r.name);
+        setUnclear((u) => dedupeNotes([...pruneUnclear(u, applied.rows, gone), ...revision.unclear]));
+        setFresh({ keys: new Set(applied.touched), n });
+        if (revision.heard) setHeard(revision.heard);
+        if (revision.language) setLanguage(revision.language);
+        const named = revision.shop_name;
+        if (named) setBasics((b) => ({ ...b, name: named }));
+        const changed = applied.added + applied.updated + applied.removed > 0;
+        setTellNote({ text: changed || !named ? changeSummary(applied) : `Your shop is “${named}”.`, tone: "plain" });
+        // bring the first changed line into view (a phone's key bar covers the bottom)
+        const first = applied.touched[0];
+        if (first) {
+          later(120, () =>
+            document
+              .querySelector(`[data-row="${CSS.escape(first)}"]`)
+              ?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" }),
+          );
+        }
+      } finally {
+        setChanging(false);
+      }
+    },
+    [changing, rows, basics.name, language, later, reduce],
   );
 
   // ── Beat 4: turn on the sign (creates the real shop) ─────────────────
   const validRows = rows.filter((r) => r.name.trim());
   const flip = useCallback(async () => {
-    if (!response || creating) return;
+    if (creating) return;
     setFlipped(true);
     setCreating(true);
     setCreateError(null);
     const aiCap = basics.acceptAi ? parsePriceInput(basics.aiMax) : null;
     const body: CreateShopRequest = {
       name: basics.name.trim(),
-      owner_language: response.draft.language,
-      photo_url: response.photo_url,
+      owner_language: language ?? "en",
+      photo_url: response?.photo_url ?? null,
       pickup_window: { start: basics.start, end: basics.end },
       rules: {
         max_per_order: basics.maxPerOrder,
@@ -319,7 +415,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
     } finally {
       setCreating(false);
     }
-  }, [response, creating, basics, validRows, watch]);
+  }, [response, creating, basics, validRows, watch, language]);
 
   const onLit = useCallback(() => {
     setSign("on");
@@ -371,7 +467,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
 
   // ── Render ───────────────────────────────────────────────────────────
   const step = BEAT_STEP[beat];
-  const scene = beat === "snap" ? "snap" : beat === "talk" ? "talk" : beat === "switch" || beat === "live" ? "sign" : "menu";
+  const scene = beat === "snap" ? "snap" : beat === "switch" || beat === "live" ? "sign" : "menu";
   const missing = validRows.filter((r) => r.price_cents === null).length;
   const aiCapOk = !basics.acceptAi || aiCapValid(basics.aiMax);
   const canContinue = validRows.length > 0 && basics.name.trim().length > 0 && basics.start < basics.end && aiCapOk;
@@ -381,6 +477,23 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
     setBeat("switch");
     window.scrollTo({ top: 0 });
   };
+  const needsPrice = validRows.find((r) => r.price_cents === null);
+  const tellBox = (
+    <TellBox
+      busy={changing}
+      note={tellNote}
+      hint={
+        validRows.length === 0
+          ? "Like: “Lemon bars 4.75, brownies 3. No nuts.”"
+          : needsPrice
+            ? `Like: “${needsPrice.name}, four fifty.”`
+            : "Like: “Add cookies, 2.50.”"
+      }
+      placeholder={validRows.length ? "Say or type a change" : "What do you sell?"}
+      onVoice={(audio) => void tell({ audio })}
+      onText={(notes) => void tell({ notes })}
+    />
+  );
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] touch-manipulation flex-col px-5 pb-10 md:max-w-[520px] lg:max-w-page lg:px-10 lg:pb-12">
@@ -394,28 +507,21 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
         <AnimatePresence mode="wait" initial={false}>
           {scene === "snap" ? (
             <Scene key="snap" beat={beat}>
-              <SnapStep busy={photoBusy} error={photoError} onFirstTap={watch.start} onFile={onFile} />
+              <SnapStep busy={photoBusy} error={photoError} onFirstTap={watch.start} onFile={onFile} onSkip={skipPhoto} />
             </Scene>
           ) : null}
 
-          {scene === "talk" && photo ? (
-            <Scene key="talk" beat={beat}>
-              <TalkStep
-                photo={photo}
-                startTyping={typeFirst}
-                onVoice={(audio) => void readMenu({ audio })}
-                onNotes={(notes) => void readMenu(notes ? { notes } : {})}
-                onRetake={() => setBeat("snap")}
-              />
-            </Scene>
-          ) : null}
-
-          {scene === "menu" && photo ? (
-            <Scene key="menu" beat={beat} error={readError !== null} className={cn("gap-6", beat === "review" && "pb-40 lg:pb-0")}>
+          {scene === "menu" && (photo || beat === "review") ? (
+            <Scene key="menu" beat={beat} error={readError !== null} className={cn("gap-6", beat === "review" && "pb-64 lg:pb-0")}>
               {beat === "review" ? (
-                <StepHeading step={3} title="Check your menu." sub="Tap a line to fix it." className="lg:[grid-area:head]">
+                <StepHeading
+                  step={2}
+                  title="Check your menu."
+                  sub={validRows.length ? "Tap a line, or just tell me what to change." : "Tell me what you sell and what it costs."}
+                  className="lg:[grid-area:head]"
+                >
                   {/* phone: the photo rides along as a small print; a laptop has the room for the heading instead */}
-                  {wide ? null : (
+                  {wide || !photo ? null : (
                     <div className="mt-1 shrink-0">
                       <CounterPhoto
                         src={photo.url}
@@ -427,7 +533,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                     </div>
                   )}
                 </StepHeading>
-              ) : (
+              ) : photo ? (
                 // laptop: the narration over the photo being read, held in view (sticky) while a
                 // long slip on the right scrolls under the stickers. If the read failed, the
                 // photo steps right and the way forward takes the left (the step's side).
@@ -449,27 +555,22 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                     litBoxes={litBoxes}
                     className="lg:order-last lg:ml-0"
                   />
-                  {readError ? null : (
-                    <ReadingStatus
-                      beat={beat}
-                      found={rows.length}
-                      kind={lastInput?.audio ? "voice" : lastInput?.notes ? "notes" : "photo"}
-                      ms={response?.ms ?? null}
-                    />
-                  )}
-                  {beat === "reading" && !readError ? <InputChips input={lastInput} /> : null}
-                  {beat === "tags" && wide && response?.draft.heard ? <HeardQuote text={response.draft.heard} /> : null}
+                  {readError ? null : <ReadingStatus beat={beat} found={rows.length} ms={response?.ms ?? null} />}
                 </div>
-              )}
+              ) : null}
+
+              {/* laptop: "change anything" under the heading; a phone keeps it under the thumb */}
+              {beat === "review" && wide ? (
+                <motion.div className="lg:[grid-area:tell]" {...inkRise(0.05)}>
+                  {tellBox}
+                </motion.div>
+              ) : null}
 
               {readError ? (
                 <ReadErrorCard
                   error={readError}
-                  onRetry={lastInput ? () => void readMenu(lastInput) : undefined}
-                  onType={() => {
-                    setTypeFirst(true);
-                    setBeat("talk");
-                  }}
+                  onRetry={photo ? () => void readMenu(photo) : undefined}
+                  onTell={skipPhoto}
                   onRetake={() => setBeat("snap")}
                   className="lg:self-start lg:[grid-area:left]"
                 />
@@ -482,7 +583,10 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                     flights={flights}
                     slotRef={slotRef}
                     editingKey={editingKey}
-                    onEdit={setEditingKey}
+                    onEdit={changing ? undefined : setEditingKey}
+                    fresh={fresh.keys}
+                    freshKey={fresh.n}
+                    emptyHint={beat === "review" ? "Nothing here yet. Tell me what you sell." : undefined}
                     onChange={(key, patch) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)))}
                     onRemove={(key) => {
                       setRows((rs) => rs.filter((r) => r.key !== key));
@@ -496,7 +600,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                       ]);
                       setEditingKey(key);
                     }}
-                    footer={beat === "review" && response?.draft.heard ? <HeardLine text={response.draft.heard} /> : null}
+                    footer={beat === "review" && heard ? <HeardLine text={heard} /> : null}
                     className="lg:mx-auto lg:w-full lg:max-w-[580px]"
                   />
                   {beat === "review" ? (
@@ -536,7 +640,7 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
             <Scene key="sign" beat={beat} className="items-center gap-8 text-center lg:items-start lg:text-left">
               {beat === "switch" ? (
                 <StepHeading
-                  step={4}
+                  step={3}
                   title="Open your shop."
                   sub="You go live for people and AI shoppers."
                   className="w-full text-left lg:[grid-area:head]"
@@ -576,7 +680,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
       {/* the one faint strip of the landing's ink plate: the shop is open, the world beyond it */}
       {beat === "live" ? <InkStrip /> : null}
 
-      {/* Phone review CTA: always under the thumb (fixed, outside the animated scenes) */}
+      {/* Phone: "change anything" + "Looks good", always under the thumb (fixed, outside the
+          animated scenes); it rides up with the keyboard while you type */}
       <AnimatePresence>
         {beat === "review" && editingKey === null && !wide ? (
           <motion.div
@@ -585,9 +690,13 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
             animate={{ y: 0 }}
             exit={{ y: "110%", transition: { duration: DUR.micro, ease: EASE.in } }}
             transition={{ duration: 0.6, ease: INK_EASE, delay: 0.25 }}
-            className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[440px] bg-counter px-5 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-[0_-1px_0_rgb(22_58_66/0.1)] md:max-w-[520px]"
+            style={{ bottom: keyboard }}
+            className="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[440px] flex-col gap-2 bg-counter px-5 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-[0_-1px_0_rgb(22_58_66/0.1)] md:max-w-[520px]"
           >
-            <ReviewCta missing={missing} canContinue={canContinue} named={basics.name.trim().length > 0} onGo={toSign} />
+            {tellBox}
+            {keyboard > 0 ? null : (
+              <ReviewCta missing={missing} canContinue={canContinue} named={basics.name.trim().length > 0} onGo={toSign} />
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -650,22 +759,10 @@ function ReviewCta({ missing, canContinue, named, onGo }: { missing: number; can
   );
 }
 
-function ReadingStatus({
-  beat,
-  found,
-  kind,
-  ms,
-}: {
-  beat: Beat;
-  found: number;
-  kind: "voice" | "notes" | "photo";
-  ms: number | null;
-}) {
-  const lines = [
-    "Reading your counter…",
-    kind === "voice" ? "Listening for prices…" : kind === "notes" ? "Reading your notes…" : "Looking for price tags…",
-    "Printing your menu…",
-  ];
+const READING_LINES = ["Reading your counter…", "Looking for price tags…", "Printing your menu…"];
+
+function ReadingStatus({ beat, found, ms }: { beat: Beat; found: number; ms: number | null }) {
+  const lines = READING_LINES;
   const [i, setI] = useState(0);
   useEffect(() => {
     if (beat !== "reading") return;
@@ -680,55 +777,16 @@ function ReadingStatus({
   return <StatusLine text={text} lead className="px-1 lg:px-0" />;
 }
 
-/** What the AI is reading right now: the photo plus the voice note or typed notes. */
-function InputChips({ input }: { input: ReadInput | null }) {
-  const secs = input?.audio ? Math.max(1, Math.round(input.audio.durationMs / 1000)) : 0;
-  return (
-    <motion.p
-      className="-mt-1 flex flex-wrap items-center gap-x-2 px-1 text-[16px] text-ink-muted lg:-mt-2 lg:px-0 lg:text-[17px]"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: INK_EASE, delay: 0.15 }}
-    >
-      <Camera className="size-4" strokeWidth={1.75} aria-hidden /> photo
-      {input?.audio ? (
-        <>
-          <span aria-hidden>+</span>
-          <Mic className="size-4" strokeWidth={1.75} aria-hidden />
-          <span className="font-mono tabular-nums">0:{String(secs).padStart(2, "0")}</span> voice note
-        </>
-      ) : input?.notes ? (
-        <>
-          <span aria-hidden>+</span>
-          <Keyboard className="size-4" strokeWidth={1.75} aria-hidden /> your notes
-        </>
-      ) : null}
-    </motion.p>
-  );
-}
-
-/** Laptop, while the prices land: what the owner said, so every price has its source in view. */
-function HeardQuote({ text }: { text: string }) {
-  return (
-    <motion.figure className="lg:-mt-1" {...inkRise(0.2, 0.7)}>
-      <figcaption className="flex items-center gap-2 text-[16px] font-semibold text-ink-muted">
-        <Mic className="size-4" strokeWidth={1.75} aria-hidden /> What I heard
-      </figcaption>
-      <blockquote className="mt-3 border-l-2 border-carbon/40 pl-4 text-[17px] leading-relaxed">“{text}”</blockquote>
-    </motion.figure>
-  );
-}
-
 function ReadErrorCard({
   error,
   onRetry,
-  onType,
+  onTell,
   onRetake,
   className,
 }: {
   error: ReadError;
   onRetry?: () => void;
-  onType: () => void;
+  onTell: () => void;
   onRetake: () => void;
   className?: string;
 }) {
@@ -739,12 +797,12 @@ function ReadErrorCard({
       <div className="paper px-6 pb-7 pt-7 lg:px-8 lg:pb-8 lg:pt-8">
         <p className="font-display text-[28px] leading-[1.15] text-balance lg:text-[34px]">{error.message}</p>
         <div className="mt-7 flex flex-col items-center gap-2 lg:items-start">
-          <button type="button" onClick={retry ? onRetry : onType} className="btn-ink w-full justify-between!">
-            {retry ? "Try again" : "Type it instead"} <ArrowRight className="size-5" aria-hidden />
+          <button type="button" onClick={retry ? onRetry : onTell} className="btn-ink w-full justify-between!">
+            {retry ? "Try again" : "Just tell me instead"} <ArrowRight className="size-5" aria-hidden />
           </button>
           {retry ? (
-            <button type="button" onClick={onType} className="link-ink text-[19px]!">
-              Type it instead <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
+            <button type="button" onClick={onTell} className="link-ink text-[19px]!">
+              Just tell me instead <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
           ) : null}
           <button type="button" onClick={onRetake} className="btn-quiet text-ink-muted lg:-ml-3">

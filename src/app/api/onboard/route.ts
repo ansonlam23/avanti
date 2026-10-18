@@ -1,3 +1,4 @@
+import { AUDIO_TYPES, baseType, geminiAudioType, MAX_AUDIO_BYTES } from "@/lib/ai/audio";
 import { extractMenu, OnboardAiError } from "@/lib/ai/onboard";
 import { uploadShopPhoto } from "@/lib/db/shops";
 import { hasGemini } from "@/lib/env";
@@ -10,43 +11,10 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-const AUDIO_TYPES = new Set([
-  "audio/webm",
-  "audio/ogg",
-  "audio/mp4",
-  "audio/m4a",
-  "audio/x-m4a",
-  "audio/aac",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/wav",
-  "audio/x-wav",
-  "audio/wave",
-  "audio/flac",
-  "audio/aiff",
-  "audio/x-aiff",
-]);
 
 function fail(status: number, code: string, message: string) {
   return Response.json({ error: { code, message } }, { status });
-}
-
-function baseType(type: string): string {
-  return type.split(";")[0].trim().toLowerCase();
-}
-
-/**
- * Gemini's own names (ai.google.dev/gemini-api/docs/audio, checked 2026-10-16):
- * wav, mp3, aiff, aac, ogg, flac, mpeg, m4a, opus, webm … but not "audio/mp4",
- * which is what iPhone Safari's MediaRecorder produces (AAC in an MP4 = .m4a).
- */
-function geminiAudioType(type: string): string {
-  if (type === "audio/mp4" || type === "audio/x-m4a") return "audio/m4a";
-  if (type === "audio/x-wav" || type === "audio/wave") return "audio/wav";
-  if (type === "audio/x-aiff") return "audio/aiff";
-  return type;
 }
 
 export async function POST(req: Request) {

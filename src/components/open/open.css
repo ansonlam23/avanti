@@ -152,12 +152,6 @@
     grid-template-areas: ". art" "head art" "actions art" "note art" ". art";
   }
 
-  /* Talk: the mic on the left, the photo you just took on the right. */
-  .open-scene[data-beat="talk"] {
-    grid-template-rows: 1fr auto auto 1fr;
-    grid-template-areas: ". art" "head art" "action art" ". art";
-  }
-
   /* Reading → prices: the narration and the photo being read on the left
      (one sticky column); the menu slip filling in on the right, so every
      price's flight crosses the screen in view. */
@@ -173,11 +167,12 @@
     align-items: center;
   }
 
-  /* Review: the heading + basics + "Looks good" on the left, the menu slip on the right. */
+  /* Review: the heading, "change anything", the basics and "Looks good" on the left;
+     the menu slip on the right. */
   .open-scene[data-beat="review"] {
     min-height: 0;
-    grid-template-rows: auto auto 1fr;
-    grid-template-areas: "head board" "form board" ". board";
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas: "head board" "tell board" "form board" ". board";
   }
 
   /* Open: the key on the left, the sign waiting on the right. */
@@ -193,4 +188,22 @@
     grid-template-rows: auto auto auto;
     grid-template-areas: "title art" "actions card" ". card";
   }
+}
+
+/* "Change anything": a line the owner just changed by voice or text gets a brief teal wash. */
+.open-fresh {
+  position: absolute;
+  inset: 0 0 -1px -12px; /* -1px: covers the hairline, so two washed lines meet without a gap */
+  z-index: -1;
+  pointer-events: none;
+  background: var(--color-highlight);
+  animation: open-fresh 2.8s ease-out forwards;
+}
+@keyframes open-fresh {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .open-fresh { animation-duration: 1.4s; }
 }

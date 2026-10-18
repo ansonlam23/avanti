@@ -21,7 +21,8 @@ import { flightTurn, TAG_H, TAG_ORIGIN, TAG_W } from "./tag-geometry";
 //             a small turn, arcs over and settles square on its line; then the
 //             line writes itself in and the price counts up. No price = the
 //             vermilion "Needs a price" seal lands instead of a label.
-//  review   – tap a line to edit name / price / quantity / tags
+//  review   – tap a line to edit name / price / quantity / tags; lines the
+//             owner just changed by voice or text get a brief teal wash
 
 export interface MenuRow {
   key: string;
@@ -67,6 +68,11 @@ interface MenuBoardProps {
   onChange?: (key: string, patch: Partial<MenuRow>) => void;
   onRemove?: (key: string) => void;
   onAdd?: () => void;
+  /** Lines the last "change anything" touched, and that change's number (restarts the wash). */
+  fresh?: ReadonlySet<string>;
+  freshKey?: number;
+  /** Review with no lines yet (the photo was skipped). */
+  emptyHint?: string;
   footer?: React.ReactNode;
   className?: string;
 }
@@ -83,6 +89,9 @@ export function MenuBoard({
   onChange,
   onRemove,
   onAdd,
+  fresh,
+  freshKey,
+  emptyHint,
   footer,
   className,
 }: MenuBoardProps) {
@@ -91,7 +100,7 @@ export function MenuBoard({
       <div className="paper px-5 pb-7 pt-7 lg:px-8 lg:pb-8 lg:pt-8">
         <h2 className="truncate text-center font-display text-[30px] leading-[1.15] lg:text-[34px]">{title}</h2>
         <div aria-hidden className="print-rule mt-5" />
-        {mode === "review" ? (
+        {mode === "review" && rows.length > 0 ? (
           <motion.p
             className="-mb-1 mt-3 text-right text-[15px] leading-none text-ink-muted"
             initial={{ opacity: 0 }}
@@ -109,22 +118,28 @@ export function MenuBoard({
           </ul>
         ) : (
           <ul>
-            {rows.map((row, i) => (
-              <BoardRow
-                key={row.key}
-                row={row}
-                index={i}
-                mode={mode}
-                flight={flights?.[row.key]}
-                slotRef={slotRef}
-                editing={editingKey === row.key}
-                onEdit={onEdit}
-                onChange={onChange}
-                onRemove={onRemove}
-              />
-            ))}
+            <AnimatePresence initial={false}>
+              {rows.map((row, i) => (
+                <BoardRow
+                  key={row.key}
+                  row={row}
+                  index={i}
+                  mode={mode}
+                  flight={flights?.[row.key]}
+                  slotRef={slotRef}
+                  editing={editingKey === row.key}
+                  fresh={fresh?.has(row.key) ? freshKey : undefined}
+                  onEdit={onEdit}
+                  onChange={onChange}
+                  onRemove={onRemove}
+                />
+              ))}
+            </AnimatePresence>
           </ul>
         )}
+        {mode === "review" && rows.length === 0 && emptyHint ? (
+          <p className="py-10 text-center text-[17px] leading-snug text-ink-muted lg:text-[18px]">{emptyHint}</p>
+        ) : null}
         {mode === "review" && onAdd ? (
           <button
             type="button"
@@ -173,6 +188,8 @@ interface BoardRowProps {
   flight?: RowFlight;
   slotRef?: (key: string, el: HTMLDivElement | null) => void;
   editing: boolean;
+  /** Set (to the change's number) when "change anything" just touched this line. */
+  fresh?: number;
   onEdit?: (key: string | null) => void;
   onChange?: (key: string, patch: Partial<MenuRow>) => void;
   onRemove?: (key: string) => void;
@@ -182,7 +199,7 @@ interface BoardRowProps {
 export const FLIGHT_S = 0.78;
 export const TOUCHDOWN = 0.8;
 
-function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange, onRemove }: BoardRowProps) {
+function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, onChange, onRemove }: BoardRowProps) {
   const reduce = useReducedMotion();
   const k = 1 / motionSpeed(); // ?speed=0.5 slows the whole script for retakes
   const turn = flightTurn(index);
@@ -246,7 +263,7 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
                 kind="HELD"
                 text="Needs a price"
                 size="sm"
-                animate={mode === "flight"}
+                animate={mode === "flight" || fresh !== undefined}
                 sound={false}
                 className="absolute right-0 top-1/2 -translate-y-1/2 [&_.stamp-ink]:px-[0.5em] [&_.stamp-ink]:py-[0.4em]"
               />
@@ -257,7 +274,10 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
               style={{ transformOrigin: TAG_ORIGIN }}
               initial={
                 mode !== "flight"
-                  ? false
+                  ? // a price that just arrived by voice or text drops onto its line
+                    fresh !== undefined && !reduce
+                    ? { y: -18, rotate: turn, scale: 0.9, opacity: 0 }
+                    : false
                   : reduce
                     ? { opacity: 0, rotate: 0 }
                     : { x: dx, y: dy, rotate: turn, scale: 0.72, opacity: 0 }
@@ -266,7 +286,9 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
               transition={
                 reduce
                   ? { duration: 0.15 }
-                  : {
+                  : mode !== "flight"
+                    ? { duration: 0.55, ease: INK_EASE }
+                    : {
                       x: { duration: D, ease: [0.42, 0, 0.22, 1] },
                       y: { duration: D, times: [0, 0.3, TOUCHDOWN, 1], ease: ["easeOut", [0.55, 0, 0.9, 0.55], "easeOut"] },
                       scale: { duration: D, times: [0, 0.72, 1], ease: ["easeOut", "easeInOut"] },
@@ -296,7 +318,17 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
   const review = mode === "review";
   const toggle = () => onEdit?.(editing ? null : row.key);
   return (
-    <li className="border-b border-ink/10 py-2.5 last:border-0">
+    // review: a line said into the menu eases in, a removed one folds away, the rest close up
+    <motion.li
+      data-row={row.key}
+      layout={review ? "position" : false}
+      initial={review ? { opacity: 0, y: 10 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
+      transition={{ duration: reduce ? 0.01 : 0.45, ease: INK_EASE }}
+      className="relative isolate border-b border-ink/10 py-2.5 last:border-0"
+    >
+      {fresh !== undefined ? <span key={fresh} aria-hidden className="open-fresh" /> : null}
       <div className="flex items-start gap-3">
       {/* same element in every mode, so nothing remounts when the slip turns editable */}
       <div
@@ -355,7 +387,7 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, onEdit, onChange
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </li>
+    </motion.li>
   );
 }
 

@@ -81,8 +81,9 @@ export async function extractMenu(input: ExtractMenuInput): Promise<OnboardDraft
  * the voice note. A 429 moves on to the next model; 5xx, network errors and bad
  * JSON get one retry on the same model; anything else fails at once.
  */
-async function callGemini(
+export async function callGemini(
   parts: Array<{ text: string } | { inlineData: { data: string; mimeType: string } }>,
+  prompt: { system: string; schema: object } = { system: ONBOARD_SYSTEM_PROMPT, schema: ONBOARD_RESPONSE_SCHEMA },
 ): Promise<unknown> {
   const ai = getGemini();
   const models = [...new Set([geminiModel(), ...env.geminiFallbackModels()])];
@@ -94,9 +95,9 @@ async function callGemini(
           model,
           contents: [{ role: "user", parts }],
           config: {
-            systemInstruction: ONBOARD_SYSTEM_PROMPT,
+            systemInstruction: prompt.system,
             responseMimeType: "application/json",
-            responseJsonSchema: ONBOARD_RESPONSE_SCHEMA,
+            responseJsonSchema: prompt.schema,
             thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
             abortSignal: AbortSignal.timeout(28_000),
             // No SDK retries (its default is 5 tries with 1-8 s waits on 429): a 429 must move
@@ -236,7 +237,7 @@ export function validateDraft(raw: unknown, ctx: ValidateContext): OnboardDraft 
   };
 }
 
-interface OwnerWords {
+export interface OwnerWords {
   hasAudio: boolean;
   notes: string | null;
   sourceText: string; // transcript + typed notes
@@ -394,7 +395,7 @@ export function normalizeTag(tag: string): DietTag | null {
   return TAG_SYNONYMS[k] ?? null;
 }
 
-function validateTags(rawTags: unknown[], owner: OwnerWords, itemName: string, unclear: string[]): string[] {
+export function validateTags(rawTags: unknown[], owner: OwnerWords, itemName: string, unclear: string[]): string[] {
   const kept = new Set<DietTag>();
   for (const t of rawTags) {
     const r = rawTagSchema.safeParse(t);
@@ -421,7 +422,7 @@ function validateTags(rawTags: unknown[], owner: OwnerWords, itemName: string, u
 
 // ── Small fields ───────────────────────────────────────────────────────
 
-function validateQuantity(q: number | null): number | null {
+export function validateQuantity(q: number | null): number | null {
   if (q === null || !Number.isFinite(q) || q < 0) return null;
   return Math.min(999, Math.round(q));
 }
@@ -435,7 +436,7 @@ function validateBox(v: unknown): Box2D | null {
   return [ymin, xmin, ymax, xmax];
 }
 
-function normalizeLanguage(v: string | null): string | null {
+export function normalizeLanguage(v: string | null): string | null {
   if (!v) return null;
   const s = v.trim().toLowerCase().replace(/_/g, "-");
   return /^[a-z]{2,3}(-[a-z0-9]{2,8}){0,2}$/.test(s) ? s : null;
@@ -455,26 +456,26 @@ function mergeInto(a: OnboardDraftItem, b: OnboardDraftItem) {
 
 // ── Text helpers ───────────────────────────────────────────────────────
 
-function clean(v: string | null | undefined, max: number): string | null {
+export function clean(v: string | null | undefined, max: number): string | null {
   if (typeof v !== "string") return null;
   const s = v.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
   return s ? s.slice(0, max).trim() : null;
 }
 
-function cleanName(v: string | null): string | null {
+export function cleanName(v: string | null): string | null {
   const s = clean(v, 200)?.replace(/^["'“”‘’\s]+|["'“”‘’\s]+$/g, "");
   if (!s || !/[\p{L}\p{N}]/u.test(s)) return null;
   return s.slice(0, 80).trim();
 }
 
-function itemKey(name: string): string {
+export function itemKey(name: string): string {
   return name
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
-function dedupe(list: string[]): string[] {
+export function dedupe(list: string[]): string[] {
   const seen = new Set<string>();
   return list.filter((s) => {
     const k = s.toLowerCase();

@@ -9,21 +9,21 @@ import { Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { INK_EASE } from "./ink";
 
-// The way through /open: the wordmark home, four quiet steps and a real
+// The way through /open: the wordmark home, three quiet steps and a real
 // stopwatch (Red Hat Mono) that runs from the first tap until the shop opens.
-// Phone: four short ink rules. Laptop: the steps by name, a teal rule under
+// Phone: three short ink rules. Laptop: the steps by name, a teal rule under
 // the one you're on (it glides to the next step).
 
-const STEPS = ["Photo", "Prices", "Menu", "Open"] as const;
+const STEPS = ["Photo", "Menu", "Open"] as const;
 
 export function StepBars({ done, current }: { done: number; current: number }) {
-  const at = Math.min(current, 3);
+  const at = Math.min(current, STEPS.length - 1);
   return (
     <div
       role="progressbar"
-      aria-label={`Step ${at + 1} of 4: ${STEPS[at]}`}
+      aria-label={`Step ${at + 1} of ${STEPS.length}: ${STEPS[at]}`}
       aria-valuemin={0}
-      aria-valuemax={4}
+      aria-valuemax={STEPS.length}
       aria-valuenow={done}
       className="flex items-center"
     >

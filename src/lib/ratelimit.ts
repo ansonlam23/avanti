@@ -36,6 +36,7 @@ export async function rateLimit(
 export const LIMITS = {
   // Generous on purpose: venue Wi-Fi puts many people behind one IP.
   onboard: [30, 3600], // Gemini photo+voice reads per IP per hour (room for video retakes)
+  onboardRevise: [90, 3600], // "change anything" in /open: one short Gemini call per change
   chat: [150, 600], // shopper chat turns per IP per 10 min
   createShop: [20, 3600],
   demoCopy: [30, 3600],
