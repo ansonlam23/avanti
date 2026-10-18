@@ -53,6 +53,10 @@ export function CounterApp({ slug }: { slug: string }) {
   // The pickup ticket (CONTRACTS §18): orders already marked seen from here, and who was at the door last load.
   const seenPosted = useRef<Set<string>>(new Set());
   const hereSeen = useRef<Map<string, string | null> | null>(null);
+  // Loads can land out of order (a poll that left before a realtime ping can come back after it).
+  // Only answers newer than the last one applied count; an older one would undo what was announced.
+  const loadsSent = useRef(0);
+  const loadApplied = useRef(0);
   // The last "Which one?" question, until it's answered or PENDING_MS pass.
   const pending = useRef<Pending | null>(null);
   const pendingTimer = useRef<number | null>(null);
@@ -73,7 +77,10 @@ export function CounterApp({ slug }: { slug: string }) {
 
   const refresh = useCallback(async () => {
     if (!token) return;
+    const sent = ++loadsSent.current;
     const { res, body } = await api(`/api/shops/${slug}/dashboard`);
+    if (sent < loadApplied.current) return;
+    loadApplied.current = sent;
     if (!res.ok) {
       setLoad({ state: "error", message: body?.error?.message ?? "Couldn't load the counter", code: body?.error?.code });
       return;
