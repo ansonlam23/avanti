@@ -6,11 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { OpenSign, sfx } from "@/components/brand";
 import { formatCents } from "@/lib/format";
+import { hereLine } from "@/lib/orders/progress";
 import { useShopPings } from "@/lib/realtime/client";
 import type { Item, LoyaltyRule } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { CounterView } from "./counter-view";
-import { speakOrders, useOrderVoice } from "./speak";
+import { speakLine, speakOrders, useOrderVoice } from "./speak";
 import { TalkKey, type VoiceReply } from "./talk-key";
 import { useOwnerToken } from "./use-owner-token";
 import { useWide } from "./use-wide";
@@ -49,6 +50,9 @@ export function CounterApp({ slug }: { slug: string }) {
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [simulating, setSimulating] = useState(false);
   const known = useRef<Set<string> | null>(null);
+  // The pickup ticket (CONTRACTS §18): orders already marked seen from here, and who was at the door last load.
+  const seenPosted = useRef<Set<string>>(new Set());
+  const hereSeen = useRef<Map<string, string | null> | null>(null);
   // The last "Which one?" question, until it's answered or PENDING_MS pass.
   const pending = useRef<Pending | null>(null);
   const pendingTimer = useRef<number | null>(null);
@@ -94,6 +98,26 @@ export function CounterApp({ slug }: { slug: string }) {
       }
     }
     known.current = ids;
+
+    // The pickup ticket (CONTRACTS §18). The shopper's ticket says "{shop} saw it" once this
+    // counter has shown their held order; and when they tap "I'm here", the counter says so.
+    // (No progress fields on the rows = migration 0007 isn't applied yet: skip both.)
+    for (const o of data.orders) {
+      if (o.status !== "held" || !("seen_at" in o) || o.seen_at || seenPosted.current.has(o.id)) continue;
+      seenPosted.current.add(o.id);
+      void api(`/api/orders/${o.id}/seen`, { method: "POST", body: "{}" });
+    }
+    const before = hereSeen.current;
+    const arrived = before ? data.orders.filter((o) => o.status === "held" && o.here_at && !before.get(o.id)) : [];
+    hereSeen.current = new Map(data.orders.map((o) => [o.id, o.here_at ?? null]));
+    for (const o of arrived) {
+      toast(`${o.customer_name || "Your shopper"} is at the door`, { description: `${o.qty > 1 ? `${o.qty}× ` : ""}${o.item_name}` });
+    }
+    if (arrived.length) {
+      sfx.play("doorbell");
+      speakLine(arrived.map((o) => hereLine(o)).join(" "));
+    }
+
     setLoad({ state: "ready", data });
   }, [api, slug, token]);
 
@@ -240,6 +264,16 @@ export function CounterApp({ slug }: { slug: string }) {
     return false;
   }
 
+  // The owner tapped Ready: the shopper's ticket turns to "Ready" (CONTRACTS §18).
+  async function markReady(order: DashboardOrder) {
+    setBusy(order.id);
+    const { res, body } = await api(`/api/orders/${order.id}/ready`, { method: "POST", body: "{}" });
+    setBusy(null);
+    if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't mark it ready");
+    toast(`${order.item_name} is ready`, { description: `${order.customer_name || "The shopper"} sees it on their ticket.` });
+    void refresh();
+  }
+
   async function release(order: DashboardOrder) {
     setBusy(order.id);
     const { res, body } = await api(`/api/orders/${order.id}/release`, { method: "POST", body: "{}" });
@@ -276,6 +310,7 @@ export function CounterApp({ slug }: { slug: string }) {
       onPadClose={() => setPadFor(null)}
       onPadSubmit={(code) => (padFor ? pickup(padFor, code) : Promise.resolve(false))}
       onNoShow={(o) => void release(o)}
+      onReady={(o) => void markReady(o)}
       onToggleSoldOut={(item, soldOut) => void toggleSoldOut(item, soldOut)}
       onToggleAiOrderable={(item, orderable) => void toggleAiOrderable(item, orderable)}
       onAiLimit={setAiLimit}

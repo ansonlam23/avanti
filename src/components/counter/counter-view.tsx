@@ -29,6 +29,8 @@ export interface CounterViewProps {
   onPadClose: () => void;
   onPadSubmit: (code: string) => Promise<boolean>;
   onNoShow: (order: DashboardOrder) => void;
+  /** The owner tapped Ready (the shopper's ticket updates). Absent: no Ready key. CONTRACTS §18. */
+  onReady?: (order: DashboardOrder) => void;
   onToggleSoldOut: (item: Item, soldOut: boolean) => void;
   /** The owner's per-item "AI can order" switch (absent: shown, read-only). */
   onToggleAiOrderable?: (item: Item, orderable: boolean) => void;
@@ -62,6 +64,7 @@ export function CounterView({
   onPadClose,
   onPadSubmit,
   onNoShow,
+  onReady,
   onToggleSoldOut,
   onToggleAiOrderable,
   onAiLimit,
@@ -107,6 +110,7 @@ export function CounterView({
               busy={busy === front.id}
               onPickedUp={() => onPickedUp(front)}
               onNoShow={() => onNoShow(front)}
+              onReady={onReady ? () => onReady(front) : undefined}
             />
           ) : null}
         </AnimatePresence>

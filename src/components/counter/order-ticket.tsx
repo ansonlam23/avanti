@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, DoorOpen } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { SimulatedBadge, Stamp, type StampKind } from "@/components/brand";
@@ -37,12 +37,15 @@ export function OrderTicket({
   busy,
   onPickedUp,
   onNoShow,
+  onReady,
 }: {
   order: DashboardOrder;
   fresh?: boolean;
   busy?: boolean;
   onPickedUp: () => void;
   onNoShow: () => void;
+  /** Ready for pickup: the shopper's ticket says so (CONTRACTS §18). Absent: no Ready key. */
+  onReady?: () => void;
 }) {
   const stamp = STATUS_STAMP[order.status];
   const [firstStatus] = useState(order.status);
@@ -76,6 +79,13 @@ export function OrderTicket({
         </p>
         <p className="mt-1 text-[16px] text-ink-muted">{pickupLabel(order)}</p>
         {regular ? <p className="mt-1 text-[16px] text-ink-muted">{regular}</p> : null}
+        {order.status === "held" && order.here_at ? (
+          // the shopper tapped "I'm here" on their ticket
+          <p role="status" className="mt-4 flex items-center gap-2.5 border border-carbon/50 bg-paper px-3.5 py-2.5 text-[18px] leading-snug text-ink">
+            <DoorOpen className="size-5 shrink-0 text-carbon" strokeWidth={1.75} aria-hidden />
+            At the door now
+          </p>
+        ) : null}
         {reward ? (
           // the reward to hand over, on the slip before the owner taps Picked up
           <div className="mt-4 flex items-center gap-3.5">
@@ -106,6 +116,22 @@ export function OrderTicket({
 
         {order.status === "held" ? (
           <div className="mt-6 flex flex-col items-center gap-1">
+            {onReady && "ready_at" in order ? (
+              order.ready_at ? (
+                <p className="mb-2 flex w-full items-center gap-2 text-[16px] text-ink">
+                  <Check className="size-[18px] text-carbon" strokeWidth={2} aria-hidden /> Ready · their ticket says so
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onReady}
+                  className="mb-2 flex min-h-12 w-full items-center justify-center gap-2 border border-carbon/60 bg-paper/70 font-display text-[19px] text-carbon transition-colors duration-200 hover:bg-highlight disabled:opacity-50"
+                >
+                  Mark ready
+                </button>
+              )
+            ) : null}
             <button type="button" disabled={busy} onClick={onPickedUp} className="btn-ink w-full justify-between!">
               Picked up
               <span className="font-sans text-[15px] tracking-normal opacity-85 max-[359px]:hidden">charge {amount}</span>
@@ -133,6 +159,7 @@ export function OrderStrip({ order, onOpen }: { order: DashboardOrder; onOpen?: 
         <span className="block truncate font-pen text-[30px] leading-none text-ink">{order.customer_name || "a shopper"}</span>
         <span className="mt-1.5 block truncate text-[15px] text-ink-muted lg:text-[16px]">
           {order.qty} × {order.item_name}
+          {order.status === "held" && order.here_at ? " · at the door" : ""}
         </span>
       </span>
       <span className={cn("font-mono text-[18px] font-medium tabular-nums", quiet ? "text-ink-muted" : "text-ink")}>
