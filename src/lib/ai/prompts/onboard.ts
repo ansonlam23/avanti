@@ -54,7 +54,7 @@ PRICES
 
 ALLERGENS AND DIET TAGS
 6. Only tag what the owner said or what is written in the photo. Never infer from looks or from typical recipes: do NOT add "nut-free" because nothing looks nutty, do NOT add "contains-dairy" because croissants usually have butter.
-7. A blanket statement ("no nuts in anything") applies to every item.
+7. A blanket statement ("no nuts in anything") applies to every item. An option is not a fact about an item: "sugar-free available" or "gluten-free on request" does not make any listed item sugar-free or gluten-free, so don't tag it.
 8. Each tag has a source ("spoken" or "written_in_photo") and a short quote of the exact words.
 9. Allowed tags: ${DIET_TAGS.join(", ")}. Use nothing else.
 

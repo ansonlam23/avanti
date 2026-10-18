@@ -52,6 +52,12 @@ interface ReadError {
 /** One "change anything": a voice note or typed words. */
 type TellInput = { audio?: Recording; notes?: string };
 
+/** A note about a line's price ("price for bottled water") that the line's own seal already shows. */
+function repeatsASeal(note: string, rows: MenuRow[]): boolean {
+  const n = note.toLowerCase();
+  return n.includes("price") && rows.some((r) => r.price_cents === null && r.name.trim() && n.includes(r.name.trim().toLowerCase()));
+}
+
 /** Case-insensitive dedupe for the "I couldn't tell" notes. */
 function dedupeNotes(list: string[]): string[] {
   const seen = new Set<string>();
@@ -478,6 +484,8 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
     window.scrollTo({ top: 0 });
   };
   const needsPrice = validRows.find((r) => r.price_cents === null);
+  // "I couldn't tell" notes, minus the ones a line already says (its "Needs a price" seal)
+  const notes = unclear.filter((u) => !repeatsASeal(u, validRows));
   const tellBox = (
     <TellBox
       busy={changing}
@@ -617,10 +625,10 @@ export function OpenFlow({ shot }: { shot: Shot | null }) {
                     </motion.p>
                   ) : null}
                   {/* "I couldn't tell" notes stay with the slip they're about */}
-                  {beat === "review" && unclear.length ? (
-                    <div className={cn("grid gap-3 lg:mx-auto lg:w-full lg:max-w-[580px]", unclear.length > 1 && "sm:grid-cols-2")}>
+                  {beat === "review" && notes.length ? (
+                    <div className={cn("grid gap-3 lg:mx-auto lg:w-full lg:max-w-[580px]", notes.length > 1 && "sm:grid-cols-2")}>
                       <AnimatePresence initial={false}>
-                        {unclear.map((u, i) => (
+                        {notes.map((u, i) => (
                           <StickyNote key={u} text={u} index={i} onDismiss={() => setUnclear((l) => l.filter((x) => x !== u))} />
                         ))}
                       </AnimatePresence>

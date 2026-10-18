@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Mic, Minus, PenLine, Plus, Tag, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Stamp } from "@/components/brand";
 import type { Box2D } from "@/lib/ai/onboard";
 import { DIET_TAGS } from "@/lib/ai/prompts/onboard";
@@ -100,16 +100,6 @@ export function MenuBoard({
       <div className="paper px-5 pb-7 pt-7 lg:px-8 lg:pb-8 lg:pt-8">
         <h2 className="truncate text-center font-display text-[30px] leading-[1.15] lg:text-[34px]">{title}</h2>
         <div aria-hidden className="print-rule mt-5" />
-        {mode === "review" && rows.length > 0 ? (
-          <motion.p
-            className="-mb-1 mt-3 text-right text-[15px] leading-none text-ink-muted"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: INK_EASE }}
-          >
-            AI can order
-          </motion.p>
-        ) : null}
         {mode === "scribble" ? (
           <ul aria-hidden>
             {Array.from({ length: placeholderRows }, (_, i) => (
@@ -251,11 +241,16 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, o
               ))}
             </div>
           ) : null}
+          {mode === "review" && !row.ai_orderable ? <p className="mt-1.5 text-[15px] text-ink-muted">In person only</p> : null}
         </motion.div>
       </div>
 
       <div className="flex shrink-0 flex-col items-end" style={{ minWidth: TAG_W }}>
-        <div ref={(el) => slotRef?.(row.key, el)} className="relative" style={{ width: TAG_W, height: TAG_H }}>
+        <div
+          ref={(el) => slotRef?.(row.key, el)}
+          className={cn("relative", noPrice && "flex items-center justify-end")}
+          style={{ width: noPrice ? undefined : TAG_W, minWidth: TAG_W, height: TAG_H }}
+        >
           {noPrice ? (
             // no price heard or seen: the seal lands instead of a label
             shown ? (
@@ -265,7 +260,7 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, o
                 size="sm"
                 animate={mode === "flight" || fresh !== undefined}
                 sound={false}
-                className="absolute right-0 top-1/2 -translate-y-1/2 [&_.stamp-ink]:px-[0.5em] [&_.stamp-ink]:py-[0.4em]"
+                className="[&_.stamp-ink]:px-[0.5em] [&_.stamp-ink]:py-[0.4em]"
               />
             ) : null
           ) : tagMounted ? (
@@ -357,18 +352,6 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, o
       >
         {content}
       </div>
-      {/* "AI can order": outside the tap-to-edit area (a switch can't live inside a button) */}
-      <div className="w-[52px] shrink-0 pt-4">
-        {review ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, ease: INK_EASE }}>
-            <InkToggle
-              checked={row.ai_orderable}
-              onCheckedChange={(ai_orderable) => onChange?.(row.key, { ai_orderable })}
-              aria-label={`AI can order ${row.name || "this item"}`}
-            />
-          </motion.div>
-        ) : null}
-      </div>
       </div>
       <AnimatePresence initial={false}>
         {mode === "review" && editing ? (
@@ -438,6 +421,7 @@ function RowEditor({
   onRemove: () => void;
   onDone: () => void;
 }) {
+  const aiId = useId();
   const [priceText, setPriceText] = useState(centsToInput(row.price_cents));
   const parsed = parsePriceInput(priceText);
   const tagChoices = [...EDIT_TAGS, ...row.tags.filter((t) => !(EDIT_TAGS as readonly string[]).includes(t))];
@@ -504,6 +488,13 @@ function RowEditor({
             );
           })}
         </div>
+      </div>
+
+      <div className="flex min-h-12 items-center justify-between gap-4">
+        <label htmlFor={aiId} className="text-[16px]">
+          AI shoppers can order this
+        </label>
+        <InkToggle id={aiId} checked={row.ai_orderable} onCheckedChange={(ai_orderable) => onChange({ ai_orderable })} className="mr-1" />
       </div>
 
       <div className="flex items-center justify-between pt-1">

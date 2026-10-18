@@ -1,14 +1,16 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { formatClock } from "@/lib/format";
 import { AI_LIMIT_MAX_CENTS, AI_LIMIT_MIN_CENTS } from "@/lib/orders/ai-rules";
 import { cn } from "@/lib/utils";
 import { InkToggle } from "./ink-toggle";
 import { parsePriceInput, Stepper } from "./menu-board";
 
-// Shop basics on the review screen: name, today's pickup window, max per
-// order (default 2), "Take AI orders" (on) and, optionally, the most one AI
-// order may cost. A small paper form.
+// Shop basics on the review screen: name and today's pickup window up front;
+// max per order (default 2), "Take AI orders" (on) and the most one AI order
+// may cost folded under "More options" (the defaults are fine for day one).
 
 export interface Basics {
   name: string;
@@ -31,6 +33,9 @@ export function aiCapValid(text: string): boolean {
 export function ShopBasics({ value, onChange }: { value: Basics; onChange: (patch: Partial<Basics>) => void }) {
   const badWindow = value.start >= value.end;
   const badCap = !aiCapValid(value.aiMax);
+  const changed = value.maxPerOrder !== DEFAULT_BASICS.maxPerOrder || !value.acceptAi || value.aiMax.trim() !== "";
+  const [more, setMore] = useState(changed);
+  const open = more || badCap;
   return (
     <section aria-label="Shop basics" className="paper px-5 py-6 lg:px-7 lg:py-7">
       <label className="block">
@@ -54,43 +59,57 @@ export function ShopBasics({ value, onChange }: { value: Basics; onChange: (patc
         {badWindow ? <p className="mt-2 text-[16px] font-semibold text-stamp-deep">Pickup has to end after it starts.</p> : null}
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-4 border-t border-ink/10 pt-5">
-        <span className="text-[16px]">Max per order</span>
-        <Stepper value={value.maxPerOrder} onChange={(v) => onChange({ maxPerOrder: v ?? 1 })} min={1} max={20} label="Max per order" />
-      </div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setMore((m) => !m)}
+        className="mt-6 flex min-h-12 w-full items-center justify-between gap-4 border-t border-ink/10 pt-3 text-left text-[16px] text-ink-muted transition-colors hover:text-ink"
+      >
+        More options
+        <ChevronDown className={cn("size-5 transition-transform duration-300", open && "rotate-180")} strokeWidth={1.5} aria-hidden />
+      </button>
 
-      <div className="mt-5 flex min-h-12 items-center justify-between gap-4">
-        <label htmlFor="accept-ai" className="text-[16px]">
-          Take AI orders
-        </label>
-        <InkToggle id="accept-ai" checked={value.acceptAi} onCheckedChange={(acceptAi) => onChange({ acceptAi })} className="mr-1" />
-      </div>
+      {open ? (
+        <div>
+        <div className="mt-3 flex items-center justify-between gap-4">
+          <span className="text-[16px]">Max per order</span>
+          <Stepper value={value.maxPerOrder} onChange={(v) => onChange({ maxPerOrder: v ?? 1 })} min={1} max={20} label="Max per order" />
+        </div>
 
-      {value.acceptAi ? (
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-4">
-            <label htmlFor="ai-max" className="text-[16px]">
-              AI orders up to
-            </label>
-            <span
-              className={cn(
-                "flex h-12 w-[136px] items-center border bg-paper px-3 transition-colors focus-within:border-carbon focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-carbon",
-                badCap ? "border-stamp-deep" : "border-[rgb(22_58_66/0.34)] hover:border-[rgb(22_58_66/0.55)]",
-              )}
-            >
-              <span className="font-mono text-[17px] text-ink-muted">$</span>
-              <input
-                id="ai-max"
-                inputMode="decimal"
-                placeholder="no limit"
-                value={value.aiMax}
-                aria-invalid={badCap || undefined}
-                onChange={(e) => onChange({ aiMax: e.target.value.slice(0, 8) })}
-                className="h-full w-full min-w-0 bg-transparent pl-1.5 font-mono text-[17px] outline-none placeholder:font-sans placeholder:text-ink-muted"
-              />
-            </span>
+        <div className="mt-5 flex min-h-12 items-center justify-between gap-4">
+          <label htmlFor="accept-ai" className="text-[16px]">
+            Take AI orders
+          </label>
+          <InkToggle id="accept-ai" checked={value.acceptAi} onCheckedChange={(acceptAi) => onChange({ acceptAi })} className="mr-1" />
+        </div>
+
+        {value.acceptAi ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor="ai-max" className="text-[16px]">
+                AI orders up to
+              </label>
+              <span
+                className={cn(
+                  "flex h-12 w-[136px] items-center border bg-paper px-3 transition-colors focus-within:border-carbon focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-carbon",
+                  badCap ? "border-stamp-deep" : "border-[rgb(22_58_66/0.34)] hover:border-[rgb(22_58_66/0.55)]",
+                )}
+              >
+                <span className="font-mono text-[17px] text-ink-muted">$</span>
+                <input
+                  id="ai-max"
+                  inputMode="decimal"
+                  placeholder="no limit"
+                  value={value.aiMax}
+                  aria-invalid={badCap || undefined}
+                  onChange={(e) => onChange({ aiMax: e.target.value.slice(0, 8) })}
+                  className="h-full w-full min-w-0 bg-transparent pl-1.5 font-mono text-[17px] outline-none placeholder:font-sans placeholder:text-ink-muted"
+                />
+              </span>
+            </div>
+            {badCap ? <p className="mt-2 text-[15px] font-semibold text-stamp-deep">Between $1 and $1,000, or leave it empty.</p> : null}
           </div>
-          {badCap ? <p className="mt-2 text-[15px] font-semibold text-stamp-deep">Between $1 and $1,000, or leave it empty.</p> : null}
+        ) : null}
         </div>
       ) : null}
     </section>
