@@ -4,6 +4,8 @@ import { after } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/lib/db/server";
 import { jsonError } from "@/lib/http";
+import { missingShopperKeyColumn } from "@/lib/loyalty/server";
+import { SHOPPER_KEY_PATTERN } from "@/lib/loyalty/shopper-key";
 import { notifyShop } from "@/lib/realtime/server";
 import { supabaseDirectory, supabaseNonceStore, verifyRequest } from "@/lib/trust";
 import { DEMO_TEST_CARD, getPayments } from "@/lib/visa";
@@ -21,6 +23,8 @@ const OrderBody = z.object({
   pickup_time: z.string().datetime({ offset: true }).nullable(),
   customer_name: z.string().trim().max(60).nullable(),
   idempotency_key: z.string().min(8).max(100),
+  // Stamp cards (CONTRACTS §17): the SHA-256 hex of the shopper's device id, never the id. Optional.
+  shopper_key: z.string().regex(SHOPPER_KEY_PATTERN).nullable().optional(),
 });
 
 type ShopRow = { id: string; slug: string; name: string; open: boolean; rules: ShopRules };
@@ -128,23 +132,26 @@ export async function handleSignedOrder(req: Request, slug: string): Promise<Res
   if (reserveErr) return jsonError(500, "db_error", reserveErr.message);
   if (!reserved) return jsonError(409, "sold_out", `${item.name} just sold out`);
 
-  const { data: order, error: insertErr } = await db
-    .from("orders")
-    .insert({
-      shop_id: shop.id,
-      item_id: item.id,
-      qty: body.qty,
-      amount_cents: amount,
-      pickup_time: body.pickup_time,
-      customer_name: body.customer_name,
-      status: "pending",
-      payment_mode: payments.mode,
-      agent_id: verdict.agent.id,
-      idempotency_key: body.idempotency_key,
-      pickup_code: String(randomInt(0, 10000)).padStart(4, "0"),
-    })
-    .select("*")
-    .single<Order>();
+  const row = {
+    shop_id: shop.id,
+    item_id: item.id,
+    qty: body.qty,
+    amount_cents: amount,
+    pickup_time: body.pickup_time,
+    customer_name: body.customer_name,
+    status: "pending",
+    payment_mode: payments.mode,
+    agent_id: verdict.agent.id,
+    idempotency_key: body.idempotency_key,
+    pickup_code: String(randomInt(0, 10000)).padStart(4, "0"),
+  };
+  const insertOrder = (values: typeof row & { shopper_key?: string }) =>
+    db.from("orders").insert(values).select("*").single<Order>();
+  let { data: order, error: insertErr } = await insertOrder(body.shopper_key ? { ...row, shopper_key: body.shopper_key } : row);
+  // Loyalty is never worth a lost order: without migration 0006, place it without the stamp.
+  if (insertErr && body.shopper_key && missingShopperKeyColumn(insertErr)) {
+    ({ data: order, error: insertErr } = await insertOrder(row));
+  }
   if (insertErr || !order) {
     await db.rpc("return_stock", { p_item: item.id, p_qty: body.qty });
     // A concurrent duplicate tap lost the race on the unique key: return the winner.

@@ -8,6 +8,7 @@ import { sec } from "@/components/brand/motion-prefs";
 import { Money } from "@/components/common/numbers";
 import { INK_EASE } from "@/components/open/ink";
 import { formatCents, formatTime } from "@/lib/format";
+import { regularLine } from "@/lib/loyalty/stamps";
 import { cn } from "@/lib/utils";
 import type { OrderStatus } from "@/lib/types";
 import type { DashboardOrder } from "@/lib/orders/dashboard";
@@ -49,6 +50,9 @@ export function OrderTicket({
   const history = order.status === "paid" || order.status === "released";
   const amount = formatCents(order.amount_cents);
   const quiet = order.status === "released" || order.status === "failed";
+  // Stamp cards (CONTRACTS §17): which pickup this is, and the reward to hand over on this one.
+  const regular = regularLine(order.visit);
+  const reward = order.reward_due && order.reward && (order.status === "held" || order.status === "paid") ? order.reward : null;
 
   return (
     <motion.article
@@ -71,6 +75,16 @@ export function OrderTicket({
           {order.qty} × {order.item_name}
         </p>
         <p className="mt-1 text-[16px] text-ink-muted">{pickupLabel(order)}</p>
+        {regular ? <p className="mt-1 text-[16px] text-ink-muted">{regular}</p> : null}
+        {reward ? (
+          // the reward to hand over, on the slip before the owner taps Picked up
+          <div className="mt-4 flex items-center gap-3.5">
+            <Stamp kind="PAID" text="Reward" size="sm" animate={fresh} sound={false} className="shrink-0" />
+            <p className="min-w-0 text-[19px] leading-snug [overflow-wrap:anywhere]">
+              {order.status === "held" ? "Give" : "On the house"}: {reward}
+            </p>
+          </div>
+        ) : null}
 
         <div aria-hidden className="print-rule mt-5" />
 

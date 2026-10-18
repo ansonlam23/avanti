@@ -1,5 +1,6 @@
 // /ask's view state and its reducer. Pure (unit-tested in state.test.ts).
 import type { ToolName, ToolResult } from "@/lib/ai/shopper-types";
+import type { LoyaltyCard } from "@/lib/loyalty/stamps";
 import type { BlockReason, PublicOrder } from "@/lib/types";
 import { proposalOf, type FeedItem } from "./feed";
 
@@ -72,7 +73,9 @@ export type Action =
   | { type: "order"; order: PublicOrder }
   | { type: "gone"; itemId: string; gone: boolean }
   | { type: "reveal"; reveal: Reveal | null }
-  | { type: "batch"; batch: Batch | null };
+  | { type: "batch"; batch: Batch | null }
+  /** An order was picked up at a shop with a stamp card: lay the card down (once per order). */
+  | { type: "stamp"; id: string; orderId: string; card: LoyaltyCard };
 
 export const INITIAL: State = {
   feed: [],
@@ -191,5 +194,15 @@ export function reducer(state: State, a: Action): State {
       return { ...state, reveal: a.reveal };
     case "batch":
       return { ...state, batch: a.batch };
+    case "stamp": {
+      if (state.feed.some((f) => f.kind === "stamp" && f.orderId === a.orderId)) return state;
+      const item: FeedItem = { kind: "stamp", id: a.id, orderId: a.orderId, card: a.card };
+      // A reply that's still streaming keeps its words together: the card goes just above it.
+      const at = state.activeResponse
+        ? state.feed.findIndex((f) => f.kind !== "user" && f.kind !== "stamp" && f.responseId === state.activeResponse)
+        : -1;
+      const feed = at < 0 ? [...state.feed, item] : [...state.feed.slice(0, at), item, ...state.feed.slice(at)];
+      return { ...state, feed };
+    }
   }
 }

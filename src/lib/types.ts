@@ -20,6 +20,14 @@ export interface ShopRules {
   ai_max_order_cents?: number | null;
   /** Item ids the owner keeps off-limits to AI shoppers ("order in person"). */
   ai_blocked_items?: string[];
+  /** Stamp cards for regulars (CONTRACTS §17). Absent/null = no loyalty program. See src/lib/loyalty. */
+  loyalty?: LoyaltyRule | null;
+}
+
+/** "Every 5th pickup: a free cookie". every 2–20, reward 1–40 chars. */
+export interface LoyaltyRule {
+  every: number;
+  reward: string;
 }
 
 /** Public shop row. `owner_token_hash` is server-only and never part of this type. */
@@ -177,4 +185,9 @@ export interface OrderRequest {
   pickup_time: string | null;
   customer_name: string | null;
   idempotency_key: string;
+  /**
+   * Optional device key for stamp cards (CONTRACTS §17): SHA-256 hex (64 lowercase
+   * chars) of a random id that only the shopper's browser knows. Never the id itself.
+   */
+  shopper_key?: string | null;
 }

@@ -9,12 +9,13 @@ import { SoundToggle, Wordmark } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Item } from "@/lib/types";
+import type { Item, LoyaltyRule } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { AiLimit } from "./ai-limit";
 import { CodePad } from "./code-pad";
 import { DoorLog } from "./door-log";
 import { InsightsPanel } from "./insights-panel";
+import { LoyaltySetting } from "./loyalty-setting";
 import { MenuRows } from "./menu-rows";
 import { OrderStrip, OrderTicket } from "./order-ticket";
 import { useWide } from "./use-wide";
@@ -34,6 +35,8 @@ export interface CounterViewProps {
   onToggleAiOrderable?: (item: Item, orderable: boolean) => void;
   /** The owner's cap on one AI order, in cents (null = no cap). */
   onAiLimit?: (cents: number | null) => Promise<boolean>;
+  /** The stamp card for regulars (null = off; absent: shown read-only). CONTRACTS §17. */
+  onLoyalty?: (rule: LoyaltyRule | null) => Promise<boolean>;
   onSimulate: () => void;
   /** Pause or resume all AI orders (absent: the paused state shows without a way back here). */
   onAcceptAi?: (accept: boolean) => void;
@@ -63,6 +66,7 @@ export function CounterView({
   onToggleSoldOut,
   onToggleAiOrderable,
   onAiLimit,
+  onLoyalty,
   onSimulate,
   onAcceptAi,
   talk,
@@ -125,6 +129,7 @@ export function CounterView({
   const menu = (
     <div className="flex flex-col gap-6">
       <AiLimit rules={shop.rules} busy={busy === "ai-limit"} onChange={onAiLimit} />
+      <LoyaltySetting rules={shop.rules} onChange={onLoyalty} />
       <MenuRows items={items} rules={shop.rules} busyId={busy} onToggleSoldOut={onToggleSoldOut} onToggleAiOrderable={onToggleAiOrderable} />
     </div>
   );

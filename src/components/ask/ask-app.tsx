@@ -17,6 +17,7 @@ import { OrderCard } from "./order-card";
 import { OrderReveal, receiptProps } from "./order-reveal";
 import { OrderTray, TrayNote } from "./order-tray";
 import { SearchResults } from "./shop-cards";
+import { StampCard } from "./stamp-card";
 import { useShopper } from "./use-shopper";
 import { useWide } from "./use-wide";
 import "./ask.css";
@@ -301,13 +302,18 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                       if (item.kind === "tool" && tool === null) return null; // nothing to show (no empty gap)
                       return (
                         // the AI's paper (shops, menus, orders) lines up under its words on a laptop
-                        <div key={item.id} className={item.kind === "tool" ? "lg:max-w-[600px] lg:pl-[36px]" : undefined}>
+                        <div
+                          key={item.id}
+                          className={item.kind === "tool" || item.kind === "stamp" ? "lg:max-w-[600px] lg:pl-[36px]" : undefined}
+                        >
                           {item.kind === "user" ? (
                             <UserBubble text={item.text} />
                           ) : item.kind === "ai" ? (
                             <AiBubble text={item.text} streaming={item.streaming} proactive={item.proactive} />
                           ) : item.kind === "notice" ? (
                             <Notice text={item.text} tone={item.tone} />
+                          ) : item.kind === "stamp" ? (
+                            <StampCard card={item.card} />
                           ) : (
                             tool
                           )}

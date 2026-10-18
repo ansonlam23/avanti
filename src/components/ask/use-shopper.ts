@@ -11,6 +11,8 @@ import type {
   SearchShopsResult,
   ToolResult,
 } from "@/lib/ai/shopper-types";
+import { deviceShopperKey } from "@/lib/loyalty/shopper-key";
+import { cardAt, type LoyaltyCard } from "@/lib/loyalty/stamps";
 import { getMyShops } from "@/lib/my-shops";
 import { useShopPings } from "@/lib/realtime/client";
 import type { BlockReason, PublicOrder } from "@/lib/types";
@@ -55,6 +57,18 @@ async function fetchOrder(id: string): Promise<PublicOrder | null> {
   }
 }
 
+/** The shop's stamp card behind a picked-up order (null: no program, or the order carries no device key). */
+async function fetchStampCard(orderId: string): Promise<LoyaltyCard | null> {
+  try {
+    const res = await fetch(`/api/loyalty?order=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { loyalty?: LoyaltyCard | null };
+    return body.loyalty ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** true/false = the shop's live menu says so; null = couldn't check. */
 async function stillAvailable(slug: string, itemId: string): Promise<boolean | null> {
   try {
@@ -94,6 +108,15 @@ export function useShopper() {
   const reactedRef = useRef<Set<string>>(new Set());
   const checkingRef = useRef<Map<string, number>>(new Map());
   const inflightRef = useRef<Set<string>>(new Set()); // order cards with a confirm in flight
+  const stampedRef = useRef<Set<string>>(new Set()); // orders whose stamp card is already down
+
+  // Stamp cards (CONTRACTS §17): this device's key, the SHA-256 of a random id kept in
+  // localStorage. Made once, ahead of the first tap; only the hash ever leaves the device.
+  const keyRef = useRef<Promise<string | null> | null>(null);
+  const shopperKey = useCallback(() => (keyRef.current ??= deviceShopperKey().catch(() => null)), []);
+  useEffect(() => {
+    void shopperKey();
+  }, [shopperKey]);
 
   const setName = useCallback((v: string) => {
     const clean = v.slice(0, 60);
@@ -321,10 +344,34 @@ export function useShopper() {
     [reactToSoldOut, state.gone],
   );
 
-  const refreshOrder = useCallback(async (id: string) => {
-    const order = await fetchOrder(id);
-    if (order) dispatch({ type: "order", order });
-  }, []);
+  /** The owner just tapped Picked up: lay the shop's stamp card in the chat (shops with a program only). */
+  const layStampCard = useCallback(
+    async (order: PublicOrder) => {
+      if (stampedRef.current.has(order.id)) return;
+      stampedRef.current.add(order.id);
+      const gen = genRef.current;
+      const card = await fetchStampCard(order.id);
+      if (!card || card.visit === null || gen !== genRef.current) return;
+      dispatch({ type: "stamp", id: uid(), orderId: order.id, card });
+      const { toGo, complete } = cardAt(card.visit, card.every);
+      noteEvent(
+        `[event] ${card.shop_name} stamped the shopper's card at pickup (order ${order.id}): pickup ${card.visit} on a card of ${card.every} (reward: ${card.reward}). ${complete ? "This pickup earned the reward." : `${toGo} more pickups for the reward.`}`,
+      );
+    },
+    [noteEvent],
+  );
+
+  const refreshOrder = useCallback(
+    async (id: string) => {
+      const order = await fetchOrder(id);
+      if (!order) return;
+      const before = stateRef.current.orders[id]?.status;
+      dispatch({ type: "order", order });
+      // Only a pickup seen live (held → paid) stamps the card.
+      if (order.status === "paid" && before !== undefined && before !== "paid") void layStampCard(order);
+    },
+    [layStampCard],
+  );
 
   const lastPollRef = useRef(0);
   useShopPings(slugs, (ping, slug) => {
@@ -373,6 +420,7 @@ export function useShopper() {
       };
 
       try {
+        const shopper_key = await shopperKey(); // null without WebCrypto: the order just has no stamp card
         const res = await fetch("/api/agent/confirm", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -383,6 +431,7 @@ export function useShopper() {
             pickup_time: proposal.pickup_time,
             customer_name: name.trim() || null,
             idempotency_key: key,
+            ...(shopper_key ? { shopper_key } : {}),
           }),
         });
         const body = (await res.json().catch(() => null)) as {
@@ -450,7 +499,7 @@ export function useShopper() {
         inflightRef.current.delete(cardId);
       }
     },
-    [name, noteEvent, reactToSoldOut],
+    [name, noteEvent, reactToSoldOut, shopperKey],
   );
 
   // ── Confirm all (an errand) ───────────────────────────────────────────

@@ -1,8 +1,22 @@
 import "server-only";
 import { getDb, must } from "@/lib/db/server";
+import { loyaltyOf } from "@/lib/loyalty/rules";
+import { keyedOrders } from "@/lib/loyalty/server";
+import { rewardDue, visitsByOrder } from "@/lib/loyalty/stamps";
 import type { BlockReason, Item, Order, Shop, ShopEvent } from "@/lib/types";
 
-export type DashboardOrder = Order & { item_name: string };
+export type DashboardOrder = Order & {
+  item_name: string;
+  /**
+   * Stamp cards (CONTRACTS §17), only while the shop runs one: which pickup this is
+   * for the shopper's device (null: no device key, or not a pickup). Absent = no program.
+   */
+  visit?: number | null;
+  /** This pickup earns the reward: the ticket says "Give: <reward>" before Picked up. */
+  reward_due?: boolean;
+  /** The reward to hand over when it's due (null otherwise). */
+  reward?: string | null;
+};
 
 export interface DashboardStats {
   verified: number;
@@ -51,9 +65,17 @@ export async function loadDashboard(shopId: string): Promise<Dashboard> {
 
   const shop = must(shopRes, "load shop") as Shop;
   const items = must(itemsRes, "load items") as Item[];
-  const orders = (must(ordersRes, "load orders") as (Order & { items: { name: string } | null })[]).map(
-    ({ items: item, ...o }) => ({ ...o, item_name: item?.name ?? "Item" }),
-  );
+  const rows = must(ordersRes, "load orders") as (Order & { items: { name: string } | null; shopper_key?: string | null })[];
+  const loyalty = loyaltyOf(shop.rules);
+  const visits = loyalty ? await loadVisits(shopId, rows.map((o) => o.shopper_key ?? "")) : null;
+  const orders: DashboardOrder[] = rows.map(({ items: item, ...o }) => {
+    delete o.shopper_key; // the device key itself never reaches the owner's screen, only which pickup this is
+    const order: DashboardOrder = { ...o, item_name: item?.name ?? "Item" };
+    if (!loyalty) return order;
+    const visit = visits?.get(o.id) ?? null;
+    const due = rewardDue(visit, loyalty.every);
+    return { ...order, visit, reward_due: due, reward: due ? loyalty.reward : null };
+  });
   const events = must(eventsRes, "load events") as ShopEvent[];
   const counted = must(statsRes, "load stats") as { type: string; reason: string | null; n: number }[];
 
@@ -80,4 +102,15 @@ export async function loadDashboard(shopId: string): Promise<Dashboard> {
     if (o.status === "paid") stats.paid_cents += o.amount_cents;
   }
   return { shop, items, orders, events, stats };
+}
+
+/** Pickup numbers for the device keys on screen (all of their pickups here, not just the last 50 orders). */
+async function loadVisits(shopId: string, keys: string[]): Promise<Map<string, number> | null> {
+  try {
+    const rows = await keyedOrders(getDb(), shopId, keys);
+    return rows ? visitsByOrder(rows) : null;
+  } catch (err) {
+    console.error("[dashboard] stamps", err); // the counter still loads without its stamp lines
+    return null;
+  }
 }

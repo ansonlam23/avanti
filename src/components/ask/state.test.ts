@@ -99,6 +99,39 @@ describe("ask state", () => {
     expect(s.proposals.c1.status).toBe("sold_out");
   });
 
+  it("lays a stamp card down once per order", () => {
+    const card = { shop_name: "Mai's", shop_slug: "mais", every: 5, reward: "a free cookie", stamps: 3, visit: 3, earned: false };
+    let s = run([
+      { type: "user", id: "u", text: "cake", hidden: false, status: "…", responseId: "r1" },
+      { type: "text", id: "a", responseId: "r1", delta: "Here you go.", proactive: false },
+      { type: "done" },
+      { type: "stamp", id: "s1", orderId: "o1", card },
+    ]);
+    expect(s.feed.map((f) => f.id)).toEqual(["u", "a", "s1"]);
+    expect(s.feed[2]).toMatchObject({ kind: "stamp", orderId: "o1", card });
+    expect(reducer(s, { type: "stamp", id: "s2", orderId: "o1", card })).toBe(s); // a second ping: no second card
+    s = reducer(s, { type: "stamp", id: "s3", orderId: "o2", card: { ...card, visit: 4 } });
+    expect(s.feed.map((f) => f.id)).toEqual(["u", "a", "s1", "s3"]);
+  });
+
+  it("a pickup during a streaming reply lands above it, so the reply's words stay together", () => {
+    const card = { shop_name: "Mai's", shop_slug: "mais", every: 5, reward: "a free cookie", stamps: 1, visit: 1, earned: false };
+    let s = run([
+      { type: "user", id: "u", text: "what else?", hidden: false, status: "…", responseId: "r1" },
+      { type: "text", id: "a", responseId: "r1", delta: "Mai's also ", proactive: false },
+      { type: "stamp", id: "s1", orderId: "o1", card },
+      { type: "text", id: "b", responseId: "r1", delta: "has croissants.", proactive: false },
+    ]);
+    expect(s.feed.map((f) => f.id)).toEqual(["u", "s1", "a"]);
+    expect(s.feed[2]).toMatchObject({ text: "Mai's also has croissants." });
+    // before the reply has any words, the card simply goes last (the reply follows it)
+    s = run([
+      { type: "user", id: "u", text: "hi", hidden: false, status: "…", responseId: "r9" },
+      { type: "stamp", id: "s9", orderId: "o9", card },
+    ]);
+    expect(s.feed.map((f) => f.id)).toEqual(["u", "s9"]);
+  });
+
   it("tracks live orders and the reveal", () => {
     const order = { id: "o1", status: "held" } as never;
     let s = run([{ type: "order", order }, { type: "reveal", reveal: { orderId: "o1", step: "verified" } }]);

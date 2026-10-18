@@ -1,8 +1,14 @@
 // The visible feed of /ask and how one AI reply is laid out. Pure.
 import type { OrderProposal, ToolName, ToolResult } from "@/lib/ai/shopper-types";
+import type { LoyaltyCard } from "@/lib/loyalty/stamps";
 
-/** Every item of one AI reply shares a `responseId`; `proactive` = a reply to an app event. */
+/**
+ * Every item of one AI reply shares a `responseId`; `proactive` = a reply to an app event.
+ * A `stamp` is the shop's stamp card, laid down when an order is picked up (CONTRACTS §17):
+ * it belongs to no reply.
+ */
 export type FeedItem =
+  | { kind: "stamp"; id: string; orderId: string; card: LoyaltyCard }
   | { kind: "user"; id: string; text: string }
   | { kind: "ai"; id: string; responseId: string; text: string; streaming: boolean; proactive: boolean }
   | {
@@ -22,7 +28,7 @@ export function proposalOf(item: FeedItem): OrderProposal | null {
 }
 
 function responseOf(item: FeedItem): string | null {
-  return item.kind === "user" ? null : item.responseId;
+  return item.kind === "user" || item.kind === "stamp" ? null : item.responseId;
 }
 
 /**

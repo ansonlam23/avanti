@@ -48,6 +48,18 @@ describe("orderFeed", () => {
     expect(ids(orderFeed(feed, "r1"))).toEqual(["u1", "a1", "t"]);
   });
 
+  it("a stamp card belongs to no reply: it stays where it landed, between replies", () => {
+    const card = { shop_name: "Mai's", shop_slug: "mais", every: 5, reward: "a free cookie", stamps: 3, visit: 3, earned: false };
+    const feed: FeedItem[] = [
+      { kind: "user", id: "u1", text: "cake" },
+      ...reply("r1"),
+      { kind: "stamp", id: "s1", orderId: "o1", card },
+      { kind: "user", id: "u2", text: "and a coffee?" },
+      ...reply("r2"),
+    ];
+    expect(ids(orderFeed(feed, null))).toEqual(["u1", "r1-search", "r1-text", "r1-card", "s1", "u2", "r2-search", "r2-text", "r2-card"]);
+  });
+
   it("keeps a proactive search when there's no card, and notices last", () => {
     const feed: FeedItem[] = [
       { kind: "tool", id: "s", responseId: "r9", name: "search_shops", args: {}, result: search, proactive: true },

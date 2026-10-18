@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { OpenSign, sfx } from "@/components/brand";
 import { formatCents } from "@/lib/format";
 import { useShopPings } from "@/lib/realtime/client";
-import type { Item } from "@/lib/types";
+import type { Item, LoyaltyRule } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { CounterView } from "./counter-view";
 import { speakOrders, useOrderVoice } from "./speak";
@@ -148,6 +148,20 @@ export function CounterApp({ slug }: { slug: string }) {
     return true;
   }
 
+  // Stamp cards for regulars (CONTRACTS §17): "Every 5 pickups → a free cookie", or off.
+  async function setLoyalty(rule: LoyaltyRule | null): Promise<boolean> {
+    const { res, body } = await api(`/api/shops/${slug}/rules`, { method: "POST", body: JSON.stringify({ loyalty: rule }) });
+    if (!res.ok) {
+      toast.error(body?.error?.message ?? "Couldn't save the stamp card");
+      return false;
+    }
+    toast(rule ? `Regulars: every ${rule.every} pickups → ${rule.reward}` : "Regulars: off", {
+      description: rule ? "Each pickup stamps the shopper's card." : "Cards keep their stamps if you turn it back on.",
+    });
+    void refresh();
+    return true;
+  }
+
   async function setAcceptAi(accept: boolean) {
     const { res, body } = await saveRules({ accept_ai_orders: accept });
     if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't change AI orders");
@@ -265,6 +279,7 @@ export function CounterApp({ slug }: { slug: string }) {
       onToggleSoldOut={(item, soldOut) => void toggleSoldOut(item, soldOut)}
       onToggleAiOrderable={(item, orderable) => void toggleAiOrderable(item, orderable)}
       onAiLimit={setAiLimit}
+      onLoyalty={setLoyalty}
       onAcceptAi={(accept) => void setAcceptAi(accept)}
       onSimulate={() => void simulateBots()}
       talk={<TalkKey example={exampleItem(load.data.items).many} onCommand={runVoice} onChoose={chooseVoice} />}

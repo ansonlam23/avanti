@@ -2,6 +2,7 @@ import { z } from "zod";
 import { placeSignedOrder } from "@/lib/agent/place-order";
 import { getDb } from "@/lib/db/server";
 import { badRequest, jsonError, serverError } from "@/lib/http";
+import { SHOPPER_KEY_PATTERN } from "@/lib/loyalty/shopper-key";
 import { LIMITS, rateLimit } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ const Body = z.object({
   pickup_time: z.string().datetime({ offset: true }).nullable(),
   customer_name: z.string().trim().max(60).nullable(),
   idempotency_key: z.string().min(8).max(100),
+  // The device key for stamp cards (CONTRACTS §17), hashed in the browser. Optional.
+  shopper_key: z.string().regex(SHOPPER_KEY_PATTERN).nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -45,6 +48,8 @@ export async function POST(req: Request) {
         pickup_time: b.pickup_time,
         customer_name: b.customer_name,
         idempotency_key: b.idempotency_key,
+        // inside the signed body, so the shop stores the key the agent vouched for
+        ...(b.shopper_key ? { shopper_key: b.shopper_key } : {}),
       },
     });
     return Response.json(body, { status });
