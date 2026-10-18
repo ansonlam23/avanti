@@ -31,6 +31,8 @@ function responseOf(item: FeedItem): string | null {
  *  - proactive ("Heads up"): its words first → the order card for the alternative
  *    (the search behind it is skipped when there's a card).
  * Order cards wait until the reply settles, so they land last, right above the composer.
+ * An errand (one reply searching for several things) skips its search slips: the
+ * cards already say which shop has each thing, and nine shop slips would bury them.
  */
 export function orderFeed(feed: FeedItem[], activeResponse: string | null): FeedItem[] {
   const out: FeedItem[] = [];
@@ -48,7 +50,10 @@ export function orderFeed(feed: FeedItem[], activeResponse: string | null): Feed
     const texts = group.filter((f) => f.kind === "ai");
     const notices = group.filter((f) => f.kind === "notice");
     const proposals = group.filter((f) => proposalOf(f) !== null);
-    const work = group.filter((f) => f.kind === "tool" && proposalOf(f) === null);
+    const searches = group.filter((f) => f.kind === "tool" && f.name === "search_shops").length;
+    const work = group.filter(
+      (f) => f.kind === "tool" && proposalOf(f) === null && !(searches >= 2 && f.name === "search_shops"),
+    );
     const proactive = group.some((f) => (f.kind === "ai" || f.kind === "tool") && f.proactive);
 
     if (proactive) {

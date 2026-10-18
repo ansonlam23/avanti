@@ -20,6 +20,15 @@ export interface ProposalState {
   heldMs: number | null; // Confirm → HELD, measured on this device
 }
 
+/** "Confirm all" on an errand: its cards, confirmed one after another. */
+export interface Batch {
+  /** The reply whose cards these are. */
+  responseId: string;
+  cards: string[];
+  /** The card being confirmed right now. */
+  current: string | null;
+}
+
 /** The two hero beats after Confirm & hold (a FocusReveal over the chat). */
 export interface Reveal {
   orderId: string;
@@ -37,6 +46,8 @@ export interface State {
   /** Item ids the shop just ran out of (live). */
   gone: Record<string, true>;
   reveal: Reveal | null;
+  /** A running "Confirm all" (null when none). */
+  batch: Batch | null;
 }
 
 export type Action =
@@ -60,7 +71,8 @@ export type Action =
   | { type: "proposal"; id: string; patch: Partial<ProposalState> }
   | { type: "order"; order: PublicOrder }
   | { type: "gone"; itemId: string; gone: boolean }
-  | { type: "reveal"; reveal: Reveal | null };
+  | { type: "reveal"; reveal: Reveal | null }
+  | { type: "batch"; batch: Batch | null };
 
 export const INITIAL: State = {
   feed: [],
@@ -71,6 +83,7 @@ export const INITIAL: State = {
   orders: {},
   gone: {},
   reveal: null,
+  batch: null,
 };
 
 export function newProposal(key: string): ProposalState {
@@ -118,10 +131,23 @@ export function reducer(state: State, a: Action): State {
       };
       const proposal = proposalOf(item);
       if (!proposal) return { ...state, feed: [...state.feed, item] };
-      // One live Confirm button at a time: older unconfirmed cards step aside.
+      // Which older unconfirmed cards step aside for this one:
+      //  - cards from an earlier reply (the AI has moved on), except under a proactive
+      //    "Heads up", which only stands in for its own item;
+      //  - a card from this same reply for the same item (the AI re-proposed it).
+      // Cards of one reply for different items stay side by side: that's an errand.
+      const where = new Map<string, { responseId: string; itemId: string }>();
+      for (const f of state.feed) {
+        const p = proposalOf(f);
+        if (p && f.kind === "tool") where.set(f.id, { responseId: f.responseId, itemId: p.item_id });
+      }
       const proposals: Record<string, ProposalState> = {};
       for (const [id, p] of Object.entries(state.proposals)) {
-        proposals[id] = p.status === "ready" || p.status === "failed" ? { ...p, status: "replaced", error: null } : p;
+        const w = where.get(id);
+        const sameItem = w?.itemId === proposal.item_id;
+        const open = p.status === "ready" || p.status === "failed";
+        const stepsAside = open && (w?.responseId === a.responseId || a.proactive ? sameItem : true);
+        proposals[id] = stepsAside ? { ...p, status: "replaced", error: null } : p;
       }
       const fresh = newProposal(a.key ?? `card-${a.id}`);
       proposals[a.id] = { ...fresh, status: state.gone[proposal.item_id] ? "sold_out" : "ready" };
@@ -163,5 +189,7 @@ export function reducer(state: State, a: Action): State {
     }
     case "reveal":
       return { ...state, reveal: a.reveal };
+    case "batch":
+      return { ...state, batch: a.batch };
   }
 }

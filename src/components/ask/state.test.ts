@@ -3,14 +3,14 @@ import { INITIAL, reducer, type Action, type State } from "./state";
 
 const proposal = (item_id: string) => ({ ok: true, proposal: { item_id }, note: "" }) as never;
 const run = (actions: Action[], from: State = INITIAL) => actions.reduce(reducer, from);
-const card = (id: string, item: string, rid = "r1"): Action => ({
+const card = (id: string, item: string, rid = "r1", proactive = false): Action => ({
   type: "tool",
   id,
   responseId: rid,
   name: "propose_order",
   args: {},
   result: proposal(item),
-  proactive: false,
+  proactive,
 });
 
 describe("ask state", () => {
@@ -35,16 +35,40 @@ describe("ask state", () => {
     expect(s.busy).toBe(true);
   });
 
-  it("keeps one live Confirm button: a newer card replaces older unconfirmed ones", () => {
-    const s = run([card("c1", "i1"), { type: "proposal", id: "c1", patch: { status: "failed" } }, card("c2", "i2")]);
+  it("keeps one live set of cards: a newer reply's card replaces older unconfirmed ones", () => {
+    const s = run([card("c1", "i1"), { type: "proposal", id: "c1", patch: { status: "failed" } }, card("c2", "i2", "r2")]);
     expect(s.proposals.c1.status).toBe("replaced");
     expect(s.proposals.c2.status).toBe("ready");
-    const held = run([card("c1", "i1"), { type: "proposal", id: "c1", patch: { status: "held" } }, card("c2", "i2")]);
+    const held = run([card("c1", "i1"), { type: "proposal", id: "c1", patch: { status: "held" } }, card("c2", "i2", "r2")]);
     expect(held.proposals.c1.status).toBe("held"); // a placed order is never 'replaced'
   });
 
+  it("an errand: one reply's cards for different items stay side by side", () => {
+    const s = run([card("c1", "cake"), card("c2", "flowers"), card("c3", "print")]);
+    expect([s.proposals.c1.status, s.proposals.c2.status, s.proposals.c3.status]).toEqual(["ready", "ready", "ready"]);
+    // the same reply re-proposing an item replaces only that item's card
+    const again = reducer(s, card("c4", "flowers") as Action);
+    expect(again.proposals.c2.status).toBe("replaced");
+    expect([again.proposals.c1.status, again.proposals.c3.status, again.proposals.c4.status]).toEqual(["ready", "ready", "ready"]);
+  });
+
+  it("a proactive 'Heads up' card only stands in for its own item", () => {
+    let s = run([card("c1", "cake"), card("c2", "flowers")]);
+    s = reducer(s, { type: "gone", itemId: "cake", gone: true });
+    s = reducer(s, card("c3", "other-cake", "r2", true) as Action);
+    expect(s.proposals.c1.status).toBe("sold_out");
+    expect(s.proposals.c2.status).toBe("ready"); // the rest of the errand is still on
+    expect(s.proposals.c3.status).toBe("ready");
+  });
+
+  it("tracks a running Confirm all", () => {
+    const s = reducer(INITIAL, { type: "batch", batch: { responseId: "r1", cards: ["c1", "c2"], current: "c1" } });
+    expect(s.batch).toEqual({ responseId: "r1", cards: ["c1", "c2"], current: "c1" });
+    expect(reducer(s, { type: "batch", batch: null }).batch).toBeNull();
+  });
+
   it("sold out marks open cards for that item, and a restock brings them back", () => {
-    let s = run([card("c1", "i1"), card("c2", "i2")]);
+    let s = run([card("c1", "i1"), card("c2", "i2", "r2")]);
     expect(s.proposals.c1.status).toBe("replaced");
     s = run([card("c3", "i2")], INITIAL);
     s = reducer(s, { type: "gone", itemId: "i2", gone: true });

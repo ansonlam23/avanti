@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { formatCents } from "@/lib/format";
 import type {
   ChatEvent,
@@ -14,13 +14,17 @@ import type {
 import { getMyShops } from "@/lib/my-shops";
 import { useShopPings } from "@/lib/realtime/client";
 import type { BlockReason, PublicOrder } from "@/lib/types";
+import { confirmable } from "./errand-model";
 import { proposalOf, type FeedItem } from "./feed";
 import { newIdempotencyKey } from "./keys";
 import { parseSse } from "./sse";
 import { INITIAL, reducer, type Reveal } from "./state";
 import { CHECKING_STOCK, statusFor, THINKING } from "./status";
 
-export type { ProposalState, ProposalStatus, Reveal } from "./state";
+export type { Batch, ProposalState, ProposalStatus, Reveal } from "./state";
+
+/** How one Confirm & hold ended (Confirm all goes on to the next card either way). */
+export type ConfirmOutcome = "held" | "failed" | "sold_out" | "skipped";
 
 // All of /ask's behavior: streaming the AI, the transcript we send it (a ref:
 // it never renders), Confirm & hold, live order status, and the realtime
@@ -74,6 +78,12 @@ interface Watched {
 export function useShopper() {
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const [name, setNameState] = useState(readName);
+  // The latest committed state, for Confirm all's loop (it outlives the render that started it).
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  });
+  const batchRef = useRef(false); // a Confirm all is running
 
   const turnsRef = useRef<ChatTurn[]>([]);
   const queueRef = useRef<Array<{ text: string; hidden: boolean; event?: ChatEventInfo }>>([]);
@@ -340,26 +350,27 @@ export function useShopper() {
 
   // ── Confirm & hold ────────────────────────────────────────────────────
   const confirm = useCallback(
-    async (cardId: string, proposal: OrderProposal) => {
-      const prev = state.proposals[cardId];
-      if (!prev) return;
-      const retryable = prev.status === "ready" || (prev.status === "failed" && prev.error?.retry);
-      if (!retryable) return;
+    async (cardId: string, proposal: OrderProposal, opts: { batch?: boolean } = {}): Promise<ConfirmOutcome> => {
+      const prev = stateRef.current.proposals[cardId];
+      if (!confirmable(prev)) return "skipped";
       // The button is disabled while pending; this also stops a double tap that lands
       // before the re-render. The key was made with the card, so every retry reuses it.
-      if (inflightRef.current.has(cardId)) return;
+      if (inflightRef.current.has(cardId)) return "skipped";
       inflightRef.current.add(cardId);
       const key = prev.key;
+      const batch = opts.batch === true;
       const t0 = performance.now();
       dispatch({ type: "proposal", id: cardId, patch: { status: "pending", stage: "signing", error: null } });
       const stageTimer = setTimeout(() => dispatch({ type: "proposal", id: cardId, patch: { stage: "visa" } }), 800);
       /** retry=false when the shop finished this attempt: the same key would only return the same result. */
-      const fail = (code: string, message: string, retry: boolean, reason?: BlockReason) =>
+      const fail = (code: string, message: string, retry: boolean, reason?: BlockReason): ConfirmOutcome => {
         dispatch({
           type: "proposal",
           id: cardId,
           patch: { status: "failed", stage: null, error: { code, message, retry, reason } },
         });
+        return "failed";
+      };
 
       try {
         const res = await fetch("/api/agent/confirm", {
@@ -383,18 +394,18 @@ export function useShopper() {
           const order = body.order;
           dispatch({ type: "order", order });
           if (order.status === "failed") {
-            fail("failed", "Visa couldn't place the hold, so nothing was charged. Ask me for a fresh card to try again.", false);
-            return;
+            return fail("failed", "Visa couldn't place the hold, so nothing was charged. Ask me for a fresh card to try again.", false);
           }
           const heldMs = Math.round(performance.now() - t0);
-          console.info(`[ask] confirm → ${order.status} in ${heldMs}ms`);
+          console.info(`[ask] confirm → ${order.status} in ${heldMs}ms${batch ? " (confirm all)" : ""}`);
           dispatch({ type: "proposal", id: cardId, patch: { status: "held", orderId: order.id, stage: null, heldMs } });
           // A 201 from the shop means its trust check passed before anything else: VERIFIED → HELD.
-          dispatch({ type: "reveal", reveal: { orderId: order.id, step: "verified" } });
+          // Confirm all skips the per-card reveal: its summary shows every hold at once.
+          if (!batch) dispatch({ type: "reveal", reveal: { orderId: order.id, step: "verified" } });
           noteEvent(
-            `[event] The shopper tapped Confirm & hold. Order ${order.id}: ${order.qty}× ${order.item_name} at ${order.shop_name}, ${order.status.toUpperCase()} ${formatCents(order.amount_cents)}, pickup ${proposal.pickup_label}.`,
+            `[event] The shopper tapped ${batch ? "Confirm all" : "Confirm & hold"}. Order ${order.id}: ${order.qty}× ${order.item_name} at ${order.shop_name}, ${order.status.toUpperCase()} ${formatCents(order.amount_cents)}, pickup ${proposal.pickup_label}.`,
           );
-          return;
+          return "held";
         }
 
         const code = body?.error?.code ?? "error";
@@ -405,43 +416,83 @@ export function useShopper() {
             id: cardId,
             patch: { status: "sold_out", stage: null, error: { code, message, retry: false } },
           });
-          reactToSoldOut(
-            { itemId: proposal.item_id, itemName: proposal.item_name, slug: proposal.shop_slug, shopName: proposal.shop_name },
-            "confirm",
-          );
-        } else if (res.status === 429) {
-          fail("rate_limited", "That's a lot of orders in a short time. Give it a minute, then tap again.", true);
-        } else if (res.status === 402) {
-          fail("declined", "Visa declined the hold on the test card. Nothing was charged.", false);
-        } else if (res.status === 401) {
-          fail(
+          const w = { itemId: proposal.item_id, itemName: proposal.item_name, slug: proposal.shop_slug, shopName: proposal.shop_name };
+          // Confirm all tells the AI after its last card, so the other holds go through first.
+          if (batch) dispatch({ type: "gone", itemId: w.itemId, gone: true });
+          else reactToSoldOut(w, "confirm");
+          return "sold_out";
+        }
+        if (res.status === 429) {
+          return fail("rate_limited", "That's a lot of orders in a short time. Give it a minute, then tap again.", true);
+        }
+        if (res.status === 402) return fail("declined", "Visa declined the hold on the test card. Nothing was charged.", false);
+        if (res.status === 401) {
+          return fail(
             "blocked",
             `${proposal.shop_name} couldn't verify this order's signature, so it never reached Visa.`,
             false,
             body?.error?.reason,
           );
-        } else if (res.status === 409 || res.status === 404) {
-          fail(code, message || "The shop's menu changed. Ask me for a fresh order card.", false);
-        } else if (res.status === 502) {
-          fail(code, "Visa couldn't place the hold, so nothing was charged. Ask me for a fresh card to try again.", false);
-        } else {
-          // 500/503: the shop may or may not have the order; the same key makes a retry safe.
-          fail(code, "Couldn't reach the shop. Nothing was charged. Tap to try again.", true);
         }
+        if (res.status === 409 || res.status === 404) {
+          return fail(code, message || "The shop's menu changed. Ask me for a fresh order card.", false);
+        }
+        if (res.status === 502) {
+          return fail(code, "Visa couldn't place the hold, so nothing was charged. Ask me for a fresh card to try again.", false);
+        }
+        // 500/503: the shop may or may not have the order; the same key makes a retry safe.
+        return fail(code, "Couldn't reach the shop. Nothing was charged. Tap to try again.", true);
       } catch {
         // Network trouble: the order may or may not exist. Same key on retry = no double hold.
-        fail("network", "Lost the connection before the shop answered. Tap to try again; you won't be charged twice.", true);
+        return fail("network", "Lost the connection before the shop answered. Tap to try again; you won't be charged twice.", true);
       } finally {
         clearTimeout(stageTimer);
         inflightRef.current.delete(cardId);
       }
     },
-    [name, noteEvent, reactToSoldOut, state.proposals],
+    [name, noteEvent, reactToSoldOut],
+  );
+
+  // ── Confirm all (an errand) ───────────────────────────────────────────
+  /**
+   * Places every open card of one reply through the same path as its own
+   * Confirm & hold: one after another, each with its own idempotency key, so
+   * every hold is signed and checked by its shop. A card that fails says so on
+   * the card; the others still go through. Sold-outs reach the AI at the end.
+   */
+  const confirmAll = useCallback(
+    async (responseId: string, cardIds: string[]) => {
+      if (batchRef.current) return;
+      const queue = cardIds.filter((id) => confirmable(stateRef.current.proposals[id]));
+      if (queue.length === 0) return;
+      batchRef.current = true;
+      const gen = genRef.current; // "New chat" mid-way: the old errand's news stays out of the new chat
+      const soldOut: Watched[] = [];
+      try {
+        for (const id of queue) {
+          const now = stateRef.current;
+          const item = now.feed.find((f) => f.id === id);
+          const proposal = item ? proposalOf(item) : null;
+          // a newer reply may have replaced the cards still waiting their turn
+          if (!proposal || !confirmable(now.proposals[id])) continue;
+          dispatch({ type: "batch", batch: { responseId, cards: queue, current: id } });
+          const outcome = await confirm(id, proposal, { batch: true });
+          if (outcome === "sold_out") {
+            soldOut.push({ itemId: proposal.item_id, itemName: proposal.item_name, slug: proposal.shop_slug, shopName: proposal.shop_name });
+          }
+        }
+      } finally {
+        batchRef.current = false;
+        dispatch({ type: "batch", batch: null });
+        if (gen === genRef.current) for (const w of soldOut) reactToSoldOut(w, "confirm");
+      }
+    },
+    [confirm, reactToSoldOut],
   );
 
   const setReveal = useCallback((reveal: Reveal | null) => dispatch({ type: "reveal", reveal }), []);
 
-  return { state, name, setName, send, reset, confirm, refreshOrder, setReveal };
+  return { state, name, setName, send, reset, confirm, confirmAll, refreshOrder, setReveal };
 }
 
 function rememberShops(result: ToolResult, names: Record<string, string>) {

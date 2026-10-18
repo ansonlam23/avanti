@@ -17,18 +17,24 @@ export type TrayView = "idle" | "order";
 
 export function OrderTray({
   view,
+  label = "Your order",
+  dense = false,
   cardKey,
   card,
 }: {
   view: TrayView;
+  /** "Your order", or "Your errand" when one reply put up cards for several things. */
+  label?: string;
+  /** A tall stack (an errand): start near the top instead of centring. */
+  dense?: boolean;
   /** Changes when a newer order card replaces the one on the tray. */
   cardKey: string | null;
   card: ReactNode;
 }) {
   return (
     <div className="flex min-h-full flex-col">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Your order</p>
-      <div className="ask-tray-stage grid flex-1 place-items-center py-8">
+      <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ink-muted">{label}</p>
+      <div className={dense ? "ask-tray-stage grid flex-1 place-items-start py-4" : "ask-tray-stage grid flex-1 place-items-center py-8"}>
         <AnimatePresence mode="wait" initial={false}>
           {view === "order" ? (
             <motion.div

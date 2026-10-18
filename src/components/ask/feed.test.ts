@@ -31,6 +31,23 @@ describe("orderFeed", () => {
     expect(ids(orderFeed(feed, "r2"))).toEqual(["r1-search", "r1-text", "r1-card", "r2-text"]);
   });
 
+  it("an errand (several searches in one reply) skips the search slips; its cards land together", () => {
+    const tool = (id: string, name: "search_shops" | "ask_shop" | "propose_order", result: unknown): FeedItem =>
+      ({ kind: "tool", id, responseId: "r1", name, args: {}, result, proactive: false }) as FeedItem;
+    const feed: FeedItem[] = [
+      { kind: "user", id: "u1", text: "a cake, flowers and a print by 6" },
+      tool("s1", "search_shops", search),
+      tool("s2", "search_shops", search),
+      tool("s3", "search_shops", search),
+      tool("a1", "ask_shop", { ok: true, topics: [] }),
+      tool("c1", "propose_order", proposal),
+      tool("c2", "propose_order", proposal),
+      { kind: "ai", id: "t", responseId: "r1", text: "Tap Confirm all.", streaming: false, proactive: false },
+    ];
+    expect(ids(orderFeed(feed, null))).toEqual(["u1", "a1", "t", "c1", "c2"]);
+    expect(ids(orderFeed(feed, "r1"))).toEqual(["u1", "a1", "t"]);
+  });
+
   it("keeps a proactive search when there's no card, and notices last", () => {
     const feed: FeedItem[] = [
       { kind: "tool", id: "s", responseId: "r9", name: "search_shops", args: {}, result: search, proactive: true },

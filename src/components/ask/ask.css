@@ -241,6 +241,105 @@
   }
 }
 
+/* ── An errand ───────────────────────────────────────────────── */
+/* In the laptop's order column, Confirm all's footer stays in view, riding over the cards
+   with a firmer shadow (inline in the chat it simply follows the stack). */
+.ask-tray .ask-errand-foot {
+  position: sticky;
+  bottom: 12px;
+  z-index: 1;
+  box-shadow:
+    0 -18px 28px -22px rgb(22 58 66 / 0.28),
+    0 14px 30px -24px rgb(22 58 66 / 0.32);
+}
+
+/* the summary scrolls into view when it replaces the cards: on a laptop the column's label shows too */
+.ask-errand-summary {
+  scroll-margin-top: 16px;
+}
+/* in the order column the label above stays in view; cards being placed clear the riding footer */
+.ask-tray .ask-errand-summary {
+  scroll-margin-top: 64px;
+}
+.ask-tray .ask-errand-card {
+  scroll-margin-top: 16px;
+  scroll-margin-bottom: 300px;
+}
+/* Laptop screens under ~960px tall: the summary drops its sketch so it fits the column (the walk list stays). */
+@media (min-width: 1024px) and (max-height: 959px) {
+  .ask-sketch {
+    display: none;
+  }
+}
+
+/* The walk: UW campus, then a numbered pin per shop */
+.ask-walk {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ask-walk-stop {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+/* a shop on the walk: an ink square with its number in paper */
+.ask-pin {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+/* where the walk starts: a hollow square with a dot */
+.ask-pin-origin {
+  position: relative;
+  margin-top: 0;
+  background-color: var(--color-paper);
+  box-shadow: inset 0 0 0 1.5px var(--color-ink);
+}
+.ask-pin-origin::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-ink);
+}
+/* the minutes between two pins, on a dotted teal line */
+.ask-walk-leg {
+  margin-left: 12px;
+  padding: 7px 0 7px 26px;
+  border-left: 2px dotted rgb(23 90 103 / 0.7);
+  color: var(--color-ink-muted);
+  font-size: 15px;
+  line-height: 1.2;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.ask-sketch-label {
+  fill: var(--color-ink-muted);
+  font-family: var(--font-sans);
+  font-size: 15px;
+}
+.ask-sketch-pin {
+  fill: var(--color-paper);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+@media (min-width: 1024px) {
+  .ask-walk-leg {
+    font-size: 16px;
+  }
+}
+
 /* ── Laptop: the order's column, set off by one hairline ──────── */
 .ask-tray {
   border-left: 1px solid var(--ask-hair);

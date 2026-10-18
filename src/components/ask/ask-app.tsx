@@ -9,6 +9,8 @@ import type { PaymentMode } from "@/lib/types";
 import { AiBubble, Notice, StatusLine, UserBubble } from "./bubbles";
 import { Composer } from "./composer";
 import { DEFAULT_CHIPS, EmptyState } from "./empty-state";
+import { Errand, ErrandNote } from "./errand";
+import { cardGroups, isErrand, type CardGroup } from "./errand-model";
 import { orderFeed, proposalOf, type FeedItem } from "./feed";
 import { MenuCard, ShopSaysCard } from "./menu-card";
 import { OrderCard } from "./order-card";
@@ -33,7 +35,7 @@ function subscribeStorage(onChange: () => void) {
 const myShopsSnapshot = () => getMyShops().join(",");
 
 export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
-  const { state, name, setName, send, reset, confirm, setReveal } = useShopper();
+  const { state, name, setName, send, reset, confirm, confirmAll, setReveal } = useShopper();
   const revealOrder = state.reveal ? (state.orders[state.reveal.orderId] ?? null) : null;
   const [draft, setDraft] = useState(initialPrompt);
   const [mode, setMode] = useState<PaymentMode | null>(null);
@@ -123,6 +125,15 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
   }, [visible, state.proposals]);
   const trayRef = useRef<HTMLElement>(null);
 
+  // Errands: one reply's cards for several things travel together (errand.tsx).
+  const groupOf = useMemo(() => {
+    const m = new Map<string, CardGroup>();
+    for (const g of cardGroups(state.feed)) for (const c of g.cards) m.set(c.id, g);
+    return m;
+  }, [state.feed]);
+  const trayGroup = trayItem ? (groupOf.get(trayItem.id) ?? null) : null;
+  const trayErrand = isErrand(trayGroup) ? trayGroup : null;
+
   function submit(text: string) {
     stickRef.current = true;
     send(text);
@@ -146,6 +157,22 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
     );
   }
 
+  function errand(group: CardGroup) {
+    return (
+      <Errand
+        group={group}
+        proposals={state.proposals}
+        orders={state.orders}
+        batch={state.batch}
+        name={name}
+        onName={setName}
+        onConfirm={(c) => void confirm(c.id, c.proposal)}
+        onConfirmAll={(ids) => void confirmAll(group.responseId, ids)}
+        mode={mode}
+      />
+    );
+  }
+
   function renderTool(item: Extract<FeedItem, { kind: "tool" }>) {
     const r = item.result;
     if (!r.ok) return null; // the AI explains failures in words
@@ -160,6 +187,21 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
         return "topics" in r ? <ShopSaysCard result={r} /> : null;
       case "propose_order": {
         const proposal = proposalOf(item);
+        const group = groupOf.get(item.id);
+        if (proposal && isErrand(group)) {
+          // the errand appears once, where its first card would be
+          if (group.cards[0].id !== item.id) return null;
+          if (wide && trayErrand?.responseId === group.responseId) {
+            return (
+              <ErrandNote
+                group={group}
+                proposals={state.proposals}
+                onShow={() => trayRef.current?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)")?.focus()}
+              />
+            );
+          }
+          return errand(group);
+        }
         if (wide && proposal && item.id === trayItem?.id) {
           return (
             <TrayNote
@@ -232,20 +274,24 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                   {empty ? <EmptyState chips={chips} mode={mode} onPick={submit} /> : null}
                   {/* Always mounted, so screen readers announce the first reply too. */}
                   <div aria-live="polite" aria-busy={state.busy} className={empty ? undefined : "space-y-6 pb-8 pt-5 lg:space-y-8 lg:pb-10 lg:pt-8"}>
-                    {visible.map((item) => (
-                      // the AI's paper (shops, menus, orders) lines up under its words on a laptop
-                      <div key={item.id} className={item.kind === "tool" ? "lg:max-w-[600px] lg:pl-[36px]" : undefined}>
-                        {item.kind === "user" ? (
-                          <UserBubble text={item.text} />
-                        ) : item.kind === "ai" ? (
-                          <AiBubble text={item.text} streaming={item.streaming} proactive={item.proactive} />
-                        ) : item.kind === "notice" ? (
-                          <Notice text={item.text} tone={item.tone} />
-                        ) : (
-                          renderTool(item)
-                        )}
-                      </div>
-                    ))}
+                    {visible.map((item) => {
+                      const tool = item.kind === "tool" ? renderTool(item) : null;
+                      if (item.kind === "tool" && tool === null) return null; // nothing to show (no empty gap)
+                      return (
+                        // the AI's paper (shops, menus, orders) lines up under its words on a laptop
+                        <div key={item.id} className={item.kind === "tool" ? "lg:max-w-[600px] lg:pl-[36px]" : undefined}>
+                          {item.kind === "user" ? (
+                            <UserBubble text={item.text} />
+                          ) : item.kind === "ai" ? (
+                            <AiBubble text={item.text} streaming={item.streaming} proactive={item.proactive} />
+                          ) : item.kind === "notice" ? (
+                            <Notice text={item.text} tone={item.tone} />
+                          ) : (
+                            tool
+                          )}
+                        </div>
+                      );
+                    })}
                     {state.busy && state.status ? <StatusLine text={state.status} /> : null}
                   </div>
                 </div>
@@ -268,8 +314,10 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
               >
                 <OrderTray
                   view={wide && trayItem ? "order" : "idle"}
-                  cardKey={trayItem?.id ?? null}
-                  card={wide && trayItem ? orderCard(trayItem) : null}
+                  label={trayErrand ? "Your errand" : "Your order"}
+                  dense={Boolean(trayErrand)}
+                  cardKey={trayErrand ? trayErrand.responseId : (trayItem?.id ?? null)}
+                  card={wide && trayItem ? (trayErrand ? errand(trayErrand) : orderCard(trayItem)) : null}
                 />
               </aside>
             )}
