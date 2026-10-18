@@ -42,10 +42,10 @@ function HonestLine({ payments, aiLive, className }: Honesty & { className?: str
       {payments === "simulated" ? (
         <>
           <SimulatedBadge />
-          <span>No Visa call · no money moved.</span>
+          <span>No Visa call</span>
         </>
       ) : (
-        <span>Test card · Visa sandbox · no money moved.</span>
+        <span>Visa sandbox</span>
       )}
       {aiLive ? null : <span>The AI isn&apos;t connected on this server.</span>}
     </p>
