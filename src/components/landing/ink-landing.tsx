@@ -9,9 +9,10 @@ import { useEffect, useRef } from "react";
 // sit on top. Styles: `land-*` in src/styles/landing.css. Media: /public/landing.
 //
 // The robot is alive in small ways, all in the plate's ink: its screen eyes blink,
-// their pupils follow you, they smile while "get started" is hovered and go wide
-// when you come close; when the mouse rests, one of the small birds lands on its
-// monitor until the mouse moves. It wears a knitted scarf and a plum blossom.
+// their pupils follow you, they go wide when you come close and smile (^ ^) for
+// "get started", after a surprise, at its visitor and now and then on their own;
+// a few seconds after the page opens (and on later passes) one of the small birds
+// lands on its monitor for a while. A plum blossom sits in its lapel.
 
 const MEDIA = "/landing";
 const FW = 1920; // the plate's own pixel grid (1920 × 1080)
@@ -56,12 +57,9 @@ const EYELESS = {
 };
 // The top of the monitor above the screen's centre, per head frame (y in the robot canvas): where a bird stands.
 const PERCH_TOP = [21, 20, 17, 16, 14, 12, 11, 10, 8, 8, 8, 8, 10, 11, 11, 11, 12, 14];
-// Friendlier clothes in the robot's ink: a knitted scarf, and a plum blossom with a pine tuft in the lapel. They are
-// baked into robot-body.webp too; the canvas redraws them only where the head patch covers the body.
-const CLOTHES = [
-  { src: `${MEDIA}/robot-scarf.webp`, x: 228, y: 388 },
-  { src: `${MEDIA}/robot-blossom.webp`, x: 500, y: 548 },
-];
+// A plum blossom with a pine tuft in the lapel, in the robot's ink. It is baked into robot-body.webp too; the canvas
+// redraws it only where the head patch covers the body.
+const CLOTHES = [{ src: `${MEDIA}/robot-blossom.webp`, x: 500, y: 548 }];
 // A small bird perched: sitting, head cocked, wings raised (landing / taking off). Cells at 3× plate scale, feet at
 // (fx, fy); drawn a touch larger than the flock (`size`) so it reads on the monitor.
 const PERCHED = { src: `${MEDIA}/bird-perch.webp`, cw: 102, ch: 87, fx: 48, fy: 78, scale: 3, size: 1.25 };
@@ -71,6 +69,7 @@ const EYE_PAPER = "#ede7e0";
 const EYE_GLOW = "rgba(242, 237, 229, 0.95)";
 const EYE_RING = "rgba(84, 112, 118, 0.5)";
 const PUPIL = "#0c2f38";
+const PUPIL_R = 12.5; // one pupil size in every head frame and every state (robot canvas px): pupils move, never scale
 type EyeMode = "open" | "squint" | "closed" | "happy" | "wide";
 
 type Flyer = { src: string; frames: number; cw: number; ch: number; ax: number; ay: number; lag: number; dy: number; phase: number; scale?: number; img?: HTMLImageElement };
@@ -194,10 +193,13 @@ export function InkLanding() {
       }
       rx.restore();
     };
-    const drawPupil = ([cx, cy, w, h]: Eye, size: number) => {
-      const r = Math.min(w, h) * 0.2 * size;
-      const x = cx + look.x * (w / 2 - r - 5);
-      const y = cy + look.y * (h / 2 - r - 6);
+    const drawPupil = ([cx, cy, w, h]: Eye, wide: boolean) => {
+      // the same size everywhere; only how far it can travel follows the eye (wide eyes are drawn 1.18 × 1.14)
+      const r = PUPIL_R;
+      const ew = wide ? w * 1.18 : w;
+      const eh = wide ? h * 1.14 : h;
+      const x = cx + look.x * Math.max(0, ew / 2 - r - 5);
+      const y = cy + look.y * Math.max(0, eh / 2 - r - 6);
       rx.save();
       rx.fillStyle = PUPIL;
       rx.shadowColor = "rgba(12, 47, 56, 0.45)";
@@ -232,8 +234,8 @@ export function InkLanding() {
         rx.drawImage(eyeless, c * EYELESS.cw, r * EYELESS.ch, ew, eh, ex, ey, ew, eh);
         for (const e of eyes) drawEye(e, m);
       }
-      if (pupils && (m === "open" || m === "wide")) for (const e of eyes) drawPupil(e, m === "wide" ? 0.72 : 1);
-      // the clothes over the head patch (the body image already has them below it)
+      if (pupils && (m === "open" || m === "wide")) for (const e of eyes) drawPupil(e, m === "wide");
+      // the blossom over the head patch (the body image already has it below)
       rx.save();
       rx.beginPath();
       rx.rect(px, py, pw, ph);
@@ -264,24 +266,45 @@ export function InkLanding() {
       return Math.round(t < 0 ? R.ref * (1 + t) : R.ref + t * (R.frames - 1 - R.ref));
     };
 
-    /* ---------- the eyes: a blink every few seconds, a smile for "get started", wide when you come close ---------- */
+    /* ---------- the eyes: a blink every few seconds, wide when you come close, and long ^ ^ smiles:
+       while "get started" is hovered or focused and 3 s after, 3.5 s after a surprise, at the bird once it has
+       landed, and now and then on their own (3–5 s). A blink during a smile is a quick squeeze. ---------- */
     let surpriseAt = -1e9;
+    let smileFrom = -1e9; // a smile can outlast its cause
+    let smileUntil = -1e9;
+    const smile = (from: number, until: number) => {
+      // extend a smile that is on (or about to be) rather than cut it short
+      if (from <= smileUntil && smileFrom <= from) smileUntil = Math.max(smileUntil, until);
+      else {
+        smileFrom = from;
+        smileUntil = until;
+      }
+    };
+    let nextIdleSmile = performance.now() + 9000 + Math.random() * 6000;
     let nextBlink = performance.now() + 2500 + Math.random() * 2500;
     let blinkAt = -1e9;
     let twice = false;
     const blinkPhase = (t: number): EyeMode | null => (t < 0 ? null : t < 40 ? "squint" : t < 150 ? "closed" : t < 190 ? "squint" : null);
-    const eyeMode = (now: number): EyeMode => {
-      if (hovered || focused) return "happy";
-      const ts = now - surpriseAt;
-      if (ts < 900) return "wide";
-      if (ts < 1600) return "happy";
+    const eyeMode = (now: number, birdHere: boolean): EyeMode => {
+      if (now - surpriseAt < 900) return "wide";
       if (now >= nextBlink) {
         blinkAt = now;
         twice = Math.random() < 0.25;
         nextBlink = now + 3000 + Math.random() * 3000;
       }
       const tb = now - blinkAt;
-      return blinkPhase(tb) ?? (twice ? blinkPhase(tb - 300) : null) ?? "open";
+      const blink = blinkPhase(tb) ?? (twice ? blinkPhase(tb - 300) : null);
+      let happy = hovered || focused || (now >= smileFrom && now < smileUntil);
+      if (now >= nextIdleSmile) {
+        // a smile of its own now and then, when nothing else is going on
+        if (!happy && !birdHere) {
+          smile(now, now + 3000 + Math.random() * 2000);
+          happy = true;
+        }
+        nextIdleSmile = now + 12000 + Math.random() * 8000;
+      }
+      if (happy) return blink === "closed" ? "closed" : "happy";
+      return blink ?? "open";
     };
 
     const onPointer = (e: PointerEvent) => {
@@ -295,13 +318,22 @@ export function InkLanding() {
       const f = faceAt(cur);
       const fx = b.left + (f.x / R.w) * b.width;
       const fy = b.top + (f.y / R.h) * b.height;
-      if (!hovered && !focused && now - surpriseAt > 4000 && Math.hypot(e.clientX - fx, e.clientY - fy) < Math.max(90, b.height * 0.3)) surpriseAt = now;
+      if (!hovered && !focused && now - surpriseAt > 4000 && Math.hypot(e.clientX - fx, e.clientY - fy) < Math.max(90, b.height * 0.3)) {
+        surpriseAt = now;
+        smile(now + 900, now + 900 + 3500); // then a long smile
+      }
     };
     if (finePointer && !reduce) addEventListener("pointermove", onPointer, { passive: true });
     const onEnter = () => (hovered = true);
-    const onLeave = () => (hovered = false);
+    const onLeave = () => {
+      hovered = false;
+      smile(performance.now(), performance.now() + 3000); // keep smiling a while after the pointer leaves
+    };
     const onFocus = () => (focused = true);
-    const onBlur = () => (focused = false);
+    const onBlur = () => {
+      focused = false;
+      smile(performance.now(), performance.now() + 3000);
+    };
     startLink.addEventListener("pointerenter", onEnter);
     startLink.addEventListener("pointerleave", onLeave);
     startLink.addEventListener("focus", onFocus);
@@ -336,7 +368,7 @@ export function InkLanding() {
       return { x, y, f: Math.floor(t * 24 + c.phase) % c.frames };
     };
     // the lander's state: in the flock, flying in, perched, flying off, or gone until the flock's next pass
-    const lander = { phase: "flock" as "flock" | "in" | "perch" | "out" | "gone", t0: 0, x: 0, y: 0, fx: 0, fy: 0, act: 1, actAt: 0, landed: -1e9 };
+    const lander = { phase: "flock" as "flock" | "in" | "perch" | "out" | "gone", t0: 0, x: 0, y: 0, fx: 0, fy: 0, act: 1, actAt: 0, landed: -1e9, stay: 7000 };
     const drawBirds = (t: number) => {
       bx.clearRect(0, 0, bc.width, bc.height);
       for (const c of flyers) {
@@ -365,10 +397,10 @@ export function InkLanding() {
       const L = lander;
       if (L.phase === "flock") {
         if (!ready) return;
-        // a rested mouse (or now and then on a phone), the lander passing on the right: it peels off and glides down
+        // every pass of the flock (the first a few seconds after the page opens), whatever the mouse is doing:
+        // the lander peels off and glides down onto the monitor
         const p = birdAt(landerFlyer, t);
-        const rested = finePointer ? now - lastPointer > 2500 : now - L.landed > 25000;
-        if (rested && !hovered && !focused && now - L.landed > 9000 && p.x > 1150 && p.x < 1700) {
+        if (now - L.landed > 9000 && p.x > 700 && p.x < 1750) {
           L.phase = "in";
           L.t0 = now;
           L.fx = p.x;
@@ -387,7 +419,7 @@ export function InkLanding() {
       if (L.phase === "in") {
         const u = Math.min(1, (now - L.t0) / 1800);
         const e = 1 - Math.pow(1 - u, 3);
-        L.x = bez(L.fx, P.x + 260, P.x, e);
+        L.x = bez(L.fx, P.x + (L.fx >= P.x ? 260 : -260), P.x, e); // it comes in from its own side
         L.y = bez(L.fy, P.y - 170, P.y, e);
         if (u < 0.86) drawFlight(L.x, L.y - 8, Math.floor(t * 24 * (1 - 0.45 * u)) % SMALL.frames);
         else drawPerched(L.x, L.y, 2);
@@ -395,8 +427,10 @@ export function InkLanding() {
           L.phase = "perch";
           L.t0 = now;
           L.landed = now;
+          L.stay = 6500 + Math.random() * 1500;
           L.act = Math.random() < 0.6 ? 1 : 2;
           L.actAt = now + 1200 + Math.random() * 800;
+          smile(now + 1000, now + 3800); // it looks up at its visitor, smiles, then watches it again
         }
         return;
       }
@@ -418,8 +452,8 @@ export function InkLanding() {
         L.x = P.x;
         L.y = P.y;
         drawPerched(P.x, P.y + dy, f);
-        // the mouse moves (or, on a phone, a few seconds pass): off it goes
-        if (finePointer ? lastPointer > L.t0 + 50 : now - L.t0 > 6000) {
+        // it stays a while (6.5–8 s), then flies off on its own; the mouse doesn't scare it
+        if (now - L.t0 > L.stay) {
           L.phase = "out";
           L.t0 = now;
           L.fx = P.x;
@@ -503,7 +537,7 @@ export function InkLanding() {
         const ease = Math.min(1, dt * 9);
         look.x += (want.x - look.x) * ease;
         look.y += (want.y - look.y) * ease;
-        mode = eyeMode(now);
+        mode = eyeMode(now, lander.phase === "in" || lander.phase === "perch");
         paintHead();
       }
       raf = requestAnimationFrame(frame);
