@@ -156,7 +156,7 @@ export function CounterView({
         <div className="flex items-center gap-2">{talk}</div>
       </div>
 
-    <main className="mx-auto w-full max-w-md px-5 pb-16 md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24">
+    <main data-ink-block="children" className="mx-auto w-full max-w-md px-5 pb-16 md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24">
       <header className="mt-6 flex flex-col gap-4 lg:mt-10 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-x-4 gap-y-1">

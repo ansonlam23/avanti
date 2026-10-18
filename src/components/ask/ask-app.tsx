@@ -278,29 +278,31 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
               {/* the avanti logo + who's talking: "avanti shopper" */}
               <AppLogo section="shopper" />
             </div>
-            {/* the one top menu (Trust is how avanti uses AI); the other sections open in a new tab so the chat stays put */}
-            <SiteMenu current="shop" newTab end={!state.feed.length} />
-            {state.feed.length ? (
-              <button
-                type="button"
-                onClick={() => {
-                  reset();
-                  setDraft("");
-                }}
-                aria-label="Start a new chat"
-                className="group flex h-11 min-w-11 items-center justify-center gap-2 border border-transparent text-carbon transition-colors hover:border-ink/15 lg:px-3"
-              >
-                <RotateCcw aria-hidden className="size-[18px] transition-transform duration-500 group-hover:-rotate-90" strokeWidth={1.6} />
-                <span aria-hidden className="hidden font-display text-[17px] tracking-[0.04em] lg:inline">
-                  New chat
-                </span>
-              </button>
-            ) : null}
+            {/* the one top menu, the same on every page (Trust is how avanti uses AI) */}
+            <SiteMenu current="shop" />
           </header>
 
           <div className="flex min-h-0 flex-1">
             {/* The conversation: a reading column; on a laptop the scroll area spans the whole left side. */}
             <section aria-label="Conversation" className="flex min-w-0 flex-1 flex-col">
+              {/* once a chat has started: "New chat", at the top right of the chat column, on its own slim row */}
+              {state.feed.length ? (
+                <div className="px-5 lg:px-12">
+                  <div className="mx-auto flex w-full max-w-[720px] justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        reset();
+                        setDraft("");
+                      }}
+                      className="btn-quiet group -mr-3 gap-2 text-ink-muted hover:text-ink"
+                    >
+                      <RotateCcw aria-hidden className="size-[18px] transition-transform duration-500 group-hover:-rotate-90" strokeWidth={1.6} />
+                      New chat
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div
                 ref={scrollRef}
                 onScroll={(e) => {
@@ -309,7 +311,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                 }}
                 className="ask-feed-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 lg:px-12"
               >
-                <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col">
+                <div data-ink-block className="mx-auto flex min-h-full w-full max-w-[720px] flex-col">
                   {empty ? (
                     <>
                       <PickupsStrip onOpen={(id) => setSheet([id])} className="pt-5 lg:max-w-[600px] lg:pt-8" />
@@ -358,6 +360,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
             {empty ? null : (
               <aside
                 ref={trayRef}
+                data-ink-block
                 aria-label="Your order"
                 className="ask-tray hidden w-[440px] shrink-0 overflow-y-auto px-9 pb-8 pt-3 lg:block xl:w-[480px] xl:px-12"
               >

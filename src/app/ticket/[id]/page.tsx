@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { InkBackdrop } from "@/components/brand/ink-backdrop";
 import { TicketScreen } from "@/components/ticket/ticket-screen";
 import { loadTicketOrder, UUID } from "@/lib/orders/ticket-server";
 import { hasSupabase } from "@/lib/env";
@@ -18,5 +19,11 @@ export default async function TicketPage(props: PageProps<"/ticket/[id]">) {
   if (!UUID.test(id) || !hasSupabase()) notFound();
   const order = await loadTicketOrder(id);
   if (!order) notFound();
-  return <TicketScreen order={order} />;
+  return (
+    <>
+      {/* laptops: trees in the side margins; a thin river strip along the bottom, never behind the ticket */}
+      <InkBackdrop variant="thin" />
+      <TicketScreen order={order} />
+    </>
+  );
 }
