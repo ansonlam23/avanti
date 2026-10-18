@@ -92,6 +92,10 @@ export interface Order {
   held_at: string | null;
   paid_at: string | null;
   released_at: string | null;
+  /** The pickup ticket's live status (CONTRACTS §18, migration 0007). Absent until the migration is applied. */
+  seen_at?: string | null;
+  ready_at?: string | null;
+  here_at?: string | null;
 }
 
 /** What a shopper (or the shopper agent) may see about their order. */
