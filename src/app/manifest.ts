@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "avanti",
     short_name: "avanti",
     description: "Every shop, open to every AI.",
-    start_url: "/start",
+    start_url: "/",
     display: "standalone",
     background_color: "#ebe5de",
     theme_color: "#ebe5de",
