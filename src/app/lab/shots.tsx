@@ -22,6 +22,7 @@ import { attack } from "./demos/door";
 import { ORDER } from "./demos/receipt";
 import { Storefront } from "@/components/storefront/storefront";
 import { AskShot } from "./ask-shot";
+import { CounterDoorShot, TicketShot } from "./ticket-shot";
 import { LAB_ITEMS, LAB_SHOP, labDashboard, labOrder } from "./fixtures";
 
 type Shot = {
@@ -170,6 +171,31 @@ export const SHOTS: Record<string, Shot> = {
     title: "Chat: the receipt + VERIFIED slip (lab data)",
     layout: "page",
     render: (take) => <AskShot key={take} stage="held" />,
+  },
+  "pickup-ticket": {
+    title: "Pickup ticket: held, the shop saw it (lab data)",
+    layout: "page",
+    render: (take) => <TicketShot key={take} take={take} state="held" />,
+  },
+  "pickup-ticket-ready": {
+    title: "Pickup ticket: the owner taps Ready (lab data)",
+    layout: "page",
+    render: (take) => <TicketShot key={take} take={take} state="ready" />,
+  },
+  "pickup-ticket-here": {
+    title: "Pickup ticket: I'm here, the shop knows (lab data)",
+    layout: "page",
+    render: (take) => <TicketShot key={take} take={take} state="here" />,
+  },
+  "pickup-ticket-paid": {
+    title: "Pickup ticket: picked up, stamp pressed (lab data)",
+    layout: "page",
+    render: (take) => <TicketShot key={take} take={take} state="paid" />,
+  },
+  "counter-at-door": {
+    title: "Counter: the shopper is at the door (lab data)",
+    layout: "page",
+    render: (take) => <CounterDoorShot key={take} take={take} />,
   },
 };
 

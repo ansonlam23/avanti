@@ -1,11 +1,15 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AppLogo, Receipt, SiteMenu } from "@/components/brand";
+import { PickupsStrip } from "@/components/ticket/pickups-strip";
+import { rememberOrders } from "@/components/ticket/saved-pickups";
+import { TicketSheet } from "@/components/ticket/ticket-sheet";
 import type { MenuResult } from "@/lib/ai/shopper-types";
 import { getMyShops } from "@/lib/my-shops";
 import type { PaymentMode } from "@/lib/types";
+import { Arrow } from "./arrow";
 import { AiBubble, Notice, StatusLine, UserBubble } from "./bubbles";
 import { Composer } from "./composer";
 import { DEFAULT_CHIPS, EmptyState } from "./empty-state";
@@ -18,7 +22,7 @@ import { OrderReveal, receiptProps } from "./order-reveal";
 import { OrderTray, TrayNote } from "./order-tray";
 import { SearchResults } from "./shop-cards";
 import { StampCard } from "./stamp-card";
-import { useShopper } from "./use-shopper";
+import { useShopper, type Reveal } from "./use-shopper";
 import { useWide } from "./use-wide";
 import "./ask.css";
 
@@ -47,6 +51,36 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
   const mainRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+
+  // The pickup ticket (CONTRACTS §18): after Confirm & hold the shopper is led to it.
+  // It slides up when the VERIFIED → HELD reveal closes, or a beat after an errand's
+  // Confirm all; "Your ticket →" and "Your pickups" bring it back.
+  const [sheet, setSheet] = useState<string[] | null>(null);
+  const latest = useRef(state);
+  const revealId = useRef<string | null>(null);
+  useEffect(() => {
+    latest.current = state;
+    revealId.current = state.reveal?.orderId ?? null;
+  });
+  const onRevealChange = useCallback(
+    (next: Reveal | null) => {
+      if (next === null && revealId.current) setSheet([revealId.current]);
+      setReveal(next);
+    },
+    [setReveal],
+  );
+  // After Confirm all: let "Three holds, one walk" land, then bring up the errand's tickets.
+  const openErrandTickets = useCallback((cardIds: string[]) => {
+    window.setTimeout(() => {
+      const proposals = latest.current.proposals;
+      const held = cardIds.flatMap((c) => (proposals[c]?.status === "held" && proposals[c]?.orderId ? [proposals[c]!.orderId!] : []));
+      if (held.length) setSheet(held);
+    }, 1600);
+  }, []);
+  // Remember held tickets on this phone, so a closed tab doesn't lose the pickup code.
+  useEffect(() => {
+    rememberOrders(Object.values(state.orders));
+  }, [state.orders]);
 
   // Honesty label for the empty state + order cards (booleans/labels only).
   useEffect(() => {
@@ -146,15 +180,18 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
     const ps = state.proposals[item.id];
     if (!proposal || !ps) return null;
     return (
-      <OrderCard
-        proposal={proposal}
-        state={ps}
-        order={ps.orderId ? (state.orders[ps.orderId] ?? null) : null}
-        name={name}
-        onName={setName}
-        onConfirm={() => void confirm(item.id, proposal)}
-        mode={mode}
-      />
+      <>
+        <OrderCard
+          proposal={proposal}
+          state={ps}
+          order={ps.orderId ? (state.orders[ps.orderId] ?? null) : null}
+          name={name}
+          onName={setName}
+          onConfirm={() => void confirm(item.id, proposal)}
+          mode={mode}
+        />
+        {ps.status === "held" && ps.orderId ? <TicketLink onOpen={() => setSheet([ps.orderId!])} /> : null}
+      </>
     );
   }
 
@@ -168,7 +205,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
         name={name}
         onName={setName}
         onConfirm={(c) => void confirm(c.id, c.proposal)}
-        onConfirmAll={(ids) => void confirmAll(group.responseId, ids)}
+        onConfirmAll={(ids) => void confirmAll(group.responseId, ids).then(() => openErrandTickets(ids))}
         mode={mode}
       />
     );
@@ -230,7 +267,7 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
       className="ask-app fixed inset-x-0 mx-auto flex w-full max-w-[480px] flex-col bg-counter md:max-w-[640px] md:bg-transparent lg:max-w-[1600px]"
       style={{ top: "var(--ask-top, 0px)", height: "var(--ask-vh, 100dvh)" }}
     >
-      <OrderReveal reveal={state.reveal} order={revealOrder} onChange={setReveal}>
+      <OrderReveal reveal={state.reveal} order={revealOrder} onChange={onRevealChange}>
         <div className="flex h-full flex-col">
           {/* The bar spans the screen even where the chat is a centred column (tablets,
               very wide screens), so the logo sits in /start's spot on every page. */}
@@ -273,7 +310,12 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
                 className="ask-feed-fade min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 lg:px-12"
               >
                 <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col">
-                  {empty ? <EmptyState chips={chips} mode={mode} onPick={submit} /> : null}
+                  {empty ? (
+                    <>
+                      <PickupsStrip onOpen={(id) => setSheet([id])} className="pt-5 lg:max-w-[600px] lg:pt-8" />
+                      <EmptyState chips={chips} mode={mode} onPick={submit} />
+                    </>
+                  ) : null}
                   {/* Always mounted, so screen readers announce the first reply too. */}
                   <div aria-live="polite" aria-busy={state.busy} className={empty ? undefined : "space-y-6 pb-8 pt-5 lg:space-y-8 lg:pb-10 lg:pt-8"}>
                     {visible.map((item) => {
@@ -331,6 +373,18 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
           </div>
         </div>
       </OrderReveal>
+      <TicketSheet ids={sheet} orders={state.orders} onClose={() => setSheet(null)} />
     </main>
+  );
+}
+
+/** Under a held receipt: the way back to the pickup ticket (CONTRACTS §18). */
+function TicketLink({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="mt-2 flex justify-center">
+      <button type="button" onClick={onOpen} className="link-ink text-[19px]!">
+        Your ticket <Arrow />
+      </button>
+    </div>
   );
 }

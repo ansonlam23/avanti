@@ -1,0 +1,18 @@
+/* The pickup ticket (src/components/ticket). The step the order waits on breathes, calmly. */
+@keyframes ticket-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.ticket-pulse {
+  animation: ticket-pulse 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticket-pulse {
+    animation: none;
+  }
+}
