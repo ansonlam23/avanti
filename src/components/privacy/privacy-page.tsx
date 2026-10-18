@@ -19,6 +19,11 @@ export interface AiUse {
 
 const rise = (s: number) => ({ "--rise": `${s}s` }) as CSSProperties;
 
+/** The name in running text: semibold, in the logo's teal. */
+function Avanti() {
+  return <span className="font-semibold text-carbon">avanti</span>;
+}
+
 function Side({ id, title, surface, delay, children }: { id: string; title: string; surface: "paper" | "pad"; delay: number; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className={`lp-rise ${surface} px-6 pb-3 pt-7 sm:px-8 lg:px-10 lg:pb-5 lg:pt-9`} style={rise(delay)}>
@@ -35,9 +40,16 @@ function Line({ children }: { children: ReactNode }) {
 }
 
 export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: PaymentMode; shopperAi: AiUse; mcpUrl: string }) {
-  const ai: AiUse[] = [
+  const ai: { who: string; what: ReactNode }[] = [
     { who: "Gemini (Google)", what: "reads the counter photo and voice note." },
-    { who: shopperAi.who, what: `${shopperAi.what} avanti doesn't save your chat.` },
+    {
+      who: shopperAi.who,
+      what: (
+        <>
+          {shopperAi.what} <Avanti /> doesn&apos;t save your chat.
+        </>
+      ),
+    },
     { who: "Prices", what: "always come from the database, never from AI text." },
     { who: "Demo shops", what: "are labeled demo." },
   ];
@@ -46,17 +58,19 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
       <SiteNav variant="page" section="privacy" />
       <main className="mx-auto w-full max-w-page flex-1 px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20 lg:pt-14">
         <h1
-          className="lp-rise font-display text-[36px] font-normal leading-[1.08] text-carbon sm:text-[52px] lg:text-[clamp(3.25rem,1.6rem+2.6vw,4.25rem)]"
+          className="lp-rise font-display text-[36px] font-normal leading-[1.08] text-carbon text-balance sm:text-[52px] lg:text-[clamp(3.25rem,1.6rem+2.6vw,4.25rem)]"
           style={rise(0.05)}
         >
-          <span className="block">How avanti uses AI</span> <span className="block">and your data</span>
+          How avanti uses AI and your data
         </h1>
 
         <div className="mt-9 grid gap-5 lg:mt-14 lg:grid-cols-2 lg:gap-8">
           <Side id="shoppers" title="Shoppers" surface="paper" delay={0.16}>
-            <Line>avanti keeps your pickup name and your order. Requests are counted per IP address to stop abuse.</Line>
             <Line>
-              avanti never asks for your card number.{" "}
+              <Avanti /> keeps your pickup name and your order. Requests are counted per IP address to stop abuse.
+            </Line>
+            <Line>
+              <Avanti /> never asks for your card number.{" "}
               {payments === "sandbox"
                 ? "This demo uses a Visa sandbox test card, so no real money moves."
                 : "Payments here are simulated: no Visa call, no real money."}
@@ -74,7 +88,7 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
             <Line>You set the rules: a cap on each AI order, items sold in person only, and a pause for AI orders anytime.</Line>
             <Line>Unsigned or forged order requests are turned away before they reach Visa.</Line>
             <Line>
-              You check the menu Gemini drafts before it goes live. Your photo becomes the shop&apos;s picture; avanti doesn&apos;t keep
+              You check the menu Gemini drafts before it goes live. Your photo becomes the shop&apos;s picture; <Avanti /> doesn&apos;t keep
               the voice note.
             </Line>
           </Side>
@@ -96,28 +110,16 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
         {/* the MCP server (CONTRACTS §15): the same tools the avanti shopper uses, read-only */}
         <section aria-labelledby="your-ai" className="lp-rise mt-12 lg:mt-16" style={rise(0.46)}>
           <h2 id="your-ai" className="font-display text-[30px] font-normal leading-none text-ink lg:text-[36px]">
-            Use avanti from your own AI
+            Use <span className="text-carbon">avanti</span> from your own AI
           </h2>
           <p className="mt-4 max-w-[60ch] text-[16px] leading-snug text-ink-muted text-pretty lg:mt-5 lg:text-[18px]">
-            avanti is an MCP server, so an assistant like Claude can find these shops for you. Add this link to it:
+            <Avanti /> is an MCP server, so an assistant like Claude can find these shops for you. Add this link to it:
           </p>
           <div className="mt-5 lg:mt-6">
             <CopyLink url={mcpUrl} label="avanti's MCP server link" />
           </div>
-          <ul className="mt-6 grid sm:grid-cols-2 sm:gap-x-8 lg:mt-8 lg:grid-cols-4">
-            {[
-              { who: "Your AI can", what: "find shops near UW, read live menus, ask a shop about allergens, and start an order." },
-              { who: "It can't", what: "pay or order on its own. It hands you a link, and you confirm in avanti." },
-              { who: "It only sees", what: "public shop info from listed shops: menus, prices, stock and pickup hours. Searches are counted anonymously." },
-              { who: "In Claude:", what: "Settings → Connectors → Add custom connector, then paste the link. It needs a paid Claude plan." },
-            ].map((a) => (
-              <li key={a.who} className="border-t border-ink/15 py-4 text-[16px] leading-snug text-ink-muted text-pretty lg:py-5 lg:text-[18px]">
-                <span className="font-semibold text-ink">{a.who}</span> {a.what}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[16px] text-ink-muted lg:text-[17px]">
-            Claude Desktop, Cursor and other apps:{" "}
+          <p className="mt-5 text-[16px] text-ink-muted lg:mt-6 lg:text-[17px]">
+            Claude, Cursor and other apps:{" "}
             <a href={`${GITHUB_URL}#use-avanti-from-any-ai`} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
               setup steps on GitHub
             </a>
