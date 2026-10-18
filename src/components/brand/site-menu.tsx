@@ -24,15 +24,15 @@ const QUIET = "text-ink-muted decoration-transparent hover:text-ink hover:decora
  * Put it in a `flex flex-wrap` bar right after `AppLogo`: on laptops it sits on
  * the logo's row (`end` pulls the last word flush with the bar's edge when nothing
  * follows it); on phones it drops to its own row, its first word under "avanti".
- * `newTab` opens the other sections in a new tab (the chat on /ask stays put).
+ * Every section opens in the same tab (`newTab` is kept for callers and ignored).
  */
 export function SiteMenu({
   current,
-  newTab = false,
   end = true,
   className,
 }: {
   current?: MenuSection;
+  /** Ignored: the sections always open in the same tab. */
   newTab?: boolean;
   end?: boolean;
   className?: string;
@@ -44,14 +44,11 @@ export function SiteMenu({
     >
       {ITEMS.map((it) => {
         const here = it.id === current;
-        const away = newTab && !here;
         return (
           <Link
             key={it.id}
             href={it.href}
             aria-current={here ? "page" : undefined}
-            target={away ? "_blank" : undefined}
-            rel={away ? "noopener" : undefined}
             className={cn(LINK, here ? "text-ink decoration-carbon" : QUIET)}
           >
             {it.label}
