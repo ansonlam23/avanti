@@ -2,7 +2,7 @@
 // it becomes one change on their own shop:
 //   "we're out of croissants"          → that item sold out
 //   "croissants are back"              → back in stock
-//   "AI orders up to forty dollars"    → the AI spending cap ("no cap on AI orders" removes it)
+//   "AI orders up to forty dollars"    → the AI spending cap ("no limit on AI orders" removes it)
 //   "AI can't order the birthday cake" → that item in person only ("let AI order the cake again")
 //   "pause AI orders"                  → stop taking AI orders ("start taking AI orders")
 // Pure (no DOM, no network, no AI calls): what was heard is matched against the
@@ -672,7 +672,7 @@ export function doneLine(cmd: VoiceCommand): string {
     case "ai_orderable":
       return cmd.ai_orderable ? `Done. AI can order ${cmd.item.name.trim()} again.` : `Done. ${itemIs(cmd.item)} in-person only.`;
     case "ai_limit":
-      return cmd.cents === null ? "Done. No cap on AI orders." : `Done. AI orders up to ${formatPriceShort(cmd.cents)}.`;
+      return cmd.cents === null ? "Done. No limit on AI orders." : `Done. AI orders up to ${formatPriceShort(cmd.cents)}.`;
     case "accept_ai":
       return cmd.accept ? "Done. Taking AI orders again." : "Done. AI orders are paused.";
   }
@@ -686,7 +686,7 @@ export function alreadyLine(cmd: VoiceCommand): string {
     case "ai_orderable":
       return cmd.ai_orderable ? `AI can already order ${cmd.item.name.trim()}.` : `${itemIs(cmd.item)} already in-person only.`;
     case "ai_limit":
-      return cmd.cents === null ? "There's already no cap on AI orders." : `AI orders are already capped at ${formatPriceShort(cmd.cents)}.`;
+      return cmd.cents === null ? "There's already no limit on AI orders." : `AI orders are already limited to ${formatPriceShort(cmd.cents)}.`;
     case "accept_ai":
       return cmd.accept ? "Already taking AI orders." : "AI orders are already paused.";
   }

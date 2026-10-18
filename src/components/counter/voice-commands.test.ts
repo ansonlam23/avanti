@@ -140,6 +140,7 @@ describe("AI rules", () => {
     ["raise the AI limit to a hundred", "cap: 10000"],
     ["let AI order anything up to 30 dollars", "cap: 3000"],
     ["no cap on AI orders", "cap: none"],
+    ["no limit on AI orders", "cap: none"],
     ["remove the AI limit", "cap: none"],
     ["AI orders can be any amount", "cap: none"],
     ["AI can't order the birthday cake", "ai off: bday"],
@@ -264,7 +265,7 @@ describe("replies", () => {
     expect(doneLine({ kind: "ai_orderable", item: TWINS[3], ai_orderable: true })).toBe("Done. AI can order Chocolate birthday cake again.");
     expect(doneLine({ kind: "ai_limit", cents: 4000 })).toBe("Done. AI orders up to $40.");
     expect(doneLine({ kind: "ai_limit", cents: 1250 })).toBe("Done. AI orders up to $12.50.");
-    expect(doneLine({ kind: "ai_limit", cents: null })).toBe("Done. No cap on AI orders.");
+    expect(doneLine({ kind: "ai_limit", cents: null })).toBe("Done. No limit on AI orders.");
     expect(doneLine({ kind: "accept_ai", accept: false })).toBe("Done. AI orders are paused.");
     expect(doneLine({ kind: "accept_ai", accept: true })).toBe("Done. Taking AI orders again.");
   });
@@ -288,7 +289,7 @@ describe("replies", () => {
     expect(isAlready({ kind: "ai_limit", cents: null }, state)).toBe(false);
     expect(isAlready({ kind: "accept_ai", accept: true }, state)).toBe(true);
     expect(alreadyLine({ kind: "sold_out", item: items[0], sold_out: true })).toBe("Almond croissants are already sold out.");
-    expect(alreadyLine({ kind: "ai_limit", cents: 4000 })).toBe("AI orders are already capped at $40.");
+    expect(alreadyLine({ kind: "ai_limit", cents: 4000 })).toBe("AI orders are already limited to $40.");
     expect(alreadyLine({ kind: "accept_ai", accept: false })).toBe("AI orders are already paused.");
   });
 

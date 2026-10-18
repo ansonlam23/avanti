@@ -16,7 +16,7 @@ export interface Basics {
   end: string;
   maxPerOrder: number;
   acceptAi: boolean;
-  /** "AI orders up to $___" as typed (empty = no cap). */
+  /** "AI orders up to $___" as typed (empty = no limit). */
   aiMax: string;
 }
 
@@ -82,7 +82,7 @@ export function ShopBasics({ value, onChange }: { value: Basics; onChange: (patc
               <input
                 id="ai-max"
                 inputMode="decimal"
-                placeholder="no cap"
+                placeholder="no limit"
                 value={value.aiMax}
                 aria-invalid={badCap || undefined}
                 onChange={(e) => onChange({ aiMax: e.target.value.slice(0, 8) })}

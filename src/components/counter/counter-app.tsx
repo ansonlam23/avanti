@@ -167,7 +167,7 @@ export function CounterApp({ slug }: { slug: string }) {
       toast.error(body?.error?.message ?? "Couldn't change the AI limit");
       return false;
     }
-    toast(cents === null ? "AI orders: no cap" : `AI orders up to ${formatCents(cents)}`);
+    toast(cents === null ? "AI orders: no limit" : `AI orders up to ${formatCents(cents)}`);
     void refresh();
     return true;
   }

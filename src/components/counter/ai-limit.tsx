@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const PRESETS = [null, 2000, 4000, 8000] as const;
 
 /**
- * The owner's cap on one AI order (CONTRACTS §13): No cap · $20 · $40 · $80,
+ * The owner's cap on one AI order (CONTRACTS §13): No limit · $20 · $40 · $80,
  * or any amount typed into "Other". Square segments; the chosen one is teal.
  * The shop's door refuses a bigger AI order before Visa is ever asked.
  */
@@ -70,7 +70,7 @@ export function AiLimit({
                 "disabled:opacity-60",
               )}
             >
-              {p === null ? "No cap" : formatPriceShort(p)}
+              {p === null ? "No limit" : formatPriceShort(p)}
             </button>
           );
         })}

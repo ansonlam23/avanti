@@ -329,6 +329,8 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, o
       className="relative isolate border-b border-ink/10 py-2.5 last:border-0"
     >
       {fresh !== undefined ? <span key={fresh} aria-hidden className="open-fresh" /> : null}
+      {/* the line being edited: one wash behind the whole line (name, price, switch, editor), same edges top to bottom */}
+      {editing ? <span aria-hidden className="pointer-events-none absolute inset-y-0 -inset-x-3 -z-10 bg-highlight/35" /> : null}
       <div className="flex items-start gap-3">
       {/* same element in every mode, so nothing remounts when the slip turns editable */}
       <div
@@ -349,8 +351,8 @@ function BoardRow({ row, index, mode, flight, slotRef, editing, fresh, onEdit, o
         }
         className={cn(
           "-ml-3 min-w-0 flex-1 py-2 pl-3 pr-2 transition-colors duration-300",
-          review && "cursor-pointer hover:bg-highlight/35",
-          editing && "bg-highlight/35",
+          review && !editing && "cursor-pointer hover:bg-highlight/35",
+          editing && "cursor-pointer",
         )}
       >
         {content}
@@ -441,7 +443,7 @@ function RowEditor({
   const tagChoices = [...EDIT_TAGS, ...row.tags.filter((t) => !(EDIT_TAGS as readonly string[]).includes(t))];
 
   return (
-    <div className="-mx-3 space-y-5 bg-highlight/35 px-3 pb-4 pt-3">
+    <div className="space-y-5 pb-4 pt-3">
       <label className="block">
         <span className="label-print mb-2 block text-ink-muted">Name</span>
         <input value={row.name} onChange={(e) => onChange({ name: e.target.value.slice(0, 80) })} className="field-print" />
