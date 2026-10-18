@@ -8,15 +8,27 @@ import { StepHeading } from "./step-heading";
 
 // Beat 1: Snap your counter. A paper frame with teal corner brackets + one
 // primary action. On a laptop (no camera): choose a file, drop one on the
-// frame, or try the sample bakery. Or skip the photo and just tell me.
+// frame, or try a sample (a bakery, or a lemonade stand with its prices on a
+// sign). Or skip the photo and just tell me.
 
 /**
- * A real, freely licensed counter photo for people trying the demo without one (the AI still reads it live).
- * "The Bakery off Augusta", Greenville Daily Photo, CC0 (public domain: no credit required, so none is shown).
+ * Real, freely licensed counter photos for people trying the demo without one (the AI still reads them live).
+ * - "The Bakery off Augusta", Greenville Daily Photo, CC0 (public domain: no credit required, so none is shown).
+ * - "Phil's Fresh Squeezed Lemonade - 2023 Marin County Fair", Sarah Stierch, CC BY 4.0 (credit shown under the
+ *   links): its sign has prices, so the AI reads four of them off the photo and marks the covered one "needs a price".
  */
-const SAMPLE_PHOTO = {
-  url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/The_Bakery_off_Augusta.jpg/1280px-The_Bakery_off_Augusta.jpg",
-};
+const SAMPLES = {
+  bakery: {
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/The_Bakery_off_Augusta.jpg/1280px-The_Bakery_off_Augusta.jpg",
+  },
+  lemonade: {
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg/1280px-Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg",
+  },
+} as const;
+type SampleId = keyof typeof SAMPLES;
+
+const LEMONADE_PAGE = "https://commons.wikimedia.org/wiki/File:Phil%27s_Fresh_Squeezed_Lemonade_-_2023_Marin_County_Fair_-_Sarah_Stierch.jpg";
+const CC_BY_4 = "https://creativecommons.org/licenses/by/4.0/";
 
 const FINE_POINTER = "(hover: hover) and (pointer: fine)";
 function subscribePointer(cb: () => void) {
@@ -63,12 +75,12 @@ export function SnapStep({
     e.target.value = "";
     if (file) onFile(file);
   };
-  const loadSample = async () => {
+  const loadSample = async (id: SampleId) => {
     onFirstTap();
     setSampleError(null);
     setLoadingSample(true);
     try {
-      const res = await fetch(SAMPLE_PHOTO.url, { mode: "cors" });
+      const res = await fetch(SAMPLES[id].url, { mode: "cors" });
       if (!res.ok) throw new Error(String(res.status));
       const blob = await res.blob();
       onFile(new File([blob], "sample-counter.jpg", { type: blob.type || "image/jpeg" }));
@@ -163,11 +175,24 @@ export function SnapStep({
           </>
         )}
         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-          <span className="flex flex-wrap items-center justify-center gap-x-3 lg:justify-start">
+          <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 lg:justify-start">
             <span className="text-[16px] text-ink-muted">No photo handy?</span>
-            <button type="button" onClick={() => void loadSample()} disabled={working} className="link-ink text-[19px]!">
-              Use a sample bakery <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
+            <button type="button" onClick={() => void loadSample("bakery")} disabled={working} className="link-ink text-[19px]!">
+              Sample bakery <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
             </button>
+            <button type="button" onClick={() => void loadSample("lemonade")} disabled={working} className="link-ink text-[19px]!">
+              Lemonade stand, with prices <ArrowRight className="size-[18px]" strokeWidth={1.5} aria-hidden />
+            </button>
+          </span>
+          <span className="mt-1 text-[15px] text-ink-muted">
+            Lemonade stand photo:{" "}
+            <a href={LEMONADE_PAGE} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+              Sarah Stierch
+            </a>
+            ,{" "}
+            <a href={CC_BY_4} target="_blank" rel="noreferrer" className="underline decoration-ink/30 underline-offset-4 hover:decoration-ink">
+              CC BY 4.0
+            </a>
           </span>
         </div>
       </div>

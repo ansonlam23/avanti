@@ -18,7 +18,7 @@ import { LiveCard } from "./live-card";
 import { FLIGHT_S, MenuBoard, parsePriceInput, TOUCHDOWN, type MenuRow, type RowFlight } from "./menu-board";
 import { blobToDataUrl, dataUrlToBlob, preparePhoto, type PreparedPhoto } from "./photo";
 import { rememberMyShop } from "@/lib/my-shops";
-import { applyRevision, changeSummary, menuForRevise, pruneUnclear } from "./revise";
+import { applyRevision, changeSummary, DEFAULT_STOCK, menuForRevise, pruneUnclear } from "./revise";
 import { loadLive, loadRun, saveLive, saveRun, type OnboardResponse } from "./run-store";
 import { aiCapValid, DEFAULT_BASICS, ShopBasics, type Basics } from "./shop-basics";
 import { SignSwitch } from "./sign-switch";
@@ -81,7 +81,7 @@ function rowsFrom(draft: OnboardDraft): MenuRow[] {
     price_cents: it.price_cents,
     price_source: it.price_source,
     tags: it.tags,
-    stock: it.est_quantity,
+    stock: it.est_quantity ?? DEFAULT_STOCK,
     box_2d: it.box_2d ?? null,
     ai_orderable: true,
   }));

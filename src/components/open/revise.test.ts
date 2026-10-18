@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MenuRow } from "./menu-board";
-import { applyRevision, changeSummary, menuForRevise, pruneUnclear } from "./revise";
+import { applyRevision, changeSummary, DEFAULT_STOCK, menuForRevise, pruneUnclear } from "./revise";
 
 function row(over: Partial<MenuRow>): MenuRow {
   return {
@@ -64,7 +64,7 @@ describe("applyRevision", () => {
     expect(a.rows.map((r) => r.key)).toEqual(["r0-Lemon bars", "r1-Brownies", "new-1", "said-0"]);
     expect(a.rows[0]).toMatchObject({ price_cents: 475, price_source: "spoken", stock: 12, box_2d: [10, 10, 200, 200] });
     expect(a.rows[1]).toBe(ROWS[1]);
-    expect(a.rows[3]).toMatchObject({ name: "Cookies", price_cents: 250, stock: 1, box_2d: null, ai_orderable: true });
+    expect(a.rows[3]).toMatchObject({ name: "Cookies", price_cents: 250, stock: DEFAULT_STOCK, box_2d: null, ai_orderable: true });
     expect(a.touched).toEqual(["r0-Lemon bars", "said-0"]);
     expect({ added: a.added, updated: a.updated, removed: a.removed }).toEqual({ added: 1, updated: 1, removed: 1 });
   });

@@ -1,6 +1,12 @@
 import type { MenuSoFarItem, RevisionChange } from "@/lib/ai/onboard-revise";
 import type { MenuRow } from "./menu-board";
 
+/**
+ * How many to start with when nobody said or could count it (a lemonade stand's cups, a photo of one
+ * tray). Shown on the review screen ("×10") so the owner can change it; 0 would make the item unorderable.
+ */
+export const DEFAULT_STOCK = 10;
+
 // "Change anything" on the review screen, the pure half: the menu as the AI
 // sees it (short ids, so the model copies them back cheaply) and the AI's
 // changes applied to the owner's lines.
@@ -35,7 +41,7 @@ export interface Applied {
 /**
  * Apply the AI's changes. Ids are the `i{n}` ids from `menuForRevise`; an id we
  * don't know is ignored. New lines go at the end; a quantity nobody said starts
- * at 1, like "Add something".
+ * at DEFAULT_STOCK.
  */
 export function applyRevision(
   rows: MenuRow[],
@@ -83,7 +89,7 @@ export function applyRevision(
       price_cents: c.item.price_cents,
       price_source: c.item.price_source,
       tags: c.item.tags,
-      stock: c.item.est_quantity ?? 1,
+      stock: c.item.est_quantity ?? DEFAULT_STOCK,
       box_2d: null,
       ai_orderable: true,
     });
