@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
-import { APP_BAR, AppLogo, SoundToggle } from "@/components/brand";
+import { APP_BAR, AppLogo } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -155,14 +155,8 @@ export function CounterView({
               {signLink}
             </>
           ) : null}
-          {/* the keys sit at the far right, clear of the top-centre toasts */}
-          <div className="flex items-center gap-2">
-            {talk}
-            <SoundToggle
-              compact={!wide}
-              className="rounded-none border border-ink/15 font-sans text-[13px] font-semibold tracking-[0.12em] hover:border-ink/35 aria-pressed:border-carbon aria-pressed:bg-carbon"
-            />
-          </div>
+          {/* the talk key sits at the far right, clear of the top-centre toasts (sound is always on: no sound key) */}
+          <div className="flex items-center gap-2">{talk}</div>
         </div>
       </div>
 

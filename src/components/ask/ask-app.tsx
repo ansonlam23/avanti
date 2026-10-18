@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { AppLogo, Receipt, SoundToggle } from "@/components/brand";
+import { AppLogo, Receipt } from "@/components/brand";
 import type { MenuResult } from "@/lib/ai/shopper-types";
 import { getMyShops } from "@/lib/my-shops";
 import type { PaymentMode } from "@/lib/types";
@@ -261,7 +261,6 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
             >
               How avanti uses AI
             </a>
-            <SoundToggle compact />
             {state.feed.length ? (
               <button
                 type="button"

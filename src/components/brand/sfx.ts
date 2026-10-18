@@ -5,10 +5,11 @@
 // thunk, a slip spiked on the spindle, the shop doorbell, a switch click.
 // (neon-*, flip, clack and chalk are kept for older callers.)
 //
-// Rules: muted by default (persisted in localStorage), and nothing plays until
-// the user has tapped/clicked/typed at least once (browser autoplay rules; on
-// iOS the first tap also unlocks the AudioContext and asks for the "playback"
-// audio session so the silent switch doesn't swallow the sounds).
+// Rules: sound is always on (there is no on/off key in the product), but
+// nothing plays until the user has tapped/clicked/typed at least once (browser
+// autoplay rules; on iOS the first tap also unlocks the AudioContext and asks
+// for the "playback" audio session so the silent switch doesn't swallow the
+// sounds). `setMuted` remains for /lab's recording keys only, for one session.
 
 import { useSyncExternalStore } from "react";
 
@@ -35,12 +36,10 @@ export interface SfxOptions {
   duration?: number;
 }
 
-const STORAGE_KEY = "open-sign:sound";
-
 let ctx: AudioContext | null = null;
 let out: GainNode | null = null;
 let noise: AudioBuffer | null = null;
-let muted = true;
+let muted = false;
 let gestured = false;
 let booted = false;
 const listeners = new Set<() => void>();
@@ -48,10 +47,11 @@ const listeners = new Set<() => void>();
 function boot() {
   if (booted || typeof window === "undefined") return;
   booted = true;
+  // The old on/off key saved "off" here; with sound always on, forget it.
   try {
-    muted = window.localStorage.getItem(STORAGE_KEY) !== "on";
+    window.localStorage.removeItem("open-sign:sound");
   } catch {
-    muted = true;
+    /* private mode */
   }
   const unlock = () => {
     gestured = true;
@@ -122,16 +122,11 @@ export const sfx = {
     boot();
     return muted;
   },
-  /** Call from a click/tap handler (that click is the user gesture). */
+  /** /lab only: mute for one recording session (not remembered). Call from a click/tap handler. */
   setMuted(next: boolean) {
     boot();
     muted = next;
     gestured = true;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next ? "off" : "on");
-    } catch {
-      /* private mode */
-    }
     if (next) {
       if (ctx && ctx.state === "running") void ctx.suspend();
     } else {
@@ -148,9 +143,9 @@ export const sfx = {
   },
 };
 
-/** React: current mute state (muted on the server and before hydration). */
+/** React: current mute state (sound is on by default, also on the server). */
 export function useSfxMuted(): boolean {
-  return useSyncExternalStore(sfx.subscribe, sfx.isMuted, () => true);
+  return useSyncExternalStore(sfx.subscribe, sfx.isMuted, () => false);
 }
 
 // ── Synth building blocks ────────────────────────────────────
