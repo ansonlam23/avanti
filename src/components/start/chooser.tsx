@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { APP_BAR, AppLogo } from "@/components/brand/app-logo";
+import { SiteMenu } from "@/components/brand/site-menu";
 import { cn } from "@/lib/utils";
 
 // /start: two equal doors, one quiet way in for judges.
@@ -39,11 +40,9 @@ function Door({ href, title, line, delay }: { href: string; title: string; line:
 export function Chooser() {
   return (
     <div className="start-page flex min-h-svh flex-col">
-      <header className={cn("flex w-full items-center justify-between gap-4", APP_BAR)}>
+      <header className={cn("flex w-full flex-wrap items-center justify-between gap-x-4", APP_BAR)}>
         <AppLogo />
-        <Link href="/privacy" className="lp-rise btn-quiet -mr-2 px-2 text-[16px] font-normal text-ink-muted hover:text-ink lg:text-[17px]" style={rise(0.4)}>
-          How we use AI
-        </Link>
+        <SiteMenu />
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-[1160px] flex-1 flex-col justify-center px-5 pb-4 pt-8 sm:px-8 lg:pb-6 lg:pt-4">

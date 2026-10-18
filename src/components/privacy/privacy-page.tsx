@@ -55,7 +55,7 @@ export function PrivacyPage({ payments, shopperAi, mcpUrl }: { payments: Payment
   ];
   return (
     <div className="flex min-h-svh flex-col bg-counter">
-      <SiteNav variant="page" section="privacy" />
+      <SiteNav variant="page" section="privacy" current="trust" />
       <main className="mx-auto w-full max-w-page flex-1 px-5 pb-16 pt-8 sm:px-8 lg:px-10 lg:pb-20 lg:pt-14">
         <h1
           className="lp-rise font-display text-[36px] font-normal leading-[1.08] text-carbon text-balance sm:text-[52px] lg:text-[clamp(3.25rem,1.6rem+2.6vw,4.25rem)]"

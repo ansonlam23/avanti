@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
-import { APP_BAR, AppLogo } from "@/components/brand";
+import { APP_BAR, AppLogo, SiteMenu } from "@/components/brand";
 import { Money } from "@/components/common/numbers";
 import { formatCents } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -142,22 +142,14 @@ export function CounterView({
 
   return (
     <>
-      {/* the avanti logo home; talk, sound and the shop's pages on the right (the voice slip drops from here).
-          The bar spans the screen, so the logo sits in /start's spot; the counter below is a centred column. */}
-      <div className={cn("relative flex items-center justify-between gap-4", APP_BAR)}>
+      {/* the avanti logo home, the one top menu, and the talk key at the far right, clear of the top-centre
+          toasts (the voice slip drops from here; sound is always on: no sound key). The bar spans the screen,
+          so the logo sits in /start's spot; the counter below is a centred column. Phones: the menu drops to
+          its own row under the logo. The shop's own pages sit under its name. */}
+      <div className={cn("relative flex flex-wrap items-center justify-between gap-x-4", APP_BAR)}>
         <AppLogo section="shop" />
-        <div className="flex items-center gap-2 lg:gap-7">
-          {wide ? (
-            <>
-              <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="link-ink text-[19px]!">
-                Shop page <ArrowUpRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
-              </a>
-              {signLink}
-            </>
-          ) : null}
-          {/* the talk key sits at the far right, clear of the top-centre toasts (sound is always on: no sound key) */}
-          <div className="flex items-center gap-2">{talk}</div>
-        </div>
+        <SiteMenu current="sell" end={false} className="lg:ml-auto" />
+        <div className="flex items-center gap-2">{talk}</div>
       </div>
 
     <main className="mx-auto w-full max-w-md px-5 pb-16 md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24">
@@ -187,6 +179,14 @@ export function CounterView({
           <h1 className="mt-2 line-clamp-2 font-display text-[38px] leading-[1.06] text-balance lg:mt-3 lg:text-[58px] lg:leading-[1.02]">
             {shop.name}
           </h1>
+          {wide ? (
+            <p className="mt-3 flex flex-wrap items-center gap-x-8">
+              <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="link-ink -ml-[0.2rem] text-[19px]!">
+                Shop page <ArrowUpRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
+              </a>
+              {signLink}
+            </p>
+          ) : null}
         </div>
         {wide ? (
           <Totals held={stats.held_cents} paid={stats.paid_cents} />

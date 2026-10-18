@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { toast } from "sonner";
-import { APP_BAR, AppLogo, SimulatedBadge } from "@/components/brand";
+import { APP_BAR, AppLogo, SimulatedBadge, SiteMenu } from "@/components/brand";
 import { useOwnerToken } from "@/components/counter/use-owner-token";
 import { SiteNav } from "@/components/landing/site-nav";
 import { getMyShops, hasOwnerToken, rememberMyShop } from "@/lib/my-shops";
@@ -227,9 +227,16 @@ function Stage({ slug, onSwitch, ...honesty }: Honesty & { slug: string; onSwitc
   const side = phase === "ask" || phase === "confirm" ? "shopper" : "counter";
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className={cn("flex w-full flex-wrap items-center justify-between gap-3 pb-2", APP_BAR)}>
+      <header className={cn("flex w-full flex-wrap items-center justify-between gap-x-3 pb-2", APP_BAR)}>
         <AppLogo section="demo" />
-        <button type="button" onClick={onSwitch} className="btn-quiet -mr-3">
+        {/* the one top menu (its own row on phones), then this page's own action, set apart as a key */}
+        <SiteMenu end={false} className="lg:ml-auto" />
+        <button
+          type="button"
+          onClick={onSwitch}
+          className="group -mr-3 flex h-11 items-center gap-2 border border-transparent px-3 font-display text-[17px] tracking-[0.04em] text-carbon transition-colors hover:border-ink/15"
+        >
+          <ArrowLeftRight aria-hidden className="size-[18px]" strokeWidth={1.6} />
           Switch shop
         </button>
       </header>

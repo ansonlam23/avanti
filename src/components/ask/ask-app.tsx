@@ -2,7 +2,7 @@
 
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { AppLogo, Receipt } from "@/components/brand";
+import { AppLogo, Receipt, SiteMenu } from "@/components/brand";
 import type { MenuResult } from "@/lib/ai/shopper-types";
 import { getMyShops } from "@/lib/my-shops";
 import type { PaymentMode } from "@/lib/types";
@@ -234,33 +234,15 @@ export function AskApp({ initialPrompt = "" }: { initialPrompt?: string }) {
         <div className="flex h-full flex-col">
           {/* The bar spans the screen even where the chat is a centred column (tablets,
               very wide screens), so the logo sits in /start's spot on every page. */}
-          <header className="relative z-10 mx-[calc((min(100vw,480px)-100vw)/2)] flex items-center gap-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),18px)] sm:pl-8 sm:pr-6 md:mx-[calc((min(100vw,640px)-100vw)/2)] lg:mx-[calc((min(100vw,1600px)-100vw)/2)] lg:px-12 lg:pb-3 lg:pt-8">
-            <div className="flex min-w-0 flex-1 flex-col items-start">
+          <header className="relative z-10 mx-[calc((min(100vw,480px)-100vw)/2)] flex flex-wrap items-center gap-x-3 pb-3 pl-5 pr-3 pt-[max(env(safe-area-inset-top),18px)] sm:pl-8 sm:pr-6 md:mx-[calc((min(100vw,640px)-100vw)/2)] lg:mx-[calc((min(100vw,1600px)-100vw)/2)] lg:px-12 lg:pb-3 lg:pt-8">
+            {/* grows on the logo's row but never shrinks under the logo, so the menu wraps to its own row on phones */}
+            <div className="flex flex-1 basis-auto flex-col items-start">
               <h1 className="sr-only">avanti shopper</h1>
               {/* the avanti logo + who's talking: "avanti shopper" */}
               <AppLogo section="shopper" />
-              {/* phones: how avanti uses AI, under the logo (a new tab, so the chat stays put);
-                  the short label only when "New chat" leaves too little room. Laptops show it at the right. */}
-              <p className="@container -mt-1 w-full text-[15px] leading-tight text-ink-muted lg:hidden">
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener"
-                  className="relative whitespace-nowrap text-carbon underline decoration-transparent decoration-1 underline-offset-4 transition-colors after:absolute after:-inset-x-1 after:-inset-y-3 after:content-[''] hover:decoration-current lg:hidden"
-                >
-                  <span className="hidden @min-[16.5rem]:inline">How avanti uses AI</span>
-                  <span className="@min-[16.5rem]:hidden">How AI is used</span>
-                </a>
-              </p>
             </div>
-            <a
-              href="/privacy"
-              target="_blank"
-              rel="noopener"
-              className="hidden min-h-11 items-center px-2 text-[16px] text-ink-muted underline decoration-transparent decoration-1 underline-offset-[6px] transition-[color,text-decoration-color] duration-300 hover:text-ink hover:decoration-current lg:inline-flex"
-            >
-              How avanti uses AI
-            </a>
+            {/* the one top menu (Trust is how avanti uses AI); the other sections open in a new tab so the chat stays put */}
+            <SiteMenu current="shop" newTab end={!state.feed.length} />
             {state.feed.length ? (
               <button
                 type="button"

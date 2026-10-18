@@ -34,7 +34,7 @@ export function SiteFooter({
           ) : null}
           {privacyLink ? (
             <Link href="/privacy" className="btn-quiet px-0 text-[15px]">
-              How avanti uses AI
+              Trust
             </Link>
           ) : null}
         </p>

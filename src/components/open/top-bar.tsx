@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { APP_BAR, AppLogo } from "@/components/brand";
+import { APP_BAR, AppLogo, SiteMenu } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { INK_EASE } from "./ink";
 
@@ -82,7 +82,7 @@ export function TopBar({ done, current }: { done: number; current: number }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex items-center justify-between gap-3 pb-3 lg:grid lg:grid-cols-[1fr_auto_1fr]",
+        "sticky top-0 z-40 flex flex-wrap items-center justify-between gap-x-3 pb-3 lg:grid lg:grid-cols-[1fr_auto_1fr]",
         APP_BAR,
         scrolled ? "bg-counter shadow-[0_1px_0_rgb(22_58_66/0.1)]" : "bg-transparent",
         "lg:static lg:bg-transparent lg:pb-6 lg:shadow-none",
@@ -90,8 +90,8 @@ export function TopBar({ done, current }: { done: number; current: number }) {
     >
       <AppLogo section="shop" className="justify-self-start" />
       <StepBars done={done} current={current} />
-      {/* laptop: an empty third column keeps the steps centred */}
-      <span aria-hidden className="hidden lg:block" />
+      {/* the one top menu: its own row on phones; on laptops the third column, so the steps stay centred */}
+      <SiteMenu current="sell" className="lg:justify-self-end" />
     </header>
   );
 }
