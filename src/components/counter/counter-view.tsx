@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { Tabs as TabsPrimitive } from "radix-ui";
@@ -34,6 +34,10 @@ export interface CounterViewProps {
   /** The owner's cap on one AI order, in cents (null = no cap). */
   onAiLimit?: (cents: number | null) => Promise<boolean>;
   onSimulate: () => void;
+  /** Pause or resume all AI orders (absent: the paused state shows without a way back here). */
+  onAcceptAi?: (accept: boolean) => void;
+  /** The Talk key (voice commands), set beside the sound key. */
+  talk?: React.ReactNode;
   /** Which tab opens first (the lab uses it for shots). */
   initialTab?: "orders" | "menu" | "door";
 }
@@ -59,6 +63,8 @@ export function CounterView({
   onToggleAiOrderable,
   onAiLimit,
   onSimulate,
+  onAcceptAi,
+  talk,
   initialTab = "orders",
 }: CounterViewProps) {
   const { shop, items, orders, events, stats } = data;
@@ -70,6 +76,18 @@ export function CounterView({
   const front = orders.find((o) => o.id === (picked && held.some((h) => h.id === picked) ? picked : focusId)) ?? null;
   const rest = [...held, ...done].filter((o) => o.id !== front?.id);
   const soldOut = items.filter((i) => i.sold_out || i.stock <= 0).length;
+  const aiPaused = shop.rules?.accept_ai_orders === false;
+  // The shop's printable window sign opens in a new tab.
+  const signLink = (
+    <a
+      href={`/s/${shop.slug}/sign`}
+      target="_blank"
+      rel="noreferrer"
+      className={cn("link-ink", wide ? "text-[19px]!" : "-ml-[0.2rem] text-[17px]!")}
+    >
+      Print window sign <ArrowRight aria-hidden className={wide ? "size-[18px]" : "size-4"} strokeWidth={1.5} />
+    </a>
+  );
 
   const rail = (
     <>
@@ -113,32 +131,53 @@ export function CounterView({
 
   return (
     <main className="mx-auto w-full max-w-md px-5 pb-16 pt-[max(env(safe-area-inset-top),14px)] md:max-w-xl lg:max-w-page lg:px-10 lg:pb-24 lg:pt-7">
-      {/* the wordmark home; sound and the shop page on the right */}
-      <div className="flex items-center justify-between gap-4">
+      {/* the wordmark home; talk, sound and the shop's pages on the right (the voice slip drops from here) */}
+      <div className="relative flex items-center justify-between gap-4">
         <Link href="/" aria-label="avanti, home" className="py-2 pr-3 transition-opacity hover:opacity-70">
           <Wordmark className="text-[25px] lg:text-[30px]" />
         </Link>
-        <div className="flex items-center gap-2 lg:gap-5">
-          <SoundToggle
-            compact={!wide}
-            className="rounded-none border border-ink/15 font-sans text-[13px] font-semibold tracking-[0.12em] hover:border-ink/35 aria-pressed:border-carbon aria-pressed:bg-carbon"
-          />
+        <div className="flex items-center gap-2 lg:gap-7">
           {wide ? (
-            <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="link-ink text-[19px]!">
-              Shop page <ArrowUpRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
-            </a>
+            <>
+              <a href={`/s/${shop.slug}`} target="_blank" rel="noreferrer" className="link-ink text-[19px]!">
+                Shop page <ArrowUpRight aria-hidden className="size-[18px]" strokeWidth={1.5} />
+              </a>
+              {signLink}
+            </>
           ) : null}
+          {/* the keys sit at the far right, clear of the top-centre toasts */}
+          <div className="flex items-center gap-2">
+            {talk}
+            <SoundToggle
+              compact={!wide}
+              className="rounded-none border border-ink/15 font-sans text-[13px] font-semibold tracking-[0.12em] hover:border-ink/35 aria-pressed:border-carbon aria-pressed:bg-carbon"
+            />
+          </div>
         </div>
       </div>
 
       <header className="mt-6 flex flex-col gap-4 lg:mt-10 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
         <div className="min-w-0">
-          <p className="flex items-center gap-4">
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span className={cn("label-print inline-flex items-center gap-2", shop.open ? "text-carbon" : "text-ink-muted")}>
               <span aria-hidden className={cn("size-2", shop.open ? "bg-carbon" : "border border-ink-muted")} />
               {shop.open ? "Open" : "Closed"}
             </span>
             {shop.is_demo ? <span className="label-print text-ink-muted">Demo shop</span> : null}
+            {aiPaused ? (
+              <span className="inline-flex items-center gap-3">
+                <span className="label-print text-ink">AI orders paused</span>
+                {onAcceptAi ? (
+                  <button
+                    type="button"
+                    onClick={() => onAcceptAi(true)}
+                    className="-my-3 min-h-11 px-1 text-[15px] font-semibold text-carbon underline decoration-1 underline-offset-4 transition-opacity hover:opacity-75"
+                  >
+                    Resume
+                  </button>
+                ) : null}
+              </span>
+            ) : null}
           </p>
           <h1 className="mt-2 line-clamp-2 font-display text-[38px] leading-[1.06] text-balance lg:mt-3 lg:text-[58px] lg:leading-[1.02]">
             {shop.name}
@@ -147,10 +186,13 @@ export function CounterView({
         {wide ? (
           <Totals held={stats.held_cents} paid={stats.paid_cents} />
         ) : (
-          <p className="text-[16px] text-ink-muted">
-            <Money cents={stats.held_cents} className="font-mono font-medium text-ink" /> on hold ·{" "}
-            <Money cents={stats.paid_cents} className="font-mono font-medium text-ink" /> charged
-          </p>
+          <div className="flex flex-col items-start gap-1">
+            <p className="text-[16px] text-ink-muted">
+              <Money cents={stats.held_cents} className="font-mono font-medium text-ink" /> on hold ·{" "}
+              <Money cents={stats.paid_cents} className="font-mono font-medium text-ink" /> charged
+            </p>
+            {signLink}
+          </div>
         )}
       </header>
 

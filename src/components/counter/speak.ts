@@ -9,10 +9,17 @@ import type { DashboardOrder } from "@/lib/orders/dashboard";
 // room hears them: "New order: 2 lemon bars for Jordan, pickup at 5:30 PM.
 // $9.50 held on Visa." Only when sound is ON, and only after a real tap this
 // visit (the sound toggle's click unlocks it; browsers refuse speech before a
-// gesture anyway). One calm en-US voice at rate 1.
+// gesture anyway). One calm en-US voice at rate 1. The same voice answers the
+// owner's voice commands (speakLine), and waits while the mic listens (holdSpeech).
 
 let unlocked = false;
+let primed = false;
 let voice: SpeechSynthesisVoice | null = null;
+// While the owner talks to the counter, its own voice waits (the mic would hear it).
+let holding = false;
+let waiting: DashboardOrder[] = [];
+// Chrome drops `onend` for utterances that get garbage-collected mid-sentence: keep the last one.
+let current: SpeechSynthesisUtterance | null = null;
 
 /** Calm, natural en-US voices first (Apple, Google, Microsoft), then any en-US, then any English. */
 const PREFERRED = ["Samantha", "Ava", "Allison", "Susan", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Microsoft Zira"];
@@ -38,6 +45,7 @@ function prime() {
   const s = synth();
   if (!s) return;
   unlocked = true;
+  primed = true;
   try {
     const u = new SpeechSynthesisUtterance("");
     u.volume = 0;
@@ -60,8 +68,9 @@ export function useOrderVoice() {
     };
     loadVoices();
     s.addEventListener?.("voiceschanged", loadVoices);
+    // once is enough (typing a command would otherwise queue an empty line per key)
     const onGesture = () => {
-      if (!sfx.isMuted()) prime();
+      if (!sfx.isMuted() && !primed) prime();
       else unlocked = true;
     };
     window.addEventListener("pointerdown", onGesture, true);
@@ -97,20 +106,68 @@ export function orderSentence(o: DashboardOrder): string {
   return `New order: ${what}${who}, ${when}. ${formatCents(o.amount_cents)} ${held}.`;
 }
 
-/** Say new orders after the doorbell (queued if several land together). */
+/** One line in the counter's voice (the same voice for orders and replies). */
+function utterance(text: string): SpeechSynthesisUtterance {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US";
+  if (voice) u.voice = voice;
+  u.rate = 1;
+  u.pitch = 1;
+  u.volume = 1;
+  return u;
+}
+
+/** Say new orders after the doorbell (queued if several land together; held while the owner talks). */
 export function speakOrders(orders: DashboardOrder[], delayMs = 900) {
   const s = synth();
   if (!s || !orders.length || sfx.isMuted() || !unlocked) return;
   window.setTimeout(() => {
     if (sfx.isMuted()) return;
-    for (const o of orders) {
-      const u = new SpeechSynthesisUtterance(orderSentence(o));
-      u.lang = "en-US";
-      if (voice) u.voice = voice;
-      u.rate = 1;
-      u.pitch = 1;
-      u.volume = 1;
-      s.speak(u);
+    if (holding) {
+      waiting.push(...orders);
+      return;
     }
+    for (const o of orders) s.speak(utterance(orderSentence(o)));
   }, delayMs);
+}
+
+/**
+ * Say a short reply ("Done. Croissants are sold out."), only when sound is on.
+ * Returns whether it was spoken; `onEnd` runs when it finishes (not if it wasn't).
+ */
+export function speakLine(text: string, onEnd?: () => void): boolean {
+  const s = synth();
+  if (!s || sfx.isMuted() || !unlocked) return false;
+  const u = utterance(text);
+  if (onEnd) {
+    let done = false;
+    const end = () => {
+      if (done) return;
+      done = true;
+      onEnd();
+    };
+    u.onend = end;
+    u.onerror = end;
+  }
+  current = u;
+  try {
+    s.speak(current);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+/** Hold the counter's voice while the mic listens (stops what it's saying); release says what waited. */
+export function holdSpeech(on: boolean) {
+  holding = on;
+  if (on) {
+    synth()?.cancel();
+    return;
+  }
+  if (waiting.length) {
+    const list = waiting;
+    waiting = [];
+    speakOrders(list, 300);
+  }
 }

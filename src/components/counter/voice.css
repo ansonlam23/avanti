@@ -1,0 +1,41 @@
+/* The counter's Talk key (talk-key.tsx). Global stylesheet, so every class and
+   keyframe is prefixed `voice-`. Ink rules: square, one hairline, no glow. */
+
+.voice-key {
+  position: relative;
+}
+
+/* Listening: a teal hairline ring breathes out from the key, slowly. */
+.voice-key[data-listening]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--color-carbon);
+  pointer-events: none;
+  animation: voice-ring 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes voice-ring {
+  from {
+    inset: -1px;
+    opacity: 0.75;
+  }
+  to {
+    inset: -9px;
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: the ring stays put, a second rule around the key (like the seal's). */
+@media (prefers-reduced-motion: reduce) {
+  .voice-key[data-listening]::after {
+    animation: none;
+    inset: -5px;
+    opacity: 0.55;
+  }
+}
+
+/* The live words: the owner's brush, a little lighter until the engine settles. */
+.voice-heard {
+  overflow-wrap: anywhere;
+  transition: color 0.3s ease;
+}

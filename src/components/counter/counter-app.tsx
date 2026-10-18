@@ -11,10 +11,35 @@ import type { Item } from "@/lib/types";
 import type { Dashboard, DashboardOrder } from "@/lib/orders/dashboard";
 import { CounterView } from "./counter-view";
 import { speakOrders, useOrderVoice } from "./speak";
+import { TalkKey, type VoiceReply } from "./talk-key";
 import { useOwnerToken } from "./use-owner-token";
 import { useWide } from "./use-wide";
+import {
+  alreadyLine,
+  askLine,
+  commandFor,
+  doneLine,
+  exampleItem,
+  isAlready,
+  missLine,
+  parseBest,
+  type Pending,
+  type VoiceCommand,
+  type VoiceItem,
+} from "./voice-commands";
 
 type Load = { state: "loading" } | { state: "ready"; data: Dashboard } | { state: "error"; message: string; code?: string };
+
+/** How long "Which one?" waits for its answer. */
+const PENDING_MS = 30_000;
+
+/** The "Which one?" choices: names, with the price when two share a name. */
+function choicesFor(items: VoiceItem[]): { id: string; label: string }[] {
+  return items.map((i) => {
+    const twin = items.some((o) => o.id !== i.id && o.name.trim().toLowerCase() === i.name.trim().toLowerCase());
+    return { id: i.id, label: twin && i.price_cents != null ? `${i.name} · ${formatCents(i.price_cents)}` : i.name };
+  });
+}
 
 export function CounterApp({ slug }: { slug: string }) {
   const token = useOwnerToken(slug);
@@ -24,6 +49,9 @@ export function CounterApp({ slug }: { slug: string }) {
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [simulating, setSimulating] = useState(false);
   const known = useRef<Set<string> | null>(null);
+  // The last "Which one?" question, until it's answered or PENDING_MS pass.
+  const pending = useRef<Pending | null>(null);
+  const pendingTimer = useRef<number | null>(null);
   useOrderVoice();
 
   const api = useCallback(
@@ -77,13 +105,28 @@ export function CounterApp({ slug }: { slug: string }) {
 
   useShopPings(token ? [slug] : [], () => void refresh(), 2500);
 
-  async function toggleSoldOut(item: Item, soldOut: boolean) {
-    setBusy(item.id);
-    const { res, body } = await api(`/api/items/${item.id}/sold-out`, {
-      method: "POST",
-      body: JSON.stringify({ sold_out: soldOut }),
-    });
+  // The owner endpoints, shared by the switches and by voice. `busy` disables the control being saved.
+  async function saveSoldOut(itemId: string, soldOut: boolean) {
+    setBusy(itemId);
+    const out = await api(`/api/items/${itemId}/sold-out`, { method: "POST", body: JSON.stringify({ sold_out: soldOut }) });
     setBusy(null);
+    return out;
+  }
+  async function saveAiOrderable(itemId: string, orderable: boolean) {
+    setBusy(itemId);
+    const out = await api(`/api/items/${itemId}/ai-orderable`, { method: "POST", body: JSON.stringify({ ai_orderable: orderable }) });
+    setBusy(null);
+    return out;
+  }
+  async function saveRules(patch: { ai_max_order_cents?: number | null; accept_ai_orders?: boolean }) {
+    setBusy("ai-limit");
+    const out = await api(`/api/shops/${slug}/rules`, { method: "POST", body: JSON.stringify(patch) });
+    setBusy(null);
+    return out;
+  }
+
+  async function toggleSoldOut(item: Item, soldOut: boolean) {
+    const { res, body } = await saveSoldOut(item.id, soldOut);
     if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't update the item");
     if (soldOut && body.held_orders > 0) {
       toast.warning(`${item.name} is sold out for new orders`, {
@@ -95,12 +138,7 @@ export function CounterApp({ slug }: { slug: string }) {
 
   // The owner's rules for AI orders (CONTRACTS §13): a spending cap, and items kept off-limits to AI.
   async function setAiLimit(cents: number | null): Promise<boolean> {
-    setBusy("ai-limit");
-    const { res, body } = await api(`/api/shops/${slug}/rules`, {
-      method: "POST",
-      body: JSON.stringify({ ai_max_order_cents: cents }),
-    });
-    setBusy(null);
+    const { res, body } = await saveRules({ ai_max_order_cents: cents });
     if (!res.ok) {
       toast.error(body?.error?.message ?? "Couldn't change the AI limit");
       return false;
@@ -110,16 +148,70 @@ export function CounterApp({ slug }: { slug: string }) {
     return true;
   }
 
+  async function setAcceptAi(accept: boolean) {
+    const { res, body } = await saveRules({ accept_ai_orders: accept });
+    if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't change AI orders");
+    toast(accept ? "Taking AI orders again" : "AI orders are paused");
+    void refresh();
+  }
+
   async function toggleAiOrderable(item: Item, orderable: boolean) {
-    setBusy(item.id);
-    const { res, body } = await api(`/api/items/${item.id}/ai-orderable`, {
-      method: "POST",
-      body: JSON.stringify({ ai_orderable: orderable }),
-    });
-    setBusy(null);
+    const { res, body } = await saveAiOrderable(item.id, orderable);
     if (!res.ok) return toast.error(body?.error?.message ?? "Couldn't update the item");
     if (!orderable) toast(`${item.name} is in-person only`, { description: "AI shoppers will be asked to order it at the shop." });
     void refresh();
+  }
+
+  // ── Voice: the Talk key (parsed here against the live menu, no AI calls) ──
+
+  function ask(question: Pending | null) {
+    if (pendingTimer.current) window.clearTimeout(pendingTimer.current);
+    pending.current = question;
+    pendingTimer.current = question ? window.setTimeout(() => ask(null), PENDING_MS) : null;
+  }
+
+  /** What the owner said (each reading the engine heard) → one change, and the line to say back. */
+  async function runVoice(readings: string[]): Promise<VoiceReply> {
+    if (load.state !== "ready") return { tone: "error", line: "The counter is still loading." };
+    const { items } = load.data;
+    const result = parseBest(readings, items, { pending: pending.current });
+    ask(null);
+    if (result.ok) return apply(result.command);
+    if (result.reason === "ambiguous") {
+      ask({ intent: result.intent, candidates: result.candidates.map((c) => c.id) });
+      return { tone: "ask", line: askLine(result.candidates), choices: choicesFor(result.candidates) };
+    }
+    return { tone: "miss", line: missLine(result, items) };
+  }
+
+  /** The owner tapped one of the "Which one?" choices. */
+  async function chooseVoice(itemId: string): Promise<VoiceReply> {
+    const asked = pending.current;
+    ask(null);
+    const item = load.state === "ready" ? load.data.items.find((i) => i.id === itemId) : undefined;
+    if (!asked || !item) return { tone: "miss", line: "That question expired. Say it again." };
+    return apply(commandFor(asked.intent, item));
+  }
+
+  async function apply(cmd: VoiceCommand): Promise<VoiceReply> {
+    if (load.state !== "ready") return { tone: "error", line: "The counter is still loading." };
+    if (isAlready(cmd, { items: load.data.items, rules: load.data.shop.rules })) return { tone: "same", line: alreadyLine(cmd) };
+    const { res, body } =
+      cmd.kind === "sold_out"
+        ? await saveSoldOut(cmd.item.id, cmd.sold_out)
+        : cmd.kind === "ai_orderable"
+          ? await saveAiOrderable(cmd.item.id, cmd.ai_orderable)
+          : cmd.kind === "ai_limit"
+            ? await saveRules({ ai_max_order_cents: cmd.cents })
+            : await saveRules({ accept_ai_orders: cmd.accept });
+    if (!res.ok) return { tone: "error", line: body?.error?.message ?? "That didn’t save. Try again." };
+    void refresh();
+    const held = cmd.kind === "sold_out" && cmd.sold_out ? Number(body?.held_orders ?? 0) : 0;
+    return {
+      tone: "done",
+      line: doneLine(cmd),
+      note: held > 0 ? `${held} held order${held > 1 ? "s" : ""} still keep their item.` : undefined,
+    };
   }
 
   async function pickup(order: DashboardOrder, code: string): Promise<boolean> {
@@ -173,7 +265,9 @@ export function CounterApp({ slug }: { slug: string }) {
       onToggleSoldOut={(item, soldOut) => void toggleSoldOut(item, soldOut)}
       onToggleAiOrderable={(item, orderable) => void toggleAiOrderable(item, orderable)}
       onAiLimit={setAiLimit}
+      onAcceptAi={(accept) => void setAcceptAi(accept)}
       onSimulate={() => void simulateBots()}
+      talk={<TalkKey example={exampleItem(load.data.items).many} onCommand={runVoice} onChoose={chooseVoice} />}
     />
   );
 }
