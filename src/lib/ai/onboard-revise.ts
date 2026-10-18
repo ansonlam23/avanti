@@ -198,7 +198,7 @@ export function validateRevision(raw: unknown, ctx: ReviseContext): MenuRevision
     const r = rawChangeSchema.safeParse(rawChange && typeof rawChange === "object" ? rawChange : {});
     if (!r.success) continue;
     const c = r.data;
-    const named = cleanName(c.name);
+    const named = titled(cleanName(c.name));
     const target =
       (c.id && lines.has(c.id) ? c.id : null) ?? findByName(named) ?? findByName(cleanName(c.name_en));
 
@@ -260,7 +260,7 @@ function updatePatch(
   unclear: string[],
 ): Partial<RevisionItem> {
   const patch: Partial<RevisionItem> = {};
-  const name = cleanName(c.name);
+  const name = titled(cleanName(c.name));
   // a rename, not the same name said in another case ("lemon bars" = "Lemon bars")
   if (name && itemKey(name) !== itemKey(line.name)) patch.name = name;
   const nameEn = cleanName(c.name_en);
@@ -308,6 +308,12 @@ function newItem(name: string, c: RawChange, owner: OwnerWords, said: PriceSourc
     tags: nextTags([], c, owner, name, unclear),
     est_quantity: validateQuantity(c.est_quantity),
   };
+}
+
+/** "brownies" (typed in a hurry) → "Brownies"; names with any capital, or in scripts without case, stay as said. */
+function titled(name: string | null): string | null {
+  if (!name || name !== name.toLowerCase()) return name;
+  return name.charAt(0).toLocaleUpperCase() + name.slice(1);
 }
 
 /** A "set" price that traces to the owner's words in this message, else null. */

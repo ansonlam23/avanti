@@ -87,6 +87,11 @@ describe("validateRevision", () => {
     ]);
   });
 
+  it("capitalizes a name typed all in lowercase", () => {
+    const r = revise([change({ op: "add", id: null, name: "oat milk latte", name_en: "oat milk latte" })], { notes: "add oat milk latte" });
+    expect(r.changes).toMatchObject([{ op: "add", item: { name: "Oat milk latte", name_en: null } }]);
+  });
+
   it("adds an item without a price as needing one", () => {
     const r = revise([change({ op: "add", id: null, name: "Scones" })], { notes: "we also have scones" });
     expect(r.changes).toMatchObject([{ op: "add", item: { name: "Scones", price_cents: null, price_source: "missing" } }]);
